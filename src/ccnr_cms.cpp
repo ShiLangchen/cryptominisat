@@ -34,10 +34,7 @@ THE SOFTWARE.
 
 using namespace CMSat;
 
-CMS_ccnr::CMS_ccnr(Solver* _solver) :
-    solver(_solver),
-    seen(_solver->seen),
-    toClear(_solver->toClear)
+CMS_ccnr::CMS_ccnr(Solver *_solver) : solver(_solver), seen(_solver->seen), toClear(_solver->toClear)
 {
     ls_s = new CCNR::ls_solver(solver->conf.sls_ccnr_asipire);
     ls_s->set_verbosity(solver->conf.verbosity);
@@ -48,13 +45,11 @@ CMS_ccnr::~CMS_ccnr()
     delete ls_s;
 }
 
-lbool CMS_ccnr::main_alter(int64_t mems, vector<uint8_t>& ret)
+lbool CMS_ccnr::main_alter(int64_t mems, vector<uint8_t> &ret)
 {
     //It might not work well with few number of variables
     //rnovelty could also die/exit(-1), etc.
-    if (solver->nVars() < 50 ||
-        solver->binTri.irredBins + solver->longIrredCls.size() < 10
-    ) {
+    if (solver->nVars() < 50 || solver->binTri.irredBins + solver->longIrredCls.size() < 10) {
         verb_print(1, "[ccnr] too few variables & clauses");
         return l_Undef;
     }
@@ -64,11 +59,11 @@ lbool CMS_ccnr::main_alter(int64_t mems, vector<uint8_t>& ret)
         return l_Undef;
     }
 
-    int res = ls_s->local_search(nullptr, mems, solver->conf.prefix.c_str(), 50LL*1000);
+    int res = ls_s->local_search(nullptr, mems, solver->conf.prefix.c_str(), 50LL * 1000);
     if (res) {
-      ret.clear();
-      ret.resize(solver->nVars());
-      for(uint32_t i = 0; i < solver->nVars(); i++) ret[i] = ls_s->_solution[i+1];
+        ret.clear();
+        ret.resize(solver->nVars());
+        for (uint32_t i = 0; i < solver->nVars(); i++) ret[i] = ls_s->_solution[i + 1];
     }
     return res == 1 ? l_True : l_Undef;
 }
@@ -77,9 +72,7 @@ lbool CMS_ccnr::main(const uint32_t num_sls_called)
 {
     //It might not work well with few number of variables
     //rnovelty could also die/exit(-1), etc.
-    if (solver->nVars() < 50 ||
-        solver->binTri.irredBins + solver->longIrredCls.size() < 10
-    ) {
+    if (solver->nVars() < 50 || solver->binTri.irredBins + solver->longIrredCls.size() < 10) {
         verb_print(1, "[ccnr] too few variables & clauses");
         return l_Undef;
     }
@@ -92,35 +85,29 @@ lbool CMS_ccnr::main(const uint32_t num_sls_called)
         return l_Undef;
     }
 
-    vector<bool> phases(solver->nVars()+1);
-    for(uint32_t i = 0; i < solver->nVars(); i++) {
-        phases[i+1] = solver->varData[i].best_polarity;
+    vector<bool> phases(solver->nVars() + 1);
+    for (uint32_t i = 0; i < solver->nVars(); i++) {
+        phases[i + 1] = solver->varData[i].best_polarity;
     }
 
-    int res = ls_s->local_search(&phases, solver->conf.yalsat_max_mems*2*1000*1000,
-            solver->conf.prefix.c_str());
+    int res = ls_s->local_search(&phases, solver->conf.yalsat_max_mems * 2 * 1000 * 1000, solver->conf.prefix.c_str());
     lbool ret = deal_with_solution(res, num_sls_called);
 
-    double time_used = cpuTime()-startTime;
+    double time_used = cpuTime() - startTime;
     verb_print(1, "[ccnr] time: " << time_used);
     if (solver->sqlStats) {
-        solver->sqlStats->time_passed_min(
-            solver
-            , "sls-ccnr"
-            , time_used
-        );
+        solver->sqlStats->time_passed_min(solver, "sls-ccnr", time_used);
     }
 
     return ret;
 }
 
-template<class T>
-CMS_ccnr::add_cl_ret CMS_ccnr::add_this_clause(const T& cl)
+template<class T> CMS_ccnr::add_cl_ret CMS_ccnr::add_this_clause(const T &cl)
 {
     uint32_t sz = 0;
     bool sat = false;
     yals_lits.clear();
-    for(size_t i3 = 0; i3 < cl.size(); i3++) {
+    for (size_t i3 = 0; i3 < cl.size(); i3++) {
         Lit lit = cl[i3];
         assert(solver->varData[lit.var()].removed == Removed::none);
         lbool val = l_Undef;
@@ -137,7 +124,7 @@ CMS_ccnr::add_cl_ret CMS_ccnr::add_this_clause(const T& cl)
         } else if (val == l_False) {
             continue;
         }
-        int l = lit.var()+1;
+        int l = lit.var() + 1;
         l *= lit.sign() ? -1 : 1;
         yals_lits.push_back(l);
         sz++;
@@ -147,11 +134,11 @@ CMS_ccnr::add_cl_ret CMS_ccnr::add_this_clause(const T& cl)
     }
     if (sz == 0) {
         //it's unsat because of assumptions
-        verb_print(1,"[walksat] UNSAT because of assumptions in clause: " << cl);
+        verb_print(1, "[walksat] UNSAT because of assumptions in clause: " << cl);
         return add_cl_ret::unsat;
     }
 
-    for(auto& lit: yals_lits) {
+    for (auto &lit: yals_lits) {
         ls_s->_clauses[cl_num].literals.push_back(CCNR::lit(lit, cl_num));
     }
     cl_num++;
@@ -169,9 +156,9 @@ bool CMS_ccnr::init_problem()
     ls_s->make_space();
 
     vector<Lit> this_clause;
-    for(size_t i2 = 0; i2 < solver->nVars()*2; i2++) {
+    for (size_t i2 = 0; i2 < solver->nVars() * 2; i2++) {
         Lit lit = Lit::toLit(i2);
-        for(const Watched& w: solver->watches[lit]) {
+        for (const Watched &w: solver->watches[lit]) {
             if (w.isBin() && !w.red() && lit < w.lit2()) {
                 this_clause.clear();
                 this_clause.push_back(lit);
@@ -183,8 +170,8 @@ bool CMS_ccnr::init_problem()
             }
         }
     }
-    for(ClOffset offs: solver->longIrredCls) {
-        const Clause* cl = solver->cl_alloc.ptr(offs);
+    for (ClOffset offs: solver->longIrredCls) {
+        const Clause *cl = solver->cl_alloc.ptr(offs);
         assert(!cl->freed());
         assert(!cl->get_removed());
 
@@ -198,8 +185,8 @@ bool CMS_ccnr::init_problem()
     ls_s->_num_clauses = (int)cl_num;
     ls_s->make_space();
 
-    for (int c=0; c < ls_s->_num_clauses; c++) {
-        for(CCNR::lit item: ls_s->_clauses[c].literals) {
+    for (int c = 0; c < ls_s->_num_clauses; c++) {
+        for (CCNR::lit item: ls_s->_clauses[c].literals) {
             int v = item.var_num;
             ls_s->_vars[v].literals.push_back(item);
         }
@@ -211,13 +198,11 @@ bool CMS_ccnr::init_problem()
 
 struct ClWeightSorter
 {
-    bool operator()(const CCNR::clause& a, const CCNR::clause& b)
-    {
-        return a.weight > b.weight;
-    }
+    bool operator()(const CCNR::clause &a, const CCNR::clause &b) { return a.weight > b.weight; }
 };
 
-struct VarAndVal {
+struct VarAndVal
+{
     VarAndVal(uint32_t _var, long long _score) : var(_var), val(_score) {}
     uint32_t var;
     long long val;
@@ -225,34 +210,28 @@ struct VarAndVal {
 
 struct VarValSorter
 {
-    bool operator()(const VarAndVal& a, const VarAndVal& b) {
-        return a.val > b.val;
-    }
+    bool operator()(const VarAndVal &a, const VarAndVal &b) { return a.val > b.val; }
 };
 
 vector<pair<uint32_t, double>> CMS_ccnr::get_bump_based_on_cls()
 {
-    verb_print(1,"[ccnr] bumping based on clause weights");
+    verb_print(1, "[ccnr] bumping based on clause weights");
 
     //Check prerequisites
     assert(toClear.empty());
-    SLOW_DEBUG_DO(for(const auto x: seen) assert(x == 0));
+    SLOW_DEBUG_DO(for (const auto x : seen) assert(x == 0));
 
     vector<pair<uint32_t, double>> tobump_cl_var;
     std::sort(ls_s->_clauses.begin(), ls_s->_clauses.end(), ClWeightSorter());
     uint32_t vars_bumped = 0;
     uint32_t individual_vars_bumped = 0;
-    for(const auto& c: ls_s->_clauses) {
-        if (vars_bumped > solver->conf.sls_how_many_to_bump)
-            break;
+    for (const auto &c: ls_s->_clauses) {
+        if (vars_bumped > solver->conf.sls_how_many_to_bump) break;
 
-        for(uint32_t i = 0; i < c.literals.size(); i++) {
-            uint32_t v = c.literals[i].var_num-1;
-            if (v < solver->nVars() &&
-                solver->varData[v].removed == Removed::none &&
-                solver->value(v) == l_Undef &&
-                seen[v] < solver->conf.sls_bump_var_max_n_times)
-            {
+        for (uint32_t i = 0; i < c.literals.size(); i++) {
+            uint32_t v = c.literals[i].var_num - 1;
+            if (v < solver->nVars() && solver->varData[v].removed == Removed::none && solver->value(v) == l_Undef
+                && seen[v] < solver->conf.sls_bump_var_max_n_times) {
                 if (seen[v] == 0) individual_vars_bumped++;
                 seen[v]++;
                 toClear.push_back(Lit(v, false));
@@ -262,7 +241,7 @@ vector<pair<uint32_t, double>> CMS_ccnr::get_bump_based_on_cls()
         }
     }
 
-    for(const auto x: toClear) seen[x.var()] = 0;
+    for (const auto x: toClear) seen[x.var()] = 0;
     toClear.clear();
 
     return tobump_cl_var;
@@ -271,14 +250,14 @@ vector<pair<uint32_t, double>> CMS_ccnr::get_bump_based_on_cls()
 vector<pair<uint32_t, double>> CMS_ccnr::get_bump_based_on_var_scores()
 {
     vector<VarAndVal> vs;
-    for(uint32_t i = 1; i < ls_s->_vars.size(); i++) {
-        vs.push_back(VarAndVal(i-1, ls_s->_vars[i].score));
+    for (uint32_t i = 1; i < ls_s->_vars.size(); i++) {
+        vs.push_back(VarAndVal(i - 1, ls_s->_vars[i].score));
     }
     std::sort(vs.begin(), vs.end(), VarValSorter());
 
     vector<pair<uint32_t, double>> tobump;
-    for(uint32_t i = 0; i < solver->conf.sls_how_many_to_bump; i++) {
-//         cout << "var: " << vs[i].var + 1 << " score: " <<  vs[i].val << endl;
+    for (uint32_t i = 0; i < solver->conf.sls_how_many_to_bump; i++) {
+        //         cout << "var: " << vs[i].var + 1 << " score: " <<  vs[i].val << endl;
         tobump.push_back(std::make_pair(vs[i].var, 3.0));
     }
     return tobump;
@@ -286,24 +265,24 @@ vector<pair<uint32_t, double>> CMS_ccnr::get_bump_based_on_var_scores()
 
 vector<pair<uint32_t, double>> CMS_ccnr::get_bump_based_on_conflict_ct()
 {
-    verb_print(1,"[ccnr] bumping based on var unsat frequency: conflict_ct");
+    verb_print(1, "[ccnr] bumping based on var unsat frequency: conflict_ct");
 
     vector<pair<uint32_t, double>> tobump;
     int mymax = 0;
-    for(uint32_t i = 1; i < ls_s->_conflict_ct.size(); i++) {
+    for (uint32_t i = 1; i < ls_s->_conflict_ct.size(); i++) {
         mymax = std::max(mymax, ls_s->_conflict_ct[i]);
     }
 
-    for(uint32_t i = 1; i < ls_s->_conflict_ct.size(); i++) {
+    for (uint32_t i = 1; i < ls_s->_conflict_ct.size(); i++) {
         double val = ls_s->_conflict_ct[i];
         if (mymax > 0) {
-            tobump.push_back(std::make_pair(i-1, (double)val/(double)mymax * 3.0));
+            tobump.push_back(std::make_pair(i - 1, (double)val / (double)mymax * 3.0));
         } else {
-            tobump.push_back(std::make_pair(i-1, 0));
+            tobump.push_back(std::make_pair(i - 1, 0));
         }
-//         if (tobump.back().second > 0) {
-//             cout << "var: " << tobump.back().first << " bump by: " << tobump.back().second << endl;
-//         }
+        //         if (tobump.back().second > 0) {
+        //             cout << "var: " << tobump.back().first << " bump by: " << tobump.back().second << endl;
+        //         }
     }
     return tobump;
 }
@@ -317,10 +296,10 @@ lbool CMS_ccnr::deal_with_solution(int res, const uint32_t num_sls_called)
             cout << endl;
         }
 
-        for(size_t i = 0; i < solver->nVars(); i++) {
-            solver->varData[i].stable_polarity = ls_s->_best_solution[i+1];
+        for (size_t i = 0; i < solver->nVars(); i++) {
+            solver->varData[i].stable_polarity = ls_s->_best_solution[i + 1];
             if (res) {
-                solver->varData[i].best_polarity = ls_s->_best_solution[i+1];
+                solver->varData[i].best_polarity = ls_s->_best_solution[i + 1];
             }
         }
     }
@@ -360,14 +339,13 @@ lbool CMS_ccnr::deal_with_solution(int res, const uint32_t num_sls_called)
     }
 
 
-    for(const auto& v: tobump) solver->bump_var_importance_all(v.first);
+    for (const auto &v: tobump) solver->bump_var_importance_all(v.first);
     if (solver->branch_strategy == branch::vsids) {
         solver->vsids_decay_var_act();
     }
 
 
-    verb_print(1, "[ccnr] Bumped vars: " << tobump.size()
-        << " bump type: " << solver->conf.sls_bump_type);
+    verb_print(1, "[ccnr] Bumped vars: " << tobump.size() << " bump type: " << solver->conf.sls_bump_type);
 
     if (!res) verb_print(2, "[ccnr] ASSIGNMENT NOT FOUND");
     else verb_print(1, "[ccnr] ASSIGNMENT FOUND");

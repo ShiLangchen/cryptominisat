@@ -28,92 +28,87 @@ THE SOFTWARE.
 #include "propby.h"
 #include "watcharray.h"
 #ifdef USE_MPI
-#include "mpi.h"
+    #include "mpi.h"
 #endif //USE_MPI
 
-namespace CMSat {
+namespace CMSat
+{
 
 class Clause;
 class SharedData;
 class Solver;
 class DataSync
 {
-    public:
-        DataSync(Solver* solver, SharedData* sharedData);
-        void finish_up_mpi();
-        bool enabled();
-        void set_shared_data(SharedData* sharedData);
-        void new_var(const bool bva);
-        void new_vars(const size_t n);
-        bool syncData();
-        void save_on_var_memory();
-        void updateVars(
-           const vector<uint32_t>& outer_to_inter
-            , const vector<uint32_t>& inter_to_outer
-        );
-        void signal_new_long_clause(const vector<Lit>& clause);
+  public:
+    DataSync(Solver *solver, SharedData *sharedData);
+    void finish_up_mpi();
+    bool enabled();
+    void set_shared_data(SharedData *sharedData);
+    void new_var(const bool bva);
+    void new_vars(const size_t n);
+    bool syncData();
+    void save_on_var_memory();
+    void updateVars(const vector<uint32_t> &outer_to_inter, const vector<uint32_t> &inter_to_outer);
+    void signal_new_long_clause(const vector<Lit> &clause);
 
-        struct Stats {
-            uint32_t sentUnitData = 0;
-            uint32_t recvUnitData = 0;
-            uint32_t sentBinData = 0;
-            uint32_t recvBinData = 0;
-        };
-        const Stats& get_stats() const;
+    struct Stats
+    {
+        uint32_t sentUnitData = 0;
+        uint32_t recvUnitData = 0;
+        uint32_t sentBinData = 0;
+        uint32_t recvBinData = 0;
+    };
+    const Stats &get_stats() const;
 
-    private:
-        void extend_bins_if_needed();
-        bool shareUnitData();
-        bool shareBinData();
-        bool syncBinFromOthers();
-        bool syncBinFromOthers(const Lit lit, const vector<Lit>& bins, uint32_t& finished, watch_subarray ws);
-        void syncBinToOthers();
-        void clear_set_binary_values();
-        bool add_bin_to_threads(const Lit lit1, const Lit lit2);
-        void signal_new_bin_clause(Lit lit1, Lit lit2);
+  private:
+    void extend_bins_if_needed();
+    bool shareUnitData();
+    bool shareBinData();
+    bool syncBinFromOthers();
+    bool syncBinFromOthers(const Lit lit, const vector<Lit> &bins, uint32_t &finished, watch_subarray ws);
+    void syncBinToOthers();
+    void clear_set_binary_values();
+    bool add_bin_to_threads(const Lit lit1, const Lit lit2);
+    void signal_new_bin_clause(Lit lit1, Lit lit2);
 
-        int thread_id = -1;
+    int thread_id = -1;
 
-        //stuff to sync
-        vector<std::pair<Lit, Lit> > newBinClauses;
+    //stuff to sync
+    vector<std::pair<Lit, Lit>> newBinClauses;
 
-        //stats
-        uint64_t lastSyncConf = 0;
-        vector<uint32_t> syncFinish;
-        Stats stats;
+    //stats
+    uint64_t lastSyncConf = 0;
+    vector<uint32_t> syncFinish;
+    Stats stats;
 
-        //Other systems
-        Solver* solver = nullptr;
-        SharedData* sharedData = nullptr;
+    //Other systems
+    Solver *solver = nullptr;
+    SharedData *sharedData = nullptr;
 
-        #ifdef USE_MPI
-        void set_up_for_mpi();
-        bool mpi_recv_from_others();
-        void mpi_send_to_others();
-        bool mpi_get_interrupt();
-        bool mpi_get_unit(
-            const lbool otherVal,
-            const uint32_t var,
-            uint32_t& thisGotUnitData
-        );
-        vector<uint32_t> syncMPIFinish;
-        MPI_Request   sendReq;
-        uint32_t*     mpiSendData = nullptr;
+#ifdef USE_MPI
+    void set_up_for_mpi();
+    bool mpi_recv_from_others();
+    void mpi_send_to_others();
+    bool mpi_get_interrupt();
+    bool mpi_get_unit(const lbool otherVal, const uint32_t var, uint32_t &thisGotUnitData);
+    vector<uint32_t> syncMPIFinish;
+    MPI_Request sendReq;
+    uint32_t *mpiSendData = nullptr;
 
-        int           mpiRank = 0;
-        int           mpiSize = 0;
-        uint32_t      mpiRecvUnitData = 0;
-        uint32_t      mpiRecvBinData = 0;
-        uint32_t      mpiSentBinData = 0;
-        #endif
+    int mpiRank = 0;
+    int mpiSize = 0;
+    uint32_t mpiRecvUnitData = 0;
+    uint32_t mpiRecvBinData = 0;
+    uint32_t mpiSentBinData = 0;
+#endif
 
-        //misc
-        uint32_t numCalls = 0;
-        vector<uint32_t>& seen;
-        vector<Lit>& toClear;
+    //misc
+    uint32_t numCalls = 0;
+    vector<uint32_t> &seen;
+    vector<Lit> &toClear;
 };
 
-inline const DataSync::Stats& DataSync::get_stats() const
+inline const DataSync::Stats &DataSync::get_stats() const
 {
     return stats;
 }
@@ -123,6 +118,6 @@ inline bool DataSync::enabled()
     return sharedData != nullptr;
 }
 
-}
+} // namespace CMSat
 
 #endif

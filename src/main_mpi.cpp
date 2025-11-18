@@ -36,7 +36,7 @@ using std::endl;
 
 int num_threads = 2;
 
-vector<lbool> solve(lbool& solution_val)
+vector<lbool> solve(lbool &solution_val)
 {
     int err, mpiRank, mpiSize;
     err = MPI_Comm_rank(MPI_COMM_WORLD, &mpiRank);
@@ -49,7 +49,7 @@ vector<lbool> solve(lbool& solution_val)
     conf.do_bva = false;
 
     if (mpiSize > 1 && mpiRank > 1) {
-        conf.origSeed = mpiRank*2000; //this will be added T that is the thread number within the MPI
+        conf.origSeed = mpiRank * 2000; //this will be added T that is the thread number within the MPI
         if (mpiRank % 6 == 3) {
             conf.polarity_mode = CMSat::PolarityMode::polarmode_pos;
             conf.restartType = CMSat::Restart::geom;
@@ -71,25 +71,24 @@ vector<lbool> solve(lbool& solution_val)
     bool done = false;
 
 
-    #ifdef VERBOSE_DEBUG_MPI_SENDRCV
+#ifdef VERBOSE_DEBUG_MPI_SENDRCV
     cout << "c created solver " << mpiRank << " reading in file..." << endl;
-    #endif
-    while(!done) {
+#endif
+    while (!done) {
         MPI_Bcast(&data, 1024, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
         //cout << "c solver " << mpiRank << " got file msg " << num_msgs << endl;
 
         uint32_t i = 0;
         if (num_msgs == 0) {
             solver.new_vars(data[0].var());
-            #ifdef VERBOSE_DEBUG_MPI_SENDRCV
-            cout << "c Solver " << mpiRank
-            << " was told by MPI there are " << solver.nVars() << " variables" << endl;
-            #endif
+#ifdef VERBOSE_DEBUG_MPI_SENDRCV
+            cout << "c Solver " << mpiRank << " was told by MPI there are " << solver.nVars() << " variables" << endl;
+#endif
             i++;
         }
         num_msgs++;
 
-        for(; i < 1024; i ++) {
+        for (; i < 1024; i++) {
             if (data[i] == lit_Error) {
                 done = true;
                 break;
@@ -103,12 +102,10 @@ vector<lbool> solve(lbool& solution_val)
             }
         }
     }
-    #ifdef VERBOSE_DEBUG_MPI_SENDRCV
-    cout << "c Solver " << mpiRank
-    << " finished getting all of the file."
-    << " nvars: " << solver.nVars()
-    << " num_clauses: " << num_clauses << endl;
-    #endif
+#ifdef VERBOSE_DEBUG_MPI_SENDRCV
+    cout << "c Solver " << mpiRank << " finished getting all of the file."
+         << " nvars: " << solver.nVars() << " num_clauses: " << num_clauses << endl;
+#endif
 
     solution_val = solver.solve();
     vector<lbool> model;
@@ -119,7 +116,7 @@ vector<lbool> solve(lbool& solution_val)
 }
 
 
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
     int err;
     err = MPI_Init(&argc, &argv);
@@ -144,8 +141,8 @@ int main(int argc, char** argv)
     }
 
     assert(argc == 3);
-    for(uint32_t i = 0; i < strlen(argv[2]); i++) {
-        if (argv[2][i]-'0' < 0 || argv[2][i]-'0' > '9') {
+    for (uint32_t i = 0; i < strlen(argv[2]); i++) {
+        if (argv[2][i] - '0' < 0 || argv[2][i] - '0' > '9') {
             cout << "ERROR: You MUST give a thread number that's an integer!" << endl;
             exit(-1);
         }
@@ -166,10 +163,7 @@ int main(int argc, char** argv)
         gzFile in = gzopen(filename.c_str(), "rb");
         DimacsParser<StreamBuffer<gzFile, GZ>, CMSat::DataSyncServer> parser(&server, nullptr, 0);
         if (in == nullptr) {
-            std::cerr
-            << "ERROR! Could not open file '"
-            << filename
-            << "' for reading: " << strerror(errno) << endl;
+            std::cerr << "ERROR! Could not open file '" << filename << "' for reading: " << strerror(errno) << endl;
 
             std::exit(1);
         }
@@ -180,7 +174,8 @@ int main(int argc, char** argv)
         }
         gzclose(in);
 
-        cout << "c read in file" << endl;;
+        cout << "c read in file" << endl;
+        ;
 
         server.send_cnf_to_solvers();
 
@@ -196,10 +191,9 @@ int main(int argc, char** argv)
     } else {
         lbool solution_val;
         const vector<lbool> model = solve(solution_val);
-        #ifdef VERBOSE_DEBUG_MPI_SENDRCV
-        cout << "c --> MPI Slave Rank " << mpiRank
-        << " Solved " <<  << " with value: " << solution_val << std::endl;
-        #endif
+#ifdef VERBOSE_DEBUG_MPI_SENDRCV
+        cout << "c --> MPI Slave Rank " << mpiRank << " Solved " < < < < " with value: " << solution_val << std::endl;
+#endif
 
         if (solution_val != l_Undef) {
             //Send tag 1 to 0 that indicates we solved
@@ -208,22 +202,21 @@ int main(int argc, char** argv)
             solution_dat.push_back(toInt(solution_val));
             if (solution_val == l_True) {
                 solution_dat.push_back(model.size());
-                for(uint32_t i = 0; i < model.size(); i++) {
+                for (uint32_t i = 0; i < model.size(); i++) {
                     solution_dat.push_back(toInt(model[i]));
                 }
             }
 
             err = MPI_Isend(solution_dat.data(), solution_dat.size(), MPI_UNSIGNED, 0, 1, MPI_COMM_WORLD, &req);
             assert(err == MPI_SUCCESS);
-            #ifdef VERBOSE_DEBUG_MPI_SENDRCV
-            cout << "c --> MPI Slave Rank " << mpiRank
-            << " sent tag 1 to master to indicate finished" << std::endl;
-            #endif
+#ifdef VERBOSE_DEBUG_MPI_SENDRCV
+            cout << "c --> MPI Slave Rank " << mpiRank << " sent tag 1 to master to indicate finished" << std::endl;
+#endif
 
             //Either we should we get an acknowledgement of receipt, or we get an interrupt
             int flag;
             MPI_Status status;
-            while(true) {
+            while (true) {
                 err = MPI_Iprobe(0, 1, MPI_COMM_WORLD, &flag, &status);
                 assert(err == MPI_SUCCESS);
 
@@ -232,10 +225,10 @@ int main(int argc, char** argv)
                     unsigned buf;
                     err = MPI_Recv(&buf, 0, MPI_UNSIGNED, 0, 1, MPI_COMM_WORLD, &status);
                     assert(err == MPI_SUCCESS);
-                    #ifdef VERBOSE_DEBUG_MPI_SENDRCV
+#ifdef VERBOSE_DEBUG_MPI_SENDRCV
                     cout << "c --> MPI Slave Rank " << mpiRank
-                    << " got tag 1 from master. Let's cancel our send & exit." << std::endl;
-                    #endif
+                         << " got tag 1 from master. Let's cancel our send & exit." << std::endl;
+#endif
 
                     err = MPI_Cancel(&req);
                     assert(err == MPI_SUCCESS);
@@ -248,10 +241,10 @@ int main(int argc, char** argv)
 
                 //OK, server got our message, we can exit
                 if (op_completed) {
-                    #ifdef VERBOSE_DEBUG_MPI_SENDRCV
+#ifdef VERBOSE_DEBUG_MPI_SENDRCV
                     cout << "c --> MPI Slave Rank " << mpiRank
-                    << " completed sending solution & tag 1 to master. Let's exit." << std::endl;
-                    #endif
+                         << " completed sending solution & tag 1 to master. Let's exit." << std::endl;
+#endif
                     break;
                 }
 

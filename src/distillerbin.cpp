@@ -39,14 +39,12 @@ using std::cout;
 using std::endl;
 
 #ifdef VERBOSE_DEBUG
-#define VERBOSE_SUBSUME_NONEXIST
+    #define VERBOSE_SUBSUME_NONEXIST
 #endif
 
 //#define VERBOSE_SUBSUME_NONEXIST
 
-DistillerBin::DistillerBin(Solver* _solver) :
-    solver(_solver)
-{}
+DistillerBin::DistillerBin(Solver *_solver) : solver(_solver) {}
 
 bool DistillerBin::distill()
 {
@@ -70,7 +68,8 @@ end:
 }
 
 // returns solver->okay()
-bool DistillerBin::distill_bin_cls_all( double time_mult) {
+bool DistillerBin::distill_bin_cls_all(double time_mult)
+{
     assert(solver->ok);
     if (time_mult == 0.0) return solver->okay();
     verb_print(6, "Doing distillation branch for long clauses");
@@ -80,14 +79,11 @@ bool DistillerBin::distill_bin_cls_all( double time_mult) {
     frat_func_start();
 
     //Time-limiting
-    maxNumProps =
-        solver->conf.distill_long_cls_time_limitM*200LL*1000ULL
-        *solver->conf.global_timeout_multiplier;
+    maxNumProps = solver->conf.distill_long_cls_time_limitM * 200LL * 1000ULL * solver->conf.global_timeout_multiplier;
 
-    if (solver->litStats.irredLits + solver->litStats.redLits <
-            (500ULL*1000ULL*solver->conf.var_and_mem_out_mult)
-    ) {
-        maxNumProps *=2;
+    if (solver->litStats.irredLits + solver->litStats.redLits
+        < (500ULL * 1000ULL * solver->conf.var_and_mem_out_mult)) {
+        maxNumProps *= 2;
     }
     maxNumProps *= time_mult;
     orig_maxNumProps = maxNumProps;
@@ -100,30 +96,22 @@ bool DistillerBin::distill_bin_cls_all( double time_mult) {
 
     bool time_out;
     vector<Lit> todo;
-    for(uint32_t i = 0; i < solver->nVars()*2; i ++) {
+    for (uint32_t i = 0; i < solver->nVars() * 2; i++) {
         const Lit lit = Lit::toLit(i);
         todo.push_back(lit);
     }
     std::shuffle(todo.begin(), todo.end(), solver->mtrand);
-    for(const auto& lit: todo) {
+    for (const auto &lit: todo) {
         time_out = go_through_bins(lit);
         if (time_out || !solver->okay()) break;
     }
 
     const double time_used = cpuTime() - my_time;
-    const double time_remain = float_div(
-        maxNumProps - ((int64_t)solver->propStats.bogoProps-(int64_t)oldBogoProps),
-        orig_maxNumProps);
-        verb_print(2, "[distill-bin] cls" << " tried: "
-                << runStats.checkedClauses << "/" << potential_size);
+    const double time_remain =
+            float_div(maxNumProps - ((int64_t)solver->propStats.bogoProps - (int64_t)oldBogoProps), orig_maxNumProps);
+    verb_print(2, "[distill-bin] cls" << " tried: " << runStats.checkedClauses << "/" << potential_size);
     if (solver->sqlStats) {
-        solver->sqlStats->time_passed(
-            solver
-            , "distill bin cls"
-            , time_used
-            , time_out
-            , time_remain
-        );
+        solver->sqlStats->time_passed(solver, "distill bin cls", time_used, time_out, time_remain);
     }
     frat_func_end();
 
@@ -134,12 +122,11 @@ bool DistillerBin::distill_bin_cls_all( double time_mult) {
     return solver->okay();
 }
 
-bool DistillerBin::go_through_bins(
-    const Lit lit1
-) {
+bool DistillerBin::go_through_bins(const Lit lit1)
+{
     solver->watches[lit1].copyTo(tmp);
 
-    for (const auto& w: tmp) {
+    for (const auto &w: tmp) {
         if (!w.isBin() || //check if we are bin
             lit1 > w.lit2() || // don't do it 2x
             w.red()) // only irred
@@ -148,9 +135,8 @@ bool DistillerBin::go_through_bins(
         }
 
         //if done enough, stop doing it
-        if ((int64_t)solver->propStats.bogoProps-(int64_t)oldBogoProps >= maxNumProps
-            || solver->must_interrupt_asap()
-        ) {
+        if ((int64_t)solver->propStats.bogoProps - (int64_t)oldBogoProps >= maxNumProps
+            || solver->must_interrupt_asap()) {
             verb_print(3, "Need to finish distillation -- ran out of prop (=allocated time)");
             runStats.timeOut++;
             return true;
@@ -179,19 +165,16 @@ bool DistillerBin::go_through_bins(
     return false;
 }
 
-bool DistillerBin::try_distill_bin(
-    Lit lit1,
-    Lit lit2,
-    const Watched& w
-) {
+bool DistillerBin::try_distill_bin(Lit lit1, Lit lit2, const Watched &w)
+{
     assert(solver->okay());
     assert(solver->prop_at_head());
     assert(solver->decisionLevel() == 0);
-    #ifdef FRAT_DEBUG
+#ifdef FRAT_DEBUG
     if (solver->conf.verbosity >= 6) {
         cout << "Trying to distill clause:" << lits << endl;
     }
-    #endif
+#endif
 
     //Try different ordering
     if (rnd_uint(solver->mtrand, 1) == 1) std::swap(lit1, lit2);
@@ -246,7 +229,7 @@ bool DistillerBin::try_distill_bin(
     return true;
 }
 
-DistillerBin::Stats& DistillerBin::Stats::operator+=(const Stats& other)
+DistillerBin::Stats &DistillerBin::Stats::operator+=(const Stats &other)
 {
     time_used += other.time_used;
     timeOut += other.timeOut;
@@ -261,52 +244,32 @@ DistillerBin::Stats& DistillerBin::Stats::operator+=(const Stats& other)
     return *this;
 }
 
-void DistillerBin::Stats::print_short(const Solver* solver) const
+void DistillerBin::Stats::print_short(const Solver *solver) const
 {
-    verb_print(1, "[distill-bin]"
-    << " useful: "<< numClShorten+clRemoved
-    << "/" << checkedClauses << "/" << potentialClauses
-    << " lits-rem: " << numLitsRem
-    << " cl-rem: " << clRemoved
-    << " 0-depth-assigns: " << zeroDepthAssigns
-    << solver->conf.print_times(time_used, timeOut));
+    verb_print(1,
+               "[distill-bin]" << " useful: " << numClShorten + clRemoved << "/" << checkedClauses << "/"
+                               << potentialClauses << " lits-rem: " << numLitsRem << " cl-rem: " << clRemoved
+                               << " 0-depth-assigns: " << zeroDepthAssigns
+                               << solver->conf.print_times(time_used, timeOut));
 }
 
 void DistillerBin::Stats::print(const size_t nVars) const
 {
     cout << "c -------- DISTILL-BIN STATS --------" << endl;
-    print_stats_line("c time"
-        , time_used
-        , ratio_for_stat(time_used, numCalled)
-        , "per call"
-    );
+    print_stats_line("c time", time_used, ratio_for_stat(time_used, numCalled), "per call");
 
-    print_stats_line("c timed out"
-        , timeOut
-        , stats_line_percent(timeOut, numCalled)
-        , "% of calls"
-    );
+    print_stats_line("c timed out", timeOut, stats_line_percent(timeOut, numCalled), "% of calls");
 
-    print_stats_line("c distill/checked/potential"
-        , numClShorten
-        , checkedClauses
-        , potentialClauses
-    );
+    print_stats_line("c distill/checked/potential", numClShorten, checkedClauses, potentialClauses);
 
-    print_stats_line("c lits-rem",
-        numLitsRem
-    );
-    print_stats_line("c 0-depth-assigns",
-        zeroDepthAssigns
-        , stats_line_percent(zeroDepthAssigns, nVars)
-        , "% of vars"
-    );
+    print_stats_line("c lits-rem", numLitsRem);
+    print_stats_line("c 0-depth-assigns", zeroDepthAssigns, stats_line_percent(zeroDepthAssigns, nVars), "% of vars");
     cout << "c -------- DISTILL STATS END --------" << endl;
 }
 
 double DistillerBin::mem_used() const
 {
     double mem_used = sizeof(DistillerBin);
-    mem_used += lits.size()*sizeof(Lit);
+    mem_used += lits.size() * sizeof(Lit);
     return mem_used;
 }

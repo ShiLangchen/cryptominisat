@@ -38,81 +38,76 @@ using std::vector;
 
 using namespace CMSat;
 
-class Main: public MainCommon
+class Main : public MainCommon
 {
-    public:
-        Main(int argc, char** argv);
-        ~Main()
-        {
-            delete solver;
-            if (fratf) {
-                fflush(fratf);
-                fclose(fratf);
-            }
+  public:
+    Main(int argc, char **argv);
+    ~Main()
+    {
+        delete solver;
+        if (fratf) {
+            fflush(fratf);
+            fclose(fratf);
         }
+    }
 
-        void parseCommandLine();
-        virtual int solve();
+    void parseCommandLine();
+    virtual int solve();
 
-    private:
-        //arguments
-        int argc;
-        char** argv;
-        string var_elim_strategy;
-        void check_options_correctness();
-        void manually_parse_some_options();
-        void parse_restart_type();
-        void parse_polarity_type();
-        void parse_sampling_vars();
-        void check_num_threads_sanity(const unsigned thread_num) const;
-        argparse::ArgumentParser program = argparse::ArgumentParser("cryptominisat",
-            SATSolver::get_version_sha1(),
-            argparse::default_arguments::help);
+  private:
+    //arguments
+    int argc;
+    char **argv;
+    string var_elim_strategy;
+    void check_options_correctness();
+    void manually_parse_some_options();
+    void parse_restart_type();
+    void parse_polarity_type();
+    void parse_sampling_vars();
+    void check_num_threads_sanity(const unsigned thread_num) const;
+    argparse::ArgumentParser program =
+            argparse::ArgumentParser("cryptominisat", SATSolver::get_version_sha1(), argparse::default_arguments::help);
 
-    protected:
-        //Options
-        virtual void add_supported_options();
-        SATSolver* solver = nullptr;
+  protected:
+    //Options
+    virtual void add_supported_options();
+    SATSolver *solver = nullptr;
 
-        //File reading
-        void readInAFile(SATSolver* solver2, const string& filename);
-        void readInStandardInput(SATSolver* solver2);
-        void parseInAllFiles(SATSolver* solver2);
+    //File reading
+    void readInAFile(SATSolver *solver2, const string &filename);
+    void readInStandardInput(SATSolver *solver2);
+    void parseInAllFiles(SATSolver *solver2);
 
-        //Helper functions
-        void printResultFunc(
-            std::ostream* os
-            , const bool toFile
-            , const lbool ret
-        );
-        void printVersionInfo();
-        int correctReturnValue(const lbool ret) const;
-        lbool multi_solutions();
-        void ban_found_solution();
+    //Helper functions
+    void printResultFunc(std::ostream *os, const bool toFile, const lbool ret);
+    void printVersionInfo();
+    int correctReturnValue(const lbool ret) const;
+    lbool multi_solutions();
+    void ban_found_solution();
 
-        //Config
-        std::string debugLib;
-        int printResult = true;
-        string commandLine;
-        uint32_t max_nr_of_solutions = 1;
-        bool dont_ban_solutions = false;
-        int sql = 0;
-        string sqlite_filename;
-        uint64_t maxconfl;
+    //Config
+    std::string debugLib;
+    int printResult = true;
+    string commandLine;
+    uint32_t max_nr_of_solutions = 1;
+    bool dont_ban_solutions = false;
+    int sql = 0;
+    string sqlite_filename;
+    uint64_t maxconfl;
 
-        //Sampling vars
-        std::string assump_filename;
-        vector<Lit> assumps;
+    //Sampling vars
+    std::string assump_filename;
+    vector<Lit> assumps;
 
 
-        //Files to read & write
-        bool fileNamePresent;
-        string result_fname;
-        string input_file;
-        std::ofstream* resultfile = nullptr;
+    //Files to read & write
+    bool fileNamePresent;
+    string result_fname;
+    string input_file;
+    std::ofstream *resultfile = nullptr;
 
-        //Drat checker
-        bool clause_ID_needed = false;
+    //Drat checker
+    bool clause_ID_needed = false;
 };
 
 #endif //MAIN_H

@@ -25,22 +25,24 @@ THE SOFTWARE.
 #include <cstdint>
 #include "propby.h"
 
-namespace CMSat {
+namespace CMSat
+{
 
-struct GaussQData {
+struct GaussQData
+{
     bool do_eliminate; // we do elimination when basic variable is invoked
-    uint32_t new_resp_var;                     // do elimination variable
-    uint32_t new_resp_row ;         // do elimination row
-    PropBy confl;              // returning conflict
+    uint32_t new_resp_var; // do elimination variable
+    uint32_t new_resp_row; // do elimination row
+    PropBy confl; // returning conflict
     gauss_res ret; //final return value to Searcher
     uint32_t currLevel; //level at which the variable was decided on
 
 
-    uint32_t num_props = 0;  // total gauss propogation time for DPLL
-    uint32_t num_conflicts = 0;   // total gauss conflict    time for DPLL
+    uint32_t num_props = 0; // total gauss propogation time for DPLL
+    uint32_t num_conflicts = 0; // total gauss conflict    time for DPLL
     uint32_t engaus_disable_checks = 0;
-    bool disabled = false;  // Can be disabled. In this case, all xor constraints
-                            // are reattached as plain XOR constraints
+    bool disabled = false; // Can be disabled. In this case, all xor constraints
+            // are reattached as plain XOR constraints
 
     void reset()
     {
@@ -49,4 +51,4 @@ struct GaussQData {
     }
 };
 
-}
+} // namespace CMSat

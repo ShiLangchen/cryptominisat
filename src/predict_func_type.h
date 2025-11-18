@@ -24,15 +24,10 @@ THE SOFTWARE.
 
 #include "clause.h"
 
-namespace CMSat {
+namespace CMSat
+{
 
-typedef float (*keep_func_type)(
-const CMSat::Clause*
-, const uint64_t
-, const uint32_t
-, const double
-, const uint32_t
-);
+typedef float (*keep_func_type)(const CMSat::Clause *, const uint64_t, const uint32_t, const double, const uint32_t);
 
 }
 

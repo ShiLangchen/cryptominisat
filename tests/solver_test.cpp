@@ -30,19 +30,15 @@ using std::set;
 using namespace CMSat;
 #include "test_helper.h"
 
-namespace CMSat {
-struct SolverTest : public ::testing::Test {
-    SolverTest()
-    {
-        must_inter.store(false, std::memory_order_relaxed);
-    }
-    ~SolverTest()
-    {
-        delete s;
-    }
+namespace CMSat
+{
+struct SolverTest : public ::testing::Test
+{
+    SolverTest() { must_inter.store(false, std::memory_order_relaxed); }
+    ~SolverTest() { delete s; }
 
     SolverConf conf;
-    Solver* s = nullptr;
+    Solver *s = nullptr;
     std::vector<uint32_t> vars;
     std::atomic<bool> must_inter;
 };
@@ -58,7 +54,9 @@ TEST_F(SolverTest, get_bin_red_only)
     vector<Lit> lits;
     bool is_xor, rhs;
     bool ret = s->get_next_constraint(lits, is_xor, rhs);
-    ASSERT_TRUE(ret); ASSERT_FALSE(is_xor); ASSERT_TRUE(rhs);
+    ASSERT_TRUE(ret);
+    ASSERT_FALSE(is_xor);
+    ASSERT_TRUE(rhs);
     std::sort(lits.begin(), lits.end());
     ASSERT_EQ(lits, str_to_cl(" 1,  2"));
 
@@ -78,7 +76,9 @@ TEST_F(SolverTest, get_bin_irred_only)
     vector<Lit> lits;
     bool is_xor, rhs;
     bool ret = s->get_next_constraint(lits, is_xor, rhs);
-    ASSERT_TRUE(ret); ASSERT_FALSE(is_xor); ASSERT_TRUE(rhs);
+    ASSERT_TRUE(ret);
+    ASSERT_FALSE(is_xor);
+    ASSERT_TRUE(rhs);
     std::sort(lits.begin(), lits.end());
     ASSERT_EQ(lits, str_to_cl(" 2,  3"));
 
@@ -89,7 +89,7 @@ TEST_F(SolverTest, get_bin_irred_only)
 
 TEST_F(SolverTest, get_long_lev0)
 {
-    Clause* c;
+    Clause *c;
     s = new Solver(&conf, &must_inter);
     s->new_vars(30);
     ClauseStats stats;
@@ -101,9 +101,12 @@ TEST_F(SolverTest, get_long_lev0)
     s->longRedCls[0].push_back(s->cl_alloc.get_offset(c));
 
     s->start_getting_constraints(true);
-    vector<Lit> lits; bool is_xor, rhs;
+    vector<Lit> lits;
+    bool is_xor, rhs;
     bool ret = s->get_next_constraint(lits, is_xor, rhs);
-    ASSERT_TRUE(ret); ASSERT_FALSE(is_xor); ASSERT_TRUE(rhs);
+    ASSERT_TRUE(ret);
+    ASSERT_FALSE(is_xor);
+    ASSERT_TRUE(rhs);
     std::sort(lits.begin(), lits.end());
     ASSERT_EQ(lits, str_to_cl(" 1,  2, 3, 4"));
 
@@ -115,7 +118,7 @@ TEST_F(SolverTest, get_long_lev0)
 
 TEST_F(SolverTest, get_long_lev1)
 {
-    Clause* c;
+    Clause *c;
     s = new Solver(&conf, &must_inter);
     s->new_vars(30);
     ClauseStats stats;
@@ -127,9 +130,12 @@ TEST_F(SolverTest, get_long_lev1)
     s->longRedCls[1].push_back(s->cl_alloc.get_offset(c));
 
     s->start_getting_constraints(true);
-    vector<Lit> lits; bool is_xor, rhs;
+    vector<Lit> lits;
+    bool is_xor, rhs;
     bool ret = s->get_next_constraint(lits, is_xor, rhs);
-    ASSERT_TRUE(ret); ASSERT_FALSE(is_xor); ASSERT_TRUE(rhs);
+    ASSERT_TRUE(ret);
+    ASSERT_FALSE(is_xor);
+    ASSERT_TRUE(rhs);
     std::sort(lits.begin(), lits.end());
     ASSERT_EQ(lits, str_to_cl(" 6,  2, 3, 4"));
 
@@ -141,7 +147,7 @@ TEST_F(SolverTest, get_long_lev1)
 
 TEST_F(SolverTest, get_long_lev0_and_lev1)
 {
-    Clause* c;
+    Clause *c;
     s = new Solver(&conf, &must_inter);
     s->new_vars(30);
     ClauseStats stats;
@@ -158,15 +164,20 @@ TEST_F(SolverTest, get_long_lev0_and_lev1)
     s->longRedCls[0].push_back(s->cl_alloc.get_offset(c));
 
     s->start_getting_constraints(true);
-    vector<Lit> lits; bool is_xor, rhs;
+    vector<Lit> lits;
+    bool is_xor, rhs;
     //Order is reverse because we get lev0 then lev1
     bool ret = s->get_next_constraint(lits, is_xor, rhs);
-    ASSERT_TRUE(ret); ASSERT_FALSE(is_xor); ASSERT_TRUE(rhs);
+    ASSERT_TRUE(ret);
+    ASSERT_FALSE(is_xor);
+    ASSERT_TRUE(rhs);
     std::sort(lits.begin(), lits.end());
     ASSERT_EQ(lits, str_to_cl(" 2, 4, 5, 6"));
 
     ret = s->get_next_constraint(lits, is_xor, rhs);
-    ASSERT_TRUE(ret); ASSERT_FALSE(is_xor); ASSERT_TRUE(rhs);
+    ASSERT_TRUE(ret);
+    ASSERT_FALSE(is_xor);
+    ASSERT_TRUE(rhs);
     std::sort(lits.begin(), lits.end());
     ASSERT_EQ(lits, str_to_cl(" 3, -4, -7"));
 
@@ -178,7 +189,7 @@ TEST_F(SolverTest, get_long_lev0_and_lev1)
 
 TEST_F(SolverTest, get_long_toolarge)
 {
-    Clause* c;
+    Clause *c;
     s = new Solver(&conf, &must_inter);
     s->new_vars(30);
 
@@ -189,7 +200,8 @@ TEST_F(SolverTest, get_long_toolarge)
     s->longRedCls[0].push_back(s->cl_alloc.get_offset(c));
 
     s->start_getting_constraints(true, false, 2);
-    vector<Lit> lits; bool is_xor, rhs;
+    vector<Lit> lits;
+    bool is_xor, rhs;
     bool ret = s->get_next_constraint(lits, is_xor, rhs);
     ASSERT_FALSE(ret);
     s->end_getting_constraints();
@@ -197,7 +209,7 @@ TEST_F(SolverTest, get_long_toolarge)
 
 TEST_F(SolverTest, get_glue_toolarge)
 {
-    Clause* c;
+    Clause *c;
     s = new Solver(&conf, &must_inter);
     s->new_vars(30);
     ClauseStats stats;
@@ -225,7 +237,7 @@ TEST_F(SolverTest, get_bin_and_long)
     stats.glue = 5;
 
     s->add_clause_outside(str_to_cl(" 2,  3"));
-    Clause* c;
+    Clause *c;
     c = s->add_clause_int(str_to_cl(" 1,  5 "), true);
     assert(c == nullptr);
     c = s->add_clause_int(str_to_cl(" 1,  2, 3, 4"), true, &stats);
@@ -236,12 +248,16 @@ TEST_F(SolverTest, get_bin_and_long)
     vector<Lit> lits;
     bool is_xor, rhs;
     bool ret = s->get_next_constraint(lits, is_xor, rhs);
-    ASSERT_TRUE(ret); ASSERT_FALSE(is_xor); ASSERT_TRUE(rhs);
+    ASSERT_TRUE(ret);
+    ASSERT_FALSE(is_xor);
+    ASSERT_TRUE(rhs);
     std::sort(lits.begin(), lits.end());
     ASSERT_EQ(lits, str_to_cl(" 1,  5"));
 
     ret = s->get_next_constraint(lits, is_xor, rhs);
-    ASSERT_TRUE(ret); ASSERT_FALSE(is_xor); ASSERT_TRUE(rhs);
+    ASSERT_TRUE(ret);
+    ASSERT_FALSE(is_xor);
+    ASSERT_TRUE(rhs);
     std::sort(lits.begin(), lits.end());
     ASSERT_EQ(lits, str_to_cl(" 1,  2, 3, 4"));
 
@@ -256,7 +272,7 @@ TEST_F(SolverTest, get_irred_bin_and_long)
     s = new Solver(&conf, &must_inter);
     s->new_vars(30);
 
-    Clause* c;
+    Clause *c;
     c = s->add_clause_int(str_to_cl(" 1,  5 "));
     assert(c == nullptr);
     c = s->add_clause_int(str_to_cl(" 1,  2, 3, 4"));
@@ -267,12 +283,16 @@ TEST_F(SolverTest, get_irred_bin_and_long)
     vector<Lit> lits;
     bool is_xor, rhs;
     bool ret = s->get_next_constraint(lits, is_xor, rhs);
-    ASSERT_TRUE(ret); ASSERT_FALSE(is_xor); ASSERT_TRUE(rhs);
+    ASSERT_TRUE(ret);
+    ASSERT_FALSE(is_xor);
+    ASSERT_TRUE(rhs);
     std::sort(lits.begin(), lits.end());
     ASSERT_EQ(str_to_cl(" 1,  5"), lits);
 
     ret = s->get_next_constraint(lits, is_xor, rhs);
-    ASSERT_TRUE(ret); ASSERT_FALSE(is_xor); ASSERT_TRUE(rhs);
+    ASSERT_TRUE(ret);
+    ASSERT_FALSE(is_xor);
+    ASSERT_TRUE(rhs);
     std::sort(lits.begin(), lits.end());
     ASSERT_EQ(str_to_cl(" 1,  2, 3, 4"), lits);
 
@@ -282,9 +302,10 @@ TEST_F(SolverTest, get_irred_bin_and_long)
     s->end_getting_constraints();
 }
 
-}
+} // namespace CMSat
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+int main(int argc, char **argv)
+{
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

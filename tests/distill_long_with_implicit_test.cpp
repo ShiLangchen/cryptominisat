@@ -31,7 +31,8 @@ using std::set;
 using namespace CMSat;
 #include "test_helper.h"
 
-struct distill_long_with_impl : public ::testing::Test {
+struct distill_long_with_impl : public ::testing::Test
+{
     distill_long_with_impl()
     {
         must_inter.store(false, std::memory_order_relaxed);
@@ -41,13 +42,10 @@ struct distill_long_with_impl : public ::testing::Test {
         s = new Solver(&conf, &must_inter);
         distillwbin = s->dist_long_with_impl;
     }
-    ~distill_long_with_impl()
-    {
-        delete s;
-    }
+    ~distill_long_with_impl() { delete s; }
 
-    Solver* s;
-    DistillerLongWithImpl* distillwbin;
+    Solver *s;
+    DistillerLongWithImpl *distillwbin;
     std::atomic<bool> must_inter;
 };
 
@@ -141,7 +139,8 @@ TEST_F(distill_long_with_impl, str_w_bin3)
     check_irred_cls_contains(s, "-1, -3, 4");
 }
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+int main(int argc, char **argv)
+{
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

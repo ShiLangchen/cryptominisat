@@ -35,63 +35,52 @@ THE SOFTWARE.
 using std::vector;
 using std::set;
 
-namespace CMSat {
+namespace CMSat
+{
 
-class HyperEngine : public PropEngine {
-public:
-    HyperEngine(const SolverConf *_conf, Solver* solver, std::atomic<bool>* _must_interrupt_inter);
+class HyperEngine : public PropEngine
+{
+  public:
+    HyperEngine(const SolverConf *_conf, Solver *solver, std::atomic<bool> *_must_interrupt_inter);
     virtual ~HyperEngine() override;
     size_t mem_used() const;
 
     bool use_depth_trick = true;
     bool perform_transitive_reduction = true;
     bool timedOutPropagateFull = false;
-    Lit propagate_bfs(
-        const uint64_t earlyAborTOut = numeric_limits<uint64_t>::max()
-    );
-    set<BinaryClause> needToAddBinClause;       ///<We store here hyper-binary clauses to be added at the end of propagateFull()
+    Lit propagate_bfs(const uint64_t earlyAborTOut = numeric_limits<uint64_t>::max());
+    set<BinaryClause>
+            needToAddBinClause; ///<We store here hyper-binary clauses to be added at the end of propagateFull()
     set<BinaryClause> uselessBin;
 
     ///Add hyper-binary clause given this bin clause
-    void  add_hyper_bin(Lit p);
+    void add_hyper_bin(Lit p);
 
     ///Add hyper-binary clause given this large clause
-    void  add_hyper_bin(Lit p, const Clause& cl);
+    void add_hyper_bin(Lit p, const Clause &cl);
 
-    void  enqueue_with_acestor_info(
-        const Lit p, const Lit ancestor, const bool redStep, const int32_t ID);
+    void enqueue_with_acestor_info(const Lit p, const Lit ancestor, const bool redStep, const int32_t ID);
 
-private:
-    Lit   analyzeFail(PropBy propBy);
-    Lit   remove_which_bin_due_to_trans_red(Lit conflict, Lit thisAncestor, const bool thisStepRed);
-    void  remove_bin_clause(Lit lit, const int32_t ID);
-    bool  is_ancestor_of(
-        const Lit conflict
-        , Lit thisAncestor
-        , const bool thisStepRed
-        , const bool onlyIrred
-        , const Lit lookingForAncestor
-    );
+  private:
+    Lit analyzeFail(PropBy propBy);
+    Lit remove_which_bin_due_to_trans_red(Lit conflict, Lit thisAncestor, const bool thisStepRed);
+    void remove_bin_clause(Lit lit, const int32_t ID);
+    bool is_ancestor_of(const Lit conflict,
+                        Lit thisAncestor,
+                        const bool thisStepRed,
+                        const bool onlyIrred,
+                        const Lit lookingForAncestor);
 
     //Find lowest common ancestor, once 'currAncestors' has been filled
     Lit deepest_common_ancestor();
 
-    PropResult prop_bin_with_ancestor_info(
-        const Lit p
-        , const Watched* k
-        , PropBy& confl
-    );
+    PropResult prop_bin_with_ancestor_info(const Lit p, const Watched *k, PropBy &confl);
 
-    PropResult prop_normal_cl_with_ancestor_info(
-        Watched* i
-        , Watched*& j
-        , const Lit p
-        , PropBy& confl
-    );
+    PropResult prop_normal_cl_with_ancestor_info(Watched *i, Watched *&j, const Lit p, PropBy &confl);
 
     vector<Lit> currAncestors;
 };
 
-}
+} // namespace CMSat
 
 #endif //HYPERENGINE_H

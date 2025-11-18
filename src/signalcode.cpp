@@ -23,14 +23,14 @@ THE SOFTWARE.
 #include "signalcode.h"
 #include "time_mem.h"
 #include "cryptominisat.h"
-#if !defined (_MSC_VER)
-#include <unistd.h>
+#if !defined(_MSC_VER)
+    #include <unistd.h>
 #endif
 
 
 using namespace CMSat;
 
-SATSolver* solverToInterrupt;
+SATSolver *solverToInterrupt;
 int need_clean_exit;
 std::string redDumpFname;
 std::string irredDumpFname;
@@ -40,30 +40,26 @@ using std::endl;
 
 void SIGINT_handler(int)
 {
-    SATSolver* solver = solverToInterrupt;
+    SATSolver *solver = solverToInterrupt;
     cout << "c " << endl;
     std::cerr << "*** INTERRUPTED ***" << endl;
     if (!redDumpFname.empty() || !irredDumpFname.empty() || need_clean_exit) {
         solver->interrupt_asap();
-        std::cerr
-        << "*** Please wait. We need to interrupt cleanly" << endl
-        << "*** This means we might need to finish some calculations"
-        << endl;
+        std::cerr << "*** Please wait. We need to interrupt cleanly" << endl
+                  << "*** This means we might need to finish some calculations" << endl;
     } else {
         if (solver->nVars() > 0) {
             //if (conf.verbosity) {
-                solver->add_in_partial_solving_stats();
-                solver->print_stats(wallclock_time_started);
+            solver->add_in_partial_solving_stats();
+            solver->print_stats(wallclock_time_started);
             //}
         } else {
-            cout
-            << "No clauses or variables were put into the solver, exiting without stats"
-            << endl;
+            cout << "No clauses or variables were put into the solver, exiting without stats" << endl;
         }
-        #if defined (_MSC_VER)
+#if defined(_MSC_VER)
         exit(1);
-        #else
+#else
         _exit(1);
-        #endif
+#endif
     }
 }

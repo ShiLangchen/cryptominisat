@@ -32,7 +32,7 @@ static const uint32_t hash_mask = hash_size - 1;
 
 static inline uint64_t rotl(uint64_t x, uint64_t n)
 {
-        return (x << n) | (x >> (8 * sizeof(x) - n));
+    return (x << n) | (x >> (8 * sizeof(x) - n));
 }
 
 #define HASH_MULT_CONST 0x61C8864680B583EBULL
@@ -58,4 +58,4 @@ static inline uint64_t clause_hash(vector<Lit> &clause)
     return y;
 }
 
-}
+} // namespace CMSat

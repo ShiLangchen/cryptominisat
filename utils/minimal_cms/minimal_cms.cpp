@@ -29,55 +29,56 @@ THE SOFTWARE.
 
 using namespace std;
 
-int main(int argc, char **argv) {
-  std::vector<std::string> args(argv, argv + argc);
-  assert(args.size() == 3);
-  const auto &dimacs = args[1];
-  const auto &drat = args[2];
+int main(int argc, char **argv)
+{
+    std::vector<std::string> args(argv, argv + argc);
+    assert(args.size() == 3);
+    const auto &dimacs = args[1];
+    const auto &drat = args[2];
 
-  ifstream dimacs_stream{dimacs};
+    ifstream dimacs_stream{dimacs};
 
-  FILE* proof_stream = fopen(drat.c_str(), "wb");
+    FILE *proof_stream = fopen(drat.c_str(), "wb");
 
-  CMSat::SATSolver solver{};
+    CMSat::SATSolver solver{};
 
-  std::string p, cnf;
-  uint64_t n_vars, n_clauses;
-  dimacs_stream >> p >> cnf >> n_vars >> n_clauses;
-  assert(p == "p");
-  assert(cnf == "cnf");
-  solver.set_frat(proof_stream);
-  solver.new_vars(n_vars);
-  solver.set_verbosity(1);
+    std::string p, cnf;
+    uint64_t n_vars, n_clauses;
+    dimacs_stream >> p >> cnf >> n_vars >> n_clauses;
+    assert(p == "p");
+    assert(cnf == "cnf");
+    solver.set_frat(proof_stream);
+    solver.new_vars(n_vars);
+    solver.set_verbosity(1);
 
-  for (size_t c_i = 0; c_i < n_clauses; c_i++) {
-    std::vector<CMSat::Lit> clause;
-    int64_t i;
-    while (true) {
-      dimacs_stream >> i;
-      assert(dimacs_stream.good());
-      if (i == 0) {
-        break;
-      } else {
-        uint32_t var = static_cast<uint32_t>(abs(i));
-        assert(var <= n_vars);
-        CMSat::Lit l{var - 1, i < 0};
-        clause.push_back(l);
-      }
+    for (size_t c_i = 0; c_i < n_clauses; c_i++) {
+        std::vector<CMSat::Lit> clause;
+        int64_t i;
+        while (true) {
+            dimacs_stream >> i;
+            assert(dimacs_stream.good());
+            if (i == 0) {
+                break;
+            } else {
+                uint32_t var = static_cast<uint32_t>(abs(i));
+                assert(var <= n_vars);
+                CMSat::Lit l{var - 1, i < 0};
+                clause.push_back(l);
+            }
+        }
+        if (not solver.add_clause(clause)) {
+            std::cout << "UNSAT" << std::endl;
+            exit(-1);
+        }
     }
-    if (not solver.add_clause(clause)) {
-      std::cout << "UNSAT" << std::endl;
-      exit(-1);
-    }
-  }
-  std::cerr << "Clauses added" << std::endl;
+    std::cerr << "Clauses added" << std::endl;
 
-  CMSat::lbool res = solver.solve();
+    CMSat::lbool res = solver.solve();
 
-  fflush(proof_stream);
-  fclose(proof_stream);
+    fflush(proof_stream);
+    fclose(proof_stream);
 
-  solver.print_stats();
-  std::cerr << "Res: " << res << std::endl;
-  return 0;
+    solver.print_stats();
+    std::cerr << "Res: " << res << std::endl;
+    return 0;
 }

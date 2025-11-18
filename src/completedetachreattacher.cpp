@@ -30,10 +30,7 @@ THE SOFTWARE.
 
 using namespace CMSat;
 
-CompleteDetachReatacher::CompleteDetachReatacher(Solver* _solver) :
-    solver(_solver)
-{
-}
+CompleteDetachReatacher::CompleteDetachReatacher(Solver *_solver) : solver(_solver) {}
 
 /**
 @brief Completely detach all non-binary clauses
@@ -43,11 +40,7 @@ void CompleteDetachReatacher::detach_nonbins()
     assert(!solver->frat->something_delayed());
     ClausesStay stay;
 
-    for (watch_array::iterator
-        it = solver->watches.begin(), end = solver->watches.end()
-        ; it != end
-        ; ++it
-    ) {
+    for (watch_array::iterator it = solver->watches.begin(), end = solver->watches.end(); it != end; ++it) {
         stay += clearWatchNotBinNotTri(*it);
     }
 
@@ -55,41 +48,39 @@ void CompleteDetachReatacher::detach_nonbins()
     solver->litStats.irredLits = 0;
 
     assert(stay.redBins % 2 == 0);
-    solver->binTri.redBins = stay.redBins/2;
+    solver->binTri.redBins = stay.redBins / 2;
 
     assert(stay.irredBins % 2 == 0);
-    solver->binTri.irredBins = stay.irredBins/2;
+    solver->binTri.irredBins = stay.irredBins / 2;
 }
 
 /**
 @brief Helper function for detachPointerUsingClauses()
 */
-CompleteDetachReatacher::ClausesStay CompleteDetachReatacher::clearWatchNotBinNotTri(
-    watch_subarray ws
-) {
+CompleteDetachReatacher::ClausesStay CompleteDetachReatacher::clearWatchNotBinNotTri(watch_subarray ws)
+{
     ClausesStay stay;
 
-    Watched* i = ws.begin();
-    Watched* j = i;
-    for (Watched* end = ws.end(); i != end; i++) {
+    Watched *i = ws.begin();
+    Watched *j = i;
+    for (Watched *end = ws.end(); i != end; i++) {
         if (i->isBin()) {
-            if (i->red())
-                stay.redBins++;
-            else
-                stay.irredBins++;
+            if (i->red()) stay.redBins++;
+            else stay.irredBins++;
 
             *j++ = *i;
         }
     }
-    ws.shrink_(i-j);
+    ws.shrink_(i - j);
 
     return stay;
 }
 
-bool CompleteDetachReatacher::reattachLongs(bool removeStatsFirst) {
+bool CompleteDetachReatacher::reattachLongs(bool removeStatsFirst)
+{
     verb_print(6, "Cleaning and reattaching clauses");
     cleanAndAttachClauses(solver->longIrredCls, removeStatsFirst);
-    for(auto& lredcls: solver->longRedCls) cleanAndAttachClauses(lredcls, removeStatsFirst);
+    for (auto &lredcls: solver->longRedCls) cleanAndAttachClauses(lredcls, removeStatsFirst);
     solver->clauseCleaner->clean_implicit_clauses();
     assert(!solver->frat->something_delayed());
 
@@ -98,11 +89,13 @@ bool CompleteDetachReatacher::reattachLongs(bool removeStatsFirst) {
     return solver->okay();
 }
 
-void CompleteDetachReatacher::attachClauses( vector<ClOffset>& cs) {
+void CompleteDetachReatacher::attachClauses(vector<ClOffset> &cs)
+{
     for (ClOffset offs: cs) {
-        Clause* cl = solver->cl_alloc.ptr(offs);
+        Clause *cl = solver->cl_alloc.ptr(offs);
         bool satisfied = false;
-        for(Lit lit: *cl) if (solver->value(lit) == l_True) satisfied = true;
+        for (Lit lit: *cl)
+            if (solver->value(lit) == l_True) satisfied = true;
         if (!satisfied) {
             assert(solver->value((*cl)[0]) == l_Undef);
             assert(solver->value((*cl)[1]) == l_Undef);
@@ -116,15 +109,13 @@ void CompleteDetachReatacher::attachClauses( vector<ClOffset>& cs) {
 
 May change solver->ok to FALSE (!)
 */
-void CompleteDetachReatacher::cleanAndAttachClauses(
-    vector<ClOffset>& cs
-    , bool removeStatsFirst
-) {
+void CompleteDetachReatacher::cleanAndAttachClauses(vector<ClOffset> &cs, bool removeStatsFirst)
+{
     vector<ClOffset>::iterator i = cs.begin();
     vector<ClOffset>::iterator j = i;
     for (vector<ClOffset>::iterator end = cs.end(); i != end; ++i) {
         assert(!solver->frat->something_delayed());
-        Clause* cl = solver->cl_alloc.ptr(*i);
+        Clause *cl = solver->cl_alloc.ptr(*i);
 
         //Handle stat removal if need be
         if (removeStatsFirst) {
@@ -142,21 +133,18 @@ void CompleteDetachReatacher::cleanAndAttachClauses(
             solver->free_cl(*i);
         }
     }
-    cs.resize(cs.size() - (i-j));
+    cs.resize(cs.size() - (i - j));
 }
 
 /**
 @brief Not only cleans a clause from false literals, but if clause is satisfied, it reports it
 */
-bool CompleteDetachReatacher::clean_clause(Clause* cl)
+bool CompleteDetachReatacher::clean_clause(Clause *cl)
 {
     (*solver->frat) << deldelay << *cl << fin;
-    Clause& ps = *cl;
+    Clause &ps = *cl;
     if (ps.size() <= 2) {
-        cout
-        << "ERROR, clause is too small, and linked in: "
-        << *cl
-        << endl;
+        cout << "ERROR, clause is too small, and linked in: " << *cl << endl;
     }
     assert(ps.size() > 2);
 
@@ -171,7 +159,7 @@ bool CompleteDetachReatacher::clean_clause(Clause* cl)
             *j++ = *i;
         }
     }
-    ps.shrink(i-j);
+    ps.shrink(i - j);
 
     //Drat
     if (i != j) {

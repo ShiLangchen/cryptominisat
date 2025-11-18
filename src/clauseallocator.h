@@ -34,7 +34,8 @@ THE SOFTWARE.
 #include <map>
 #include <vector>
 
-namespace CMSat {
+namespace CMSat
+{
 
 class Clause;
 class Solver;
@@ -52,78 +53,62 @@ Essentially, it is a stack-like allocator for clauses. It is useful to have
 this, because this way, we can address clauses according to their number,
 which is 32-bit, instead of their address, which might be 64-bit
 */
-class ClauseAllocator {
-    public:
-        ClauseAllocator();
-        ~ClauseAllocator();
+class ClauseAllocator
+{
+  public:
+    ClauseAllocator();
+    ~ClauseAllocator();
 
-        template<class T>
-        Clause* Clause_new(const T& ps, const uint32_t conflictNum, const uint32_t ID)
-        {
-            if (ps.size() > (0x01UL << 28)) {
-                throw CMSat::TooLongClauseError();
-            }
-
-            void* mem = allocEnough(ps.size());
-            Clause* real = new (mem) Clause(ps, conflictNum, ID);
-            return real;
+    template<class T> Clause *Clause_new(const T &ps, const uint32_t conflictNum, const uint32_t ID)
+    {
+        if (ps.size() > (0x01UL << 28)) {
+            throw CMSat::TooLongClauseError();
         }
 
-        ClOffset get_offset(const Clause* ptr) const;
+        void *mem = allocEnough(ps.size());
+        Clause *real = new (mem) Clause(ps, conflictNum, ID);
+        return real;
+    }
 
-        inline Clause* ptr(const ClOffset offset) const
-        {
-            return (Clause*)(&dataStart[offset]);
-        }
+    ClOffset get_offset(const Clause *ptr) const;
 
-        void clauseFree(Clause* c);
-        void clauseFree(ClOffset offset);
+    inline Clause *ptr(const ClOffset offset) const { return (Clause *)(&dataStart[offset]); }
 
-        void consolidate(
-            Solver* solver
-            , const bool force = false
-            , bool lower_verb = false
-        );
+    void clauseFree(Clause *c);
+    void clauseFree(ClOffset offset);
 
-        size_t mem_used() const;
+    void consolidate(Solver *solver, const bool force = false, bool lower_verb = false);
 
-    private:
-        void update_offsets(
-            vector<ClOffset>& offsets,
-            ClOffset* newDataStart,
-            ClOffset*& new_ptr
-        );
-        void move_one_watchlist(
-            watch_subarray& ws, ClOffset* newDataStart, ClOffset*& new_ptr);
+    size_t mem_used() const;
 
-        ClOffset move_cl(
-            ClOffset* newDataStart
-            , ClOffset*& new_ptr
-            , Clause* old
-        );
+  private:
+    void update_offsets(vector<ClOffset> &offsets, ClOffset *newDataStart, ClOffset *&new_ptr);
+    void move_one_watchlist(watch_subarray &ws, ClOffset *newDataStart, ClOffset *&new_ptr);
 
-        uint32_t new_sz_while_moving;
-        BASE_DATA_TYPE* dataStart; ///<Stack starts at these positions
-        uint64_t size; ///<The number of BASE_DATA_TYPE datapieces currently used in each stack
-        /**
+    ClOffset move_cl(ClOffset *newDataStart, ClOffset *&new_ptr, Clause *old);
+
+    uint32_t new_sz_while_moving;
+    BASE_DATA_TYPE *dataStart; ///<Stack starts at these positions
+    uint64_t size; ///<The number of BASE_DATA_TYPE datapieces currently used in each stack
+    /**
         @brief Clauses in the stack had this size when they were allocated
         This my NOT be their current size: the clauses may be shrinked during
         the running of the solver. Therefore, it is imperative that their orignal
         size is saved. This way, we can later move clauses around.
         */
-        uint64_t capacity; ///<The number of BASE_DATA_TYPE datapieces allocated
-        /**
+    uint64_t capacity; ///<The number of BASE_DATA_TYPE datapieces allocated
+    /**
         @brief The estimated used size of the stack
         This is incremented by clauseSize each time a clause is allocated, and
         decremetented by clauseSize each time a clause is deallocated. The
         problem is, that clauses can shrink, and thus this value will be an
         overestimation almost all the time
         */
-        uint64_t currentlyUsedSize;
+    uint64_t currentlyUsedSize;
 
-        void* allocEnough(const uint32_t num_lits);
+    void *allocEnough(const uint32_t num_lits);
 };
 
-} //end namespace
+} // namespace CMSat
 
 #endif //CLAUSEALLOCATOR_H

@@ -31,36 +31,38 @@ THE SOFTWARE.
 using std::vector;
 using std::unordered_map;
 
-namespace BID {
+namespace BID
+{
 class BreakID;
 }
 
-namespace CMSat {
+namespace CMSat
+{
 
 class Solver;
 
-class BreakID {
-public:
-    BreakID(Solver* solver);
+class BreakID
+{
+  public:
+    BreakID(Solver *solver);
     bool doit();
     void finished_solving();
     void start_new_solving();
-    void updateVars(
-    const vector<uint32_t>& outer_to_inter
-    , const vector<uint32_t>& inter_to_outer);
+    void updateVars(const vector<uint32_t> &outer_to_inter, const vector<uint32_t> &inter_to_outer);
     void update_var_after_varreplace();
     Lit get_assumed_lit() const;
 
-    static uint32_t hash_clause(const Lit* lits, const uint32_t size) {
+    static uint32_t hash_clause(const Lit *lits, const uint32_t size)
+    {
         uint32_t seed = size;
-        for(uint32_t i = 0; i < size; i++) {
+        for (uint32_t i = 0; i < size; i++) {
             uint32_t val = lits[i].toInt();
             seed ^= val + 0x9e3779b9 + (val << 6) + (val >> 2);
         }
         return seed;
     }
 
-private:
+  private:
     void break_symms_in_cms();
     void get_outer_permutations();
     void remove_duplicates();
@@ -68,13 +70,17 @@ private:
     bool add_clauses();
     bool check_limits();
 
-    enum class add_cl_ret {added_cl, skipped_cl, unsat};
-    template<class T>
-    add_cl_ret add_this_clause(const T& cl);
+    enum class add_cl_ret
+    {
+        added_cl,
+        skipped_cl,
+        unsat
+    };
+    template<class T> add_cl_ret add_this_clause(const T &cl);
     vector<Lit> brkid_lits;
 
     ///Valid permutations. Contains outer lits
-    vector<unordered_map<Lit, Lit> > perms_outer;
+    vector<unordered_map<Lit, Lit>> perms_outer;
 
     bool already_called = false;
     //variable that is to be assumed to break symmetries
@@ -83,10 +89,10 @@ private:
     uint64_t num_lits_in_graph;
     vector<ClOffset> dedup_cls;
 
-    Solver* solver;
-    BID::BreakID* breakid = nullptr;
+    Solver *solver;
+    BID::BreakID *breakid = nullptr;
 };
 
-}
+} // namespace CMSat
 
 #endif

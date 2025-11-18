@@ -55,18 +55,14 @@ int main()
     solver.add_clause(clause);
 
     lbool ret = l_True;
-    while(ret == l_True) {
+    while (ret == l_True) {
         ret = solver.solve();
         if (ret == l_True) {
-            std::cout
-            << "Solution is: "
-            << solver.get_model()[0]
-            << ", " << solver.get_model()[1]
-            << ", " << solver.get_model()[2]
-            << std::endl;
+            std::cout << "Solution is: " << solver.get_model()[0] << ", " << solver.get_model()[1] << ", "
+                      << solver.get_model()[2] << std::endl;
 
             clause.clear();
-            for(size_t i = 0; i < 3; i++) {
+            for (size_t i = 0; i < 3; i++) {
                 if (solver.get_model()[i] != l_Undef) {
                     clause.push_back(Lit(i, solver.get_model()[i] == l_True));
                 }
@@ -76,7 +72,8 @@ int main()
             std::cout << "No more solutions." << std::endl;
         } else {
             std::cout << "Solver returned that it didn't finish running."
-            "maybe you put a limit on its runtime?" << std::endl;
+                         "maybe you put a limit on its runtime?"
+                      << std::endl;
         }
     }
 

@@ -30,62 +30,71 @@
 #include <chrono>
 #include <random>
 
-namespace sspp {
+namespace sspp
+{
 typedef int Lit;
 typedef int Var;
 
 using std::vector;
 using std::string;
 
-inline Lit Neg(Lit x) {
-	return x^1;
+inline Lit Neg(Lit x)
+{
+    return x ^ 1;
 }
 
-inline Var VarOf(Lit x) {
-	return x/2;
+inline Var VarOf(Lit x)
+{
+    return x / 2;
 }
 
-inline Lit PosLit(Var x) {
-	return x*2;
+inline Lit PosLit(Var x)
+{
+    return x * 2;
 }
 
-inline Lit NegLit(Var x) {
-	return x*2+1;
+inline Lit NegLit(Var x)
+{
+    return x * 2 + 1;
 }
 
-inline Lit MkLit(Var var, bool phase) {
-	if (phase) {
-		return PosLit(var);
-	} else {
-		return NegLit(var);
-	}
+inline Lit MkLit(Var var, bool phase)
+{
+    if (phase) {
+        return PosLit(var);
+    } else {
+        return NegLit(var);
+    }
 }
 
-inline bool IsPos(Lit x) {
-	return !(x&1);
+inline bool IsPos(Lit x)
+{
+    return !(x & 1);
 }
 
-inline bool IsNeg(Lit x) {
-	return x&1;
+inline bool IsNeg(Lit x)
+{
+    return x & 1;
 }
 
-inline vector<Lit> Negate(vector<Lit> vec) {
-	for (Lit& lit : vec) {
-		lit = Neg(lit);
-	}
-	return vec;
+inline vector<Lit> Negate(vector<Lit> vec)
+{
+    for (Lit &lit: vec) {
+        lit = Neg(lit);
+    }
+    return vec;
 }
 
-template<typename T>
-inline T RandInt(T a, T b, std::mt19937& gen) {
-	return std::uniform_int_distribution<T>(a,b)(gen);
+template<typename T> inline T RandInt(T a, T b, std::mt19937 &gen)
+{
+    return std::uniform_int_distribution<T>(a, b)(gen);
 }
 
-template<typename T>
-void SwapDel(vector<T>& vec, size_t i) {
-	assert(i < vec.size());
-	std::swap(vec[i], vec.back());
-	vec.pop_back();
+template<typename T> void SwapDel(vector<T> &vec, size_t i)
+{
+    assert(i < vec.size());
+    std::swap(vec[i], vec.back());
+    vec.pop_back();
 }
 
 } // namespace sspp

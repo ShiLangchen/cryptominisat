@@ -24,10 +24,11 @@ THE SOFTWARE.
 #include "assert.h"
 #include "stdio.h"
 
-int main () {
+int main()
+{
     printf("signaure: %s\n", ipasir_signature());
 
-    void* s = ipasir_init();
+    void *s = ipasir_init();
     ipasir_add(s, 1);
     ipasir_add(s, 0);
 

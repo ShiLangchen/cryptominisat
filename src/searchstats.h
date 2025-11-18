@@ -29,23 +29,24 @@ THE SOFTWARE.
 #include "solvertypes.h"
 #include "clause.h"
 
-namespace CMSat {
+namespace CMSat
+{
 
 class SearchStats
 {
-public:
-    SearchStats& operator+=(const SearchStats& other);
-    SearchStats& operator-=(const SearchStats& other);
-    SearchStats operator-(const SearchStats& other) const;
+  public:
+    SearchStats &operator+=(const SearchStats &other);
+    SearchStats &operator-=(const SearchStats &other);
+    SearchStats operator-(const SearchStats &other) const;
     void clear()
     {
         SearchStats tmp;
         *this = tmp;
     }
 
-    void printCommon(uint64_t props, bool do_print_times, const string& prefix) const;
-    void print_short(uint64_t props, bool do_print_times, const string& prefix) const;
-    void print(uint64_t props, bool do_print_times, const string& prefix) const;
+    void printCommon(uint64_t props, bool do_print_times, const string &prefix) const;
+    void print_short(uint64_t props, bool do_print_times, const string &prefix) const;
+    void print(uint64_t props, bool do_print_times, const string &prefix) const;
 
     //Restart stats
     uint64_t blocked_restart = 0;
@@ -53,10 +54,10 @@ public:
     uint64_t numRestarts = 0;
 
     //Decisions
-    uint64_t  decisions = 0;
-    uint64_t  decisionsAssump = 0;
-    uint64_t  decisionsRand = 0;
-    uint64_t  decisionFlippedPolar = 0;
+    uint64_t decisions = 0;
+    uint64_t decisionsAssump = 0;
+    uint64_t decisionsRand = 0;
+    uint64_t decisionFlippedPolar = 0;
 
     //Clause shrinking
     uint64_t litsRedNonMin = 0;
@@ -103,6 +104,6 @@ public:
     double cpu_time = 0.0;
 };
 
-}
+} // namespace CMSat
 
 #endif //__SEARCHSTATS_H__

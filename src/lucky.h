@@ -24,28 +24,29 @@ THE SOFTWARE.
 #ifndef LUCKY_PHASES_H_
 #define LUCKY_PHASES_H_
 
-namespace CMSat {
+namespace CMSat
+{
 
 class Solver;
 
 class Lucky
 {
-public:
-    Lucky(Solver* solver);
+  public:
+    Lucky(Solver *solver);
     void doit();
 
-//private:
+    //private:
     bool check_all(bool polar);
     bool search_fwd_sat(bool polar);
     bool search_backw_sat(bool polar);
     bool horn_sat(bool polar);
 
-private:
+  private:
     bool enqueue_and_prop_assumptions();
     void set_polarities_to_enq_val();
-    Solver* solver;
+    Solver *solver;
 };
 
-}
+} // namespace CMSat
 
 #endif

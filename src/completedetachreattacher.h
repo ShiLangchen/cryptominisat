@@ -27,7 +27,8 @@ THE SOFTWARE.
 #include "watched.h"
 #include "watcharray.h"
 
-namespace CMSat {
+namespace CMSat
+{
 
 class Solver;
 class Clause;
@@ -46,40 +47,36 @@ A main use-case is the following:
 */
 class CompleteDetachReatacher
 {
-    public:
-        explicit CompleteDetachReatacher(Solver* solver);
-        bool reattachLongs(bool removeStatsFrist = false);
-        void detach_nonbins();
+  public:
+    explicit CompleteDetachReatacher(Solver *solver);
+    bool reattachLongs(bool removeStatsFrist = false);
+    void detach_nonbins();
 
-    private:
-        void attachClauses(vector<ClOffset>& cs);
-        void cleanAndAttachClauses(
-            vector<ClOffset>& cs
-            , bool removeStatsFrist
-        );
-        bool clean_clause(Clause* cl);
+  private:
+    void attachClauses(vector<ClOffset> &cs);
+    void cleanAndAttachClauses(vector<ClOffset> &cs, bool removeStatsFrist);
+    bool clean_clause(Clause *cl);
 
-        class ClausesStay {
-            public:
-                ClausesStay() :
-                    redBins(0)
-                    , irredBins(0)
-                {}
+    class ClausesStay
+    {
+      public:
+        ClausesStay() : redBins(0), irredBins(0) {}
 
-                ClausesStay& operator+=(const ClausesStay& other) {
-                    redBins += other.redBins;
-                    irredBins += other.irredBins;
-                    return *this;
-                }
+        ClausesStay &operator+=(const ClausesStay &other)
+        {
+            redBins += other.redBins;
+            irredBins += other.irredBins;
+            return *this;
+        }
 
-                uint64_t redBins;
-                uint64_t irredBins;
-        };
-        ClausesStay clearWatchNotBinNotTri(watch_subarray ws);
+        uint64_t redBins;
+        uint64_t irredBins;
+    };
+    ClausesStay clearWatchNotBinNotTri(watch_subarray ws);
 
-        Solver* solver;
+    Solver *solver;
 };
 
-} //end namespace
+} // namespace CMSat
 
 #endif //__COMPLETE_DETACH_REATTACHER__

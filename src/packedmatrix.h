@@ -36,40 +36,36 @@ THE SOFTWARE.
 
 //#define DEBUG_MATRIX
 
-namespace CMSat {
+namespace CMSat
+{
 
 class PackedMatrix
 {
-public:
-    PackedMatrix() :
-        mp(nullptr)
-        , numRows(0)
-        , numCols(0)
-    {
-    }
+  public:
+    PackedMatrix() : mp(nullptr), numRows(0), numCols(0) {}
 
     ~PackedMatrix()
     {
-        #ifdef _WIN32
-        _aligned_free((void*)mp);
-        #else
+#ifdef _WIN32
+        _aligned_free((void *)mp);
+#else
         free(mp);
-        #endif
+#endif
     }
 
     void resize(const uint32_t num_rows, uint32_t num_cols)
     {
         num_cols = num_cols / 64 + (bool)(num_cols % 64);
-        if (numRows*(numCols+1) < (int)num_rows*((int)num_cols+1)) {
-            size_t size = sizeof(int64_t) * num_rows*(num_cols+1);
-            #ifdef _WIN32
-            _aligned_free((void*)mp);
-            mp =  (int64_t*)_aligned_malloc(size, 16);
-            #else
+        if (numRows * (numCols + 1) < (int)num_rows * ((int)num_cols + 1)) {
+            size_t size = sizeof(int64_t) * num_rows * (num_cols + 1);
+#ifdef _WIN32
+            _aligned_free((void *)mp);
+            mp = (int64_t *)_aligned_malloc(size, 16);
+#else
             free(mp);
-            int ret = posix_memalign((void**)&mp, 16,  size);
+            int ret = posix_memalign((void **)&mp, 16, size);
             release_assert(ret == 0);
-            #endif
+#endif
         }
 
         numRows = num_rows;
@@ -82,120 +78,94 @@ public:
         numRows = num_rows;
     }
 
-    PackedMatrix& operator=(const PackedMatrix& b)
+    PackedMatrix &operator=(const PackedMatrix &b)
     {
-        if (numRows*(numCols+1) < b.numRows*(b.numCols+1)) {
-            size_t size = sizeof(int64_t) * b.numRows*(b.numCols+1);
-            #ifdef _WIN32
-            _aligned_free((void*)mp);
-            mp =  (int64_t*)_aligned_malloc(size, 16);
-            #else
+        if (numRows * (numCols + 1) < b.numRows * (b.numCols + 1)) {
+            size_t size = sizeof(int64_t) * b.numRows * (b.numCols + 1);
+#ifdef _WIN32
+            _aligned_free((void *)mp);
+            mp = (int64_t *)_aligned_malloc(size, 16);
+#else
             free(mp);
-            int ret = posix_memalign((void**)&mp, 16,  size);
+            int ret = posix_memalign((void **)&mp, 16, size);
             release_assert(ret == 0);
-            #endif
+#endif
         }
         numRows = b.numRows;
         numCols = b.numCols;
-        memcpy(mp, b.mp, sizeof(int)*numRows*(numCols+1));
+        memcpy(mp, b.mp, sizeof(int) * numRows * (numCols + 1));
 
         return *this;
     }
 
     inline PackedRow operator[](const uint32_t i)
     {
-        #ifdef DEBUG_MATRIX
+#ifdef DEBUG_MATRIX
         assert(i <= numRows);
-        #endif
+#endif
 
-        return PackedRow(numCols, mp+i*(numCols+1));
-
+        return PackedRow(numCols, mp + i * (numCols + 1));
     }
 
     inline PackedRow operator[](const uint32_t i) const
     {
-        #ifdef DEBUG_MATRIX
+#ifdef DEBUG_MATRIX
         assert(i <= numRows);
-        #endif
+#endif
 
-        return PackedRow(numCols, mp+i*(numCols+1));
+        return PackedRow(numCols, mp + i * (numCols + 1));
     }
 
     class iterator
     {
-    public:
+      public:
         friend class PackedMatrix;
 
-        PackedRow operator*()
-        {
-            return PackedRow(numCols, mp);
-        }
+        PackedRow operator*() { return PackedRow(numCols, mp); }
 
-        iterator& operator++()
+        iterator &operator++()
         {
-            mp += (numCols+1);
+            mp += (numCols + 1);
             return *this;
         }
 
         iterator operator+(const uint32_t num) const
         {
             iterator ret(*this);
-            ret.mp += (numCols+1)*num;
+            ret.mp += (numCols + 1) * num;
             return ret;
         }
 
-        uint32_t operator-(const iterator& b) const
-        {
-            return (mp - b.mp)/((numCols+1));
-        }
+        uint32_t operator-(const iterator &b) const { return (mp - b.mp) / ((numCols + 1)); }
 
         void operator+=(const uint32_t num)
         {
-            mp += (numCols+1)*num;  // add by f4
+            mp += (numCols + 1) * num; // add by f4
         }
 
-        bool operator!=(const iterator& it) const
-        {
-            return mp != it.mp;
-        }
+        bool operator!=(const iterator &it) const { return mp != it.mp; }
 
-        bool operator==(const iterator& it) const
-        {
-            return mp == it.mp;
-        }
+        bool operator==(const iterator &it) const { return mp == it.mp; }
 
-    private:
-        iterator(int64_t* _mp, const uint32_t _numCols) :
-            mp(_mp)
-            , numCols(_numCols)
-        {}
+      private:
+        iterator(int64_t *_mp, const uint32_t _numCols) : mp(_mp), numCols(_numCols) {}
 
         int64_t *mp;
         const uint32_t numCols;
     };
 
-    inline iterator begin()
-    {
-        return iterator(mp, numCols);
-    }
+    inline iterator begin() { return iterator(mp, numCols); }
 
-    inline iterator end()
-    {
-        return iterator(mp+numRows*(numCols+1), numCols);
-    }
+    inline iterator end() { return iterator(mp + numRows * (numCols + 1), numCols); }
 
-    inline uint32_t getSize() const
-    {
-        return numRows;
-    }
+    inline uint32_t getSize() const { return numRows; }
 
-private:
-
+  private:
     int64_t *mp;
     int numRows;
     int numCols;
 };
 
-}
+} // namespace CMSat
 
 #endif //PACKEDMATRIX_H

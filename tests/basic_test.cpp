@@ -38,8 +38,8 @@ TEST(normal_interface, start)
 {
     SATSolver s;
     lbool ret = s.solve();
-    EXPECT_EQ( ret, l_True);
-    EXPECT_EQ( s.okay(), true);
+    EXPECT_EQ(ret, l_True);
+    EXPECT_EQ(s.okay(), true);
 }
 
 TEST(normal_interface, onelit)
@@ -48,8 +48,8 @@ TEST(normal_interface, onelit)
     s.new_var();
     s.add_clause(str_to_cl("1"));
     lbool ret = s.solve();
-    EXPECT_EQ( ret, l_True);
-    EXPECT_EQ( s.okay(), true);
+    EXPECT_EQ(ret, l_True);
+    EXPECT_EQ(s.okay(), true);
 }
 
 TEST(normal_interface, twolit)
@@ -59,8 +59,8 @@ TEST(normal_interface, twolit)
     s.add_clause(str_to_cl("1"));
     s.add_clause(str_to_cl("-1"));
     lbool ret = s.solve();
-    EXPECT_EQ( ret, l_False);
-    EXPECT_EQ( s.okay(), false);
+    EXPECT_EQ(ret, l_False);
+    EXPECT_EQ(s.okay(), false);
 }
 
 TEST(normal_interface, multi_solve_unsat)
@@ -70,12 +70,12 @@ TEST(normal_interface, multi_solve_unsat)
     s.add_clause(str_to_cl("1"));
     s.add_clause(str_to_cl("-1"));
     lbool ret = s.solve();
-    EXPECT_EQ( ret, l_False);
-    EXPECT_EQ( s.okay(), false);
-    for(size_t i = 0;i < 10; i++) {
+    EXPECT_EQ(ret, l_False);
+    EXPECT_EQ(s.okay(), false);
+    for (size_t i = 0; i < 10; i++) {
         ret = s.solve();
-        EXPECT_EQ( ret, l_False);
-        EXPECT_EQ( s.okay(), false);
+        EXPECT_EQ(ret, l_False);
+        EXPECT_EQ(s.okay(), false);
     }
 }
 
@@ -87,12 +87,12 @@ TEST(normal_interface, multi_solve_unsat_multi_thread)
     s.add_clause(str_to_cl("1"));
     s.add_clause(str_to_cl("-1"));
     lbool ret = s.solve();
-    EXPECT_EQ( ret, l_False);
-    EXPECT_EQ( s.okay(), false);
-    for(size_t i = 0;i < 10; i++) {
+    EXPECT_EQ(ret, l_False);
+    EXPECT_EQ(s.okay(), false);
+    for (size_t i = 0; i < 10; i++) {
         ret = s.solve();
-        EXPECT_EQ( ret, l_False);
-        EXPECT_EQ( s.okay(), false);
+        EXPECT_EQ(ret, l_False);
+        EXPECT_EQ(s.okay(), false);
     }
 }
 
@@ -103,23 +103,23 @@ TEST(normal_interface, solve_multi_thread)
     s.new_vars(2);
     s.add_clause(str_to_cl("1, 2"));
     lbool ret = s.solve();
-    EXPECT_EQ( ret, l_True);
+    EXPECT_EQ(ret, l_True);
 
     s.add_clause(str_to_cl("-1"));
     ret = s.solve();
-    EXPECT_EQ( ret, l_True);
+    EXPECT_EQ(ret, l_True);
     EXPECT_EQ(s.get_model()[0], l_False);
     EXPECT_EQ(s.get_model()[1], l_True);
 }
 
 TEST(normal_interface, logfile)
 {
-    SATSolver* s = new SATSolver();
+    SATSolver *s = new SATSolver();
     s->log_to_file("testfile");
     s->new_vars(2);
     s->add_clause(str_to_cl("1, 2"));
     lbool ret = s->solve();
-    EXPECT_EQ( ret, l_True);
+    EXPECT_EQ(ret, l_True);
     delete s;
 
     std::ifstream infile("testfile");
@@ -134,7 +134,7 @@ TEST(normal_interface, logfile)
 
 TEST(normal_interface, logfile2)
 {
-    SATSolver* s = new SATSolver();
+    SATSolver *s = new SATSolver();
     s->log_to_file("testfile");
     s->new_vars(2);
     s->add_clause(str_to_cl("1"));
@@ -162,12 +162,12 @@ TEST(normal_interface, logfile2)
 
 TEST(normal_interface, logfile2_assumps)
 {
-    SATSolver* s = new SATSolver();
+    SATSolver *s = new SATSolver();
     s->log_to_file("testfile");
     s->new_vars(2);
     s->add_clause(str_to_cl("1"));
     s->add_clause(str_to_cl("1, 2"));
-    std::vector<Lit> assumps {Lit(0, false), Lit(1, true)};
+    std::vector<Lit> assumps{Lit(0, false), Lit(1, true)};
     lbool ret = s->solve(&assumps);
     s->add_clause(vector<Lit>{Lit(1, false)});
     assumps.clear();
@@ -193,7 +193,7 @@ TEST(normal_interface, logfile2_assumps)
 
 TEST(normal_interface, max_time)
 {
-    SATSolver* s = new SATSolver();
+    SATSolver *s = new SATSolver();
     s->new_vars(200);
     s->add_clause(str_to_cl("1"));
     s->add_clause(str_to_cl("1, 2"));
@@ -205,7 +205,10 @@ TEST(normal_interface, max_time)
     EXPECT_EQ(ret, l_True);
 }
 
-bool is_critical(const std::range_error&) { return true; }
+bool is_critical(const std::range_error &)
+{
+    return true;
+}
 
 TEST(xor_interface, xor_check_sat_solution)
 {
@@ -214,12 +217,12 @@ TEST(xor_interface, xor_check_sat_solution)
     s.add_xor_clause(vector<unsigned>{0U}, true);
     s.add_xor_clause(vector<unsigned>{0U}, true);
     lbool ret = s.solve();
-    EXPECT_EQ( ret, l_True);
-    for(size_t i = 0;i < 10; i++) {
+    EXPECT_EQ(ret, l_True);
+    for (size_t i = 0; i < 10; i++) {
         ret = s.solve();
-        EXPECT_EQ( ret, l_True);
+        EXPECT_EQ(ret, l_True);
     }
-    EXPECT_EQ( s.nVars(), 1u);
+    EXPECT_EQ(s.nVars(), 1u);
 }
 
 TEST(xor_interface, xor_check_unsat_solution)
@@ -229,13 +232,13 @@ TEST(xor_interface, xor_check_unsat_solution)
     s.add_xor_clause(vector<uint32_t>{0U}, true);
     s.add_xor_clause(vector<uint32_t>{0U}, false);
     lbool ret = s.solve();
-    EXPECT_EQ( ret, l_False);
-    for(size_t i = 0;i < 10; i++) {
+    EXPECT_EQ(ret, l_False);
+    for (size_t i = 0; i < 10; i++) {
         ret = s.solve();
-        EXPECT_EQ( ret, l_False);
-        EXPECT_EQ( s.okay(), false);
+        EXPECT_EQ(ret, l_False);
+        EXPECT_EQ(s.okay(), false);
     }
-    EXPECT_EQ( s.nVars(), 1u);
+    EXPECT_EQ(s.nVars(), 1u);
 }
 
 TEST(xor_interface, xor_check_solution_values)
@@ -245,13 +248,13 @@ TEST(xor_interface, xor_check_solution_values)
     s.add_xor_clause(vector<uint32_t>{0U}, true);
     s.add_xor_clause(vector<uint32_t>{0U}, true);
     lbool ret = s.solve();
-    EXPECT_EQ( ret, l_True);
-    for(size_t i = 0;i < 10; i++) {
+    EXPECT_EQ(ret, l_True);
+    for (size_t i = 0; i < 10; i++) {
         ret = s.solve();
-        EXPECT_EQ( ret, l_True);
-        EXPECT_EQ( s.okay(), true);
+        EXPECT_EQ(ret, l_True);
+        EXPECT_EQ(s.okay(), true);
     }
-    EXPECT_EQ( s.nVars(), 1u);
+    EXPECT_EQ(s.nVars(), 1u);
 }
 
 TEST(xor_interface, xor_check_solution_values2)
@@ -262,14 +265,14 @@ TEST(xor_interface, xor_check_solution_values2)
     s.add_xor_clause(vector<uint32_t>{0U}, true);
     s.add_xor_clause(vector<uint32_t>{1U}, true);
     lbool ret = s.solve();
-    EXPECT_EQ( ret, l_True);
-    for(size_t i = 0;i < 10; i++) {
+    EXPECT_EQ(ret, l_True);
+    for (size_t i = 0; i < 10; i++) {
         ret = s.solve();
-        EXPECT_EQ( ret, l_True);
+        EXPECT_EQ(ret, l_True);
         EXPECT_EQ(s.get_model()[0], l_True);
         EXPECT_EQ(s.get_model()[1], l_True);
     }
-    EXPECT_EQ( s.nVars(), 2u);
+    EXPECT_EQ(s.nVars(), 2u);
 }
 
 TEST(xor_interface, xor_check_solution_values3)
@@ -279,7 +282,7 @@ TEST(xor_interface, xor_check_solution_values3)
     s.new_var();
     s.add_xor_clause(vector<uint32_t>{0U, 0U}, true);
     lbool ret = s.solve();
-    EXPECT_EQ( ret, l_False);
+    EXPECT_EQ(ret, l_False);
 }
 
 TEST(xor_interface, xor_check_solution_values4)
@@ -289,8 +292,8 @@ TEST(xor_interface, xor_check_solution_values4)
     s.new_var();
     s.add_xor_clause(vector<uint32_t>{0U, 0U}, false);
     lbool ret = s.solve();
-    EXPECT_EQ( ret, l_True);
-    EXPECT_EQ( s.nVars(), 2u);
+    EXPECT_EQ(ret, l_True);
+    EXPECT_EQ(s.nVars(), 2u);
 }
 
 
@@ -302,11 +305,11 @@ TEST(xor_interface, xor_check_solution_values5)
     s.add_xor_clause(vector<uint32_t>{0U, 1U}, true);
     vector<Lit> assump = {Lit(0, false)};
     lbool ret = s.solve(&assump);
-    EXPECT_EQ( ret, l_True);
-    EXPECT_EQ( s.okay(), true);
+    EXPECT_EQ(ret, l_True);
+    EXPECT_EQ(s.okay(), true);
     EXPECT_EQ(s.get_model()[0], l_True);
     EXPECT_EQ(s.get_model()[1], l_False);
-    EXPECT_EQ( s.nVars(), 2u);
+    EXPECT_EQ(s.nVars(), 2u);
 }
 
 TEST(xor_interface, xor_check_solution_values6)
@@ -317,10 +320,10 @@ TEST(xor_interface, xor_check_solution_values6)
     s.add_xor_clause(vector<uint32_t>{0U, 1U}, false);
     vector<Lit> assump = {Lit(0, true)};
     lbool ret = s.solve(&assump);
-    EXPECT_EQ( ret, l_True);
+    EXPECT_EQ(ret, l_True);
     EXPECT_EQ(s.get_model()[0], l_False);
     EXPECT_EQ(s.get_model()[1], l_False);
-    EXPECT_EQ( s.nVars(), 2u);
+    EXPECT_EQ(s.nVars(), 2u);
 }
 
 TEST(xor_interface, xor_check_solution_values7)
@@ -332,11 +335,11 @@ TEST(xor_interface, xor_check_solution_values7)
     s.add_xor_clause(vector<uint32_t>{0U, 1U, 2U}, false);
     vector<Lit> assump = {Lit(0, false), Lit(1, false)};
     lbool ret = s.solve(&assump);
-    EXPECT_EQ( ret, l_True);
+    EXPECT_EQ(ret, l_True);
     EXPECT_EQ(s.get_model()[0], l_True);
     EXPECT_EQ(s.get_model()[1], l_True);
     EXPECT_EQ(s.get_model()[2], l_False);
-    EXPECT_EQ( s.nVars(), 3u);
+    EXPECT_EQ(s.nVars(), 3u);
 }
 
 TEST(xor_interface, xor_3_long)
@@ -349,11 +352,11 @@ TEST(xor_interface, xor_3_long)
     s.add_xor_clause(vector<uint32_t>{0}, true);
     s.add_xor_clause(vector<uint32_t>{1}, true);
     lbool ret = s.solve();
-    EXPECT_EQ( ret, l_True);
+    EXPECT_EQ(ret, l_True);
     EXPECT_EQ(s.get_model()[0], l_True);
     EXPECT_EQ(s.get_model()[1], l_True);
     EXPECT_EQ(s.get_model()[2], l_True);
-    EXPECT_EQ( s.nVars(), 3u);
+    EXPECT_EQ(s.nVars(), 3u);
 }
 
 TEST(xor_interface, xor_3_long2)
@@ -366,11 +369,11 @@ TEST(xor_interface, xor_3_long2)
     s.add_xor_clause(vector<uint32_t>{0U}, true);
     s.add_xor_clause(vector<uint32_t>{1U}, true);
     lbool ret = s.solve();
-    EXPECT_EQ( ret, l_True);
+    EXPECT_EQ(ret, l_True);
     EXPECT_EQ(s.get_model()[0], l_True);
     EXPECT_EQ(s.get_model()[1], l_True);
     EXPECT_EQ(s.get_model()[2], l_False);
-    EXPECT_EQ( s.nVars(), 3u);
+    EXPECT_EQ(s.nVars(), 3u);
 }
 
 TEST(xor_interface, xor_4_long)
@@ -385,12 +388,12 @@ TEST(xor_interface, xor_4_long)
     s.add_xor_clause(vector<uint32_t>{1U}, false);
     s.add_xor_clause(vector<uint32_t>{2U}, false);
     lbool ret = s.solve();
-    EXPECT_EQ( ret, l_True);
+    EXPECT_EQ(ret, l_True);
     EXPECT_EQ(s.get_model()[0], l_False);
     EXPECT_EQ(s.get_model()[1], l_False);
     EXPECT_EQ(s.get_model()[2], l_False);
     EXPECT_EQ(s.get_model()[3], l_False);
-    EXPECT_EQ( s.nVars(), 4u);
+    EXPECT_EQ(s.nVars(), 4u);
 }
 
 TEST(xor_interface, xor_4_long2)
@@ -405,54 +408,54 @@ TEST(xor_interface, xor_4_long2)
     s.add_xor_clause(vector<uint32_t>{1U}, false);
     s.add_xor_clause(vector<uint32_t>{2U}, true);
     lbool ret = s.solve();
-    EXPECT_EQ( ret, l_True);
+    EXPECT_EQ(ret, l_True);
     EXPECT_EQ(s.get_model()[0], l_False);
     EXPECT_EQ(s.get_model()[1], l_False);
     EXPECT_EQ(s.get_model()[2], l_True);
     EXPECT_EQ(s.get_model()[3], l_False);
-    EXPECT_EQ( s.nVars(), 4u);
+    EXPECT_EQ(s.nVars(), 4u);
 }
 
 TEST(xor_interface, xor_very_long)
 {
     SATSolver s;
     vector<uint32_t> vars;
-    for(unsigned i = 0; i < 30; i++) {
+    for (unsigned i = 0; i < 30; i++) {
         s.new_var();
         vars.push_back(i);
     }
     s.add_xor_clause(vars, false);
-    for(unsigned i = 0; i < 29; i++) {
+    for (unsigned i = 0; i < 29; i++) {
         s.add_xor_clause(vector<uint32_t>{i}, false);
     }
     lbool ret = s.solve();
-    EXPECT_EQ( ret, l_True);
-    for(unsigned i = 0; i < 30; i++) {
+    EXPECT_EQ(ret, l_True);
+    for (unsigned i = 0; i < 30; i++) {
         EXPECT_EQ(s.get_model()[i], l_False);
     }
-    EXPECT_EQ( s.nVars(), 30u);
+    EXPECT_EQ(s.nVars(), 30u);
 }
 
 TEST(xor_interface, xor_very_long2)
 {
-    for(size_t num = 3; num < 30; num++) {
+    for (size_t num = 3; num < 30; num++) {
         SATSolver s;
         vector<uint32_t> vars;
-        for(unsigned i = 0; i < num; i++) {
+        for (unsigned i = 0; i < num; i++) {
             s.new_var();
             vars.push_back(i);
         }
         s.add_xor_clause(vars, true);
-        for(unsigned i = 0; i < num-1; i++) {
+        for (unsigned i = 0; i < num - 1; i++) {
             s.add_xor_clause(vector<uint32_t>{i}, false);
         }
         lbool ret = s.solve();
-        EXPECT_EQ( ret, l_True);
-        for(unsigned i = 0; i < num-1; i++) {
+        EXPECT_EQ(ret, l_True);
+        for (unsigned i = 0; i < num - 1; i++) {
             EXPECT_EQ(s.get_model()[i], l_False);
         }
-        EXPECT_EQ(s.get_model()[num-1], l_True);
-        EXPECT_EQ( s.nVars(), num);
+        EXPECT_EQ(s.get_model()[num - 1], l_True);
+        EXPECT_EQ(s.nVars(), num);
     }
 }
 
@@ -463,8 +466,8 @@ TEST(xor_interface, xor_check_unsat)
     s.add_xor_clause(vector<uint32_t>{0U, 1U, 2U}, false);
     s.add_xor_clause(vector<uint32_t>{0U, 1U, 2U}, true);
     lbool ret = s.solve();
-    EXPECT_EQ( ret, l_False);
-    EXPECT_EQ( s.nVars(), 3u);
+    EXPECT_EQ(ret, l_False);
+    EXPECT_EQ(s.nVars(), 3u);
 }
 
 TEST(xor_interface, xor_check_unsat_multi_thread)
@@ -475,9 +478,9 @@ TEST(xor_interface, xor_check_unsat_multi_thread)
     s.add_xor_clause(vector<uint32_t>{0U, 1U, 2U}, false);
     s.add_xor_clause(vector<uint32_t>{0U, 1U, 2U}, true);
     lbool ret = s.solve();
-    EXPECT_EQ( ret, l_False);
-    EXPECT_EQ( s.okay(), false);
-    EXPECT_EQ( s.nVars(), 3u);
+    EXPECT_EQ(ret, l_False);
+    EXPECT_EQ(s.okay(), false);
+    EXPECT_EQ(s.nVars(), 3u);
 }
 
 TEST(xor_interface, xor_check_unsat_multi_solve_multi_thread)
@@ -488,21 +491,21 @@ TEST(xor_interface, xor_check_unsat_multi_solve_multi_thread)
     s.add_xor_clause(vector<uint32_t>{0U, 1U}, false);
     s.add_xor_clause(vector<uint32_t>{0U, 1U, 2U}, true);
     lbool ret = s.solve();
-    EXPECT_EQ( ret, l_True);
-    EXPECT_EQ( s.nVars(), 3u);
+    EXPECT_EQ(ret, l_True);
+    EXPECT_EQ(s.nVars(), 3u);
 
     s.add_xor_clause(vector<uint32_t>{0U}, false);
     ret = s.solve();
-    EXPECT_EQ( ret, l_True);
-    EXPECT_EQ( s.get_model()[0], l_False);
-    EXPECT_EQ( s.get_model()[1], l_False);
-    EXPECT_EQ( s.get_model()[2], l_True);
-    EXPECT_EQ( s.nVars(), 3u);
+    EXPECT_EQ(ret, l_True);
+    EXPECT_EQ(s.get_model()[0], l_False);
+    EXPECT_EQ(s.get_model()[1], l_False);
+    EXPECT_EQ(s.get_model()[2], l_True);
+    EXPECT_EQ(s.nVars(), 3u);
 
     s.add_xor_clause(vector<uint32_t>{1U}, true);
     ret = s.solve();
-    EXPECT_EQ( ret, l_False);
-    EXPECT_EQ( s.nVars(), 3u);
+    EXPECT_EQ(ret, l_False);
+    EXPECT_EQ(s.nVars(), 3u);
 }
 
 TEST(xor_interface, xor_norm_mix_unsat_multi_thread)
@@ -515,8 +518,8 @@ TEST(xor_interface, xor_norm_mix_unsat_multi_thread)
     s.add_clause(vector<Lit>{Lit(1, false)});
     s.add_clause(vector<Lit>{Lit(2, false)});
     lbool ret = s.solve();
-    EXPECT_EQ( ret, l_False);
-    EXPECT_EQ( s.nVars(), 3u);
+    EXPECT_EQ(ret, l_False);
+    EXPECT_EQ(s.nVars(), 3u);
 }
 
 TEST(xor_interface, unit)
@@ -525,11 +528,11 @@ TEST(xor_interface, unit)
     s.new_vars(3);
     s.add_clause(str_to_cl("1"));
     lbool ret = s.solve();
-    EXPECT_EQ( ret, l_True);
+    EXPECT_EQ(ret, l_True);
 
     vector<Lit> units = s.get_zero_assigned_lits();
-    EXPECT_EQ( units.size(), 1u);
-    EXPECT_EQ( units[0], Lit(0, false));
+    EXPECT_EQ(units.size(), 1u);
+    EXPECT_EQ(units[0], Lit(0, false));
 }
 
 TEST(xor_interface, unit2)
@@ -538,20 +541,20 @@ TEST(xor_interface, unit2)
     s.new_vars(3);
     s.add_clause(str_to_cl("1"));
     lbool ret = s.solve();
-    EXPECT_EQ( ret, l_True);
+    EXPECT_EQ(ret, l_True);
 
     vector<Lit> units = s.get_zero_assigned_lits();
-    EXPECT_EQ( units.size(), 1u);
-    EXPECT_EQ( units[0], Lit(0, false));
+    EXPECT_EQ(units.size(), 1u);
+    EXPECT_EQ(units[0], Lit(0, false));
 
     s.add_clause(vector<Lit>{Lit(1, true)});
     ret = s.solve();
-    EXPECT_EQ( ret, l_True);
+    EXPECT_EQ(ret, l_True);
 
     units = s.get_zero_assigned_lits();
-    EXPECT_EQ( units.size(), 2u);
-    EXPECT_EQ( units[0], Lit(0, false));
-    EXPECT_EQ( units[1], Lit(1, true));
+    EXPECT_EQ(units.size(), 2u);
+    EXPECT_EQ(units[0], Lit(0, false));
+    EXPECT_EQ(units[1], Lit(1, true));
 }
 
 TEST(xor_interface, unit3)
@@ -561,12 +564,12 @@ TEST(xor_interface, unit3)
     s.add_clause(str_to_cl("1"));
     s.add_clause(str_to_cl("-1, -2"));
     lbool ret = s.solve();
-    EXPECT_EQ( ret, l_True);
+    EXPECT_EQ(ret, l_True);
 
     vector<Lit> units = s.get_zero_assigned_lits();
-    EXPECT_EQ( units.size(), 2u);
-    EXPECT_EQ( units[0], Lit(0, false));
-    EXPECT_EQ( units[1], Lit(1, true));
+    EXPECT_EQ(units.size(), 2u);
+    EXPECT_EQ(units[0], Lit(0, false));
+    EXPECT_EQ(units[1], Lit(1, true));
 }
 
 TEST(xor_interface, xor1)
@@ -579,10 +582,10 @@ TEST(xor_interface, xor1)
     s.new_vars(3);
     s.add_xor_clause(vector<uint32_t>{0, 1}, false);
     lbool ret = s.solve();
-    EXPECT_EQ( ret, l_True);
+    EXPECT_EQ(ret, l_True);
 
-    vector<std::pair<Lit, Lit> > pairs = s.get_all_binary_xors();
-    EXPECT_EQ( pairs.size(), 1u);
+    vector<std::pair<Lit, Lit>> pairs = s.get_all_binary_xors();
+    EXPECT_EQ(pairs.size(), 1u);
 }
 
 TEST(xor_interface, xor2)
@@ -596,10 +599,10 @@ TEST(xor_interface, xor2)
     s.add_xor_clause(vector<uint32_t>{0, 1}, false);
     s.add_xor_clause(vector<uint32_t>{1, 2}, false);
     lbool ret = s.solve();
-    EXPECT_EQ( ret, l_True);
+    EXPECT_EQ(ret, l_True);
 
-    vector<std::pair<Lit, Lit> > pairs = s.get_all_binary_xors();
-    EXPECT_EQ( pairs.size(), 2u);
+    vector<std::pair<Lit, Lit>> pairs = s.get_all_binary_xors();
+    EXPECT_EQ(pairs.size(), 2u);
 }
 
 TEST(xor_interface, abort_early)
@@ -618,7 +621,7 @@ TEST(xor_interface, abort_early)
     s.add_clause(str_to_cl("-1, -2"));
 
     lbool ret = s.solve();
-    EXPECT_EQ( ret, l_Undef);
+    EXPECT_EQ(ret, l_Undef);
 }
 
 TEST(xor_interface, abort_once_continue_next)
@@ -637,9 +640,9 @@ TEST(xor_interface, abort_once_continue_next)
     s.add_clause(str_to_cl("-1, -2"));
 
     lbool ret = s.solve();
-    EXPECT_EQ( ret, l_Undef);
+    EXPECT_EQ(ret, l_Undef);
     lbool ret2 = s.solve();
-    EXPECT_EQ( ret2, l_False);
+    EXPECT_EQ(ret2, l_False);
 }
 
 TEST(xor_interface, xor3)
@@ -653,16 +656,16 @@ TEST(xor_interface, xor3)
     s.new_vars(3);
     s.add_xor_clause(vector<uint32_t>{0, 1}, false);
     lbool ret = s.solve();
-    EXPECT_EQ( ret, l_True);
+    EXPECT_EQ(ret, l_True);
 
-    vector<std::pair<Lit, Lit> > pairs = s.get_all_binary_xors();
-    EXPECT_EQ( pairs.size(), 1u);
+    vector<std::pair<Lit, Lit>> pairs = s.get_all_binary_xors();
+    EXPECT_EQ(pairs.size(), 1u);
 
     s.add_xor_clause(vector<uint32_t>{1, 2}, false);
     ret = s.solve();
-    EXPECT_EQ( ret, l_True);
+    EXPECT_EQ(ret, l_True);
     pairs = s.get_all_binary_xors();
-    EXPECT_EQ( pairs.size(), 2u);
+    EXPECT_EQ(pairs.size(), 2u);
 }
 
 TEST(error_throw, multithread_newvar)
@@ -670,38 +673,30 @@ TEST(error_throw, multithread_newvar)
     SATSolver s;
 
     s.new_vars(3);
-    EXPECT_THROW({
-        s.set_num_threads(3);}
-        , std::runtime_error);
+    EXPECT_THROW({ s.set_num_threads(3); }, std::runtime_error);
 }
 
 TEST(error_throw, multithread_0)
 {
     SATSolver s;
 
-    EXPECT_THROW({
-        s.set_num_threads(0);}
-        , std::runtime_error);
+    EXPECT_THROW({ s.set_num_threads(0); }, std::runtime_error);
 }
 
 TEST(error_throw, multithread_drat)
 {
     SATSolver s;
-    FILE* os = NULL;
+    FILE *os = NULL;
     s.set_frat(os);
 
-    EXPECT_THROW({
-        s.set_num_threads(3);}
-        , std::runtime_error);
+    EXPECT_THROW({ s.set_num_threads(3); }, std::runtime_error);
 }
 
 TEST(error_throw, toomany_vars)
 {
     SATSolver s;
 
-    EXPECT_THROW({
-        s.new_vars(1ULL << 28);}
-        , CMSat::TooManyVarsError);
+    EXPECT_THROW({ s.new_vars(1ULL << 28); }, CMSat::TooManyVarsError);
 }
 
 TEST(error_throw, toomany_vars2)
@@ -709,19 +704,15 @@ TEST(error_throw, toomany_vars2)
     SATSolver s;
     s.new_vars(1ULL << 27);
 
-    EXPECT_THROW({
-        s.new_vars(1ULL << 27);}
-        , CMSat::TooManyVarsError);
+    EXPECT_THROW({ s.new_vars(1ULL << 27); }, CMSat::TooManyVarsError);
 }
 
 TEST(error_throw, toomany_vars_single)
 {
     SATSolver s;
-    s.new_vars((1ULL << 28) -1);
+    s.new_vars((1ULL << 28) - 1);
 
-    EXPECT_THROW({
-        s.new_var();}
-        , CMSat::TooManyVarsError);
+    EXPECT_THROW({ s.new_var(); }, CMSat::TooManyVarsError);
 }
 
 TEST(no_error_throw, long_clause)
@@ -730,7 +721,7 @@ TEST(no_error_throw, long_clause)
     s.new_vars(1ULL << 20);
 
     vector<Lit> cl;
-    for(size_t i = 0; i < 1ULL << 20; i++) {
+    for (size_t i = 0; i < 1ULL << 20; i++) {
         cl.push_back(Lit(i, false));
     }
     s.add_clause(cl);
@@ -872,21 +863,21 @@ TEST(propagate, prop_many)
 {
     SATSolver s;
     s.new_vars(30);
-    for(unsigned i = 0; i < 10; i++) {
-        s.add_clause(vector<Lit>{Lit(i*2, true), Lit(i*2+1, true)});
-        s.add_clause(vector<Lit>{Lit(i*2, false)});
+    for (unsigned i = 0; i < 10; i++) {
+        s.add_clause(vector<Lit>{Lit(i * 2, true), Lit(i * 2 + 1, true)});
+        s.add_clause(vector<Lit>{Lit(i * 2, false)});
     }
 
     vector<Lit> lits = s.get_zero_assigned_lits();
-    for(unsigned i = 0; i < 10; i++) {
+    for (unsigned i = 0; i < 10; i++) {
         vector<Lit>::iterator it;
-        it = std::find(lits.begin(), lits.end(), Lit(i*2, false));
+        it = std::find(lits.begin(), lits.end(), Lit(i * 2, false));
         EXPECT_TRUE(it != lits.end());
-        it = std::find(lits.begin(), lits.end(), Lit(i*2+1, true));
+        it = std::find(lits.begin(), lits.end(), Lit(i * 2 + 1, true));
         EXPECT_TRUE(it != lits.end());
     }
 
-    EXPECT_EQ(lits.size(), 10*2);
+    EXPECT_EQ(lits.size(), 10 * 2);
 }
 
 TEST(propagate, prop_complex)
@@ -924,22 +915,30 @@ TEST(get_small_clauses, mixed)
     vector<Lit> lits;
     bool is_xor, rhs;
     bool ret = s.get_next_constraint(lits, is_xor, rhs);
-    ASSERT_TRUE(ret); ASSERT_FALSE(is_xor); ASSERT_TRUE(rhs);
+    ASSERT_TRUE(ret);
+    ASSERT_FALSE(is_xor);
+    ASSERT_TRUE(rhs);
     std::sort(lits.begin(), lits.end());
     ASSERT_EQ(str_to_cl("10"), lits);
 
     ret = s.get_next_constraint(lits, is_xor, rhs);
-    ASSERT_TRUE(ret); ASSERT_FALSE(is_xor); ASSERT_TRUE(rhs);
+    ASSERT_TRUE(ret);
+    ASSERT_FALSE(is_xor);
+    ASSERT_TRUE(rhs);
     std::sort(lits.begin(), lits.end());
     ASSERT_EQ(str_to_cl(" 1,  2"), lits);
 
     ret = s.get_next_constraint(lits, is_xor, rhs);
-    ASSERT_TRUE(ret); ASSERT_FALSE(is_xor); ASSERT_TRUE(rhs);
+    ASSERT_TRUE(ret);
+    ASSERT_FALSE(is_xor);
+    ASSERT_TRUE(rhs);
     std::sort(lits.begin(), lits.end());
     ASSERT_EQ(str_to_cl(" -5,  6"), lits);
 
     ret = s.get_next_constraint(lits, is_xor, rhs);
-    ASSERT_TRUE(ret); ASSERT_FALSE(is_xor); ASSERT_TRUE(rhs);
+    ASSERT_TRUE(ret);
+    ASSERT_FALSE(is_xor);
+    ASSERT_TRUE(rhs);
     std::sort(lits.begin(), lits.end());
     ASSERT_EQ(str_to_cl("1, -2, -5, -6, 7"), lits);
 
@@ -966,12 +965,16 @@ TEST(get_small_clauses, scc)
     vector<Lit> lits;
     bool is_xor, rhs;
     bool ret = s.get_next_constraint(lits, is_xor, rhs);
-    ASSERT_TRUE(ret); ASSERT_FALSE(is_xor); ASSERT_TRUE(rhs);
+    ASSERT_TRUE(ret);
+    ASSERT_FALSE(is_xor);
+    ASSERT_TRUE(rhs);
     std::sort(lits.begin(), lits.end());
     ASSERT_EQ(str_to_cl(" 5,  -6"), lits);
 
     ret = s.get_next_constraint(lits, is_xor, rhs);
-    ASSERT_TRUE(ret); ASSERT_FALSE(is_xor); ASSERT_TRUE(rhs);
+    ASSERT_TRUE(ret);
+    ASSERT_FALSE(is_xor);
+    ASSERT_TRUE(rhs);
     std::sort(lits.begin(), lits.end());
     ASSERT_EQ(str_to_cl(" -5,  6"), lits);
 
@@ -993,12 +996,16 @@ TEST(get_small_clauses, units)
     vector<Lit> lits;
     bool is_xor, rhs;
     bool ret = s.get_next_constraint(lits, is_xor, rhs);
-    ASSERT_TRUE(ret); ASSERT_FALSE(is_xor); ASSERT_TRUE(rhs);
+    ASSERT_TRUE(ret);
+    ASSERT_FALSE(is_xor);
+    ASSERT_TRUE(rhs);
     std::sort(lits.begin(), lits.end());
     ASSERT_EQ(str_to_cl(" 5"), lits);
 
     ret = s.get_next_constraint(lits, is_xor, rhs);
-    ASSERT_TRUE(ret); ASSERT_FALSE(is_xor); ASSERT_TRUE(rhs);
+    ASSERT_TRUE(ret);
+    ASSERT_FALSE(is_xor);
+    ASSERT_TRUE(rhs);
     std::sort(lits.begin(), lits.end());
     ASSERT_EQ(str_to_cl("-6"), lits);
 
@@ -1020,7 +1027,9 @@ TEST(get_small_clauses, unsat)
     vector<Lit> lits;
     bool is_xor, rhs;
     bool ret = s.get_next_constraint(lits, is_xor, rhs);
-    ASSERT_TRUE(ret); ASSERT_FALSE(is_xor); ASSERT_TRUE(rhs);
+    ASSERT_TRUE(ret);
+    ASSERT_FALSE(is_xor);
+    ASSERT_TRUE(rhs);
     ASSERT_TRUE(lits.empty());
 
     ret = s.get_next_constraint(lits, is_xor, rhs);
@@ -1066,12 +1075,16 @@ TEST(get_small_clauses, bve)
     vector<Lit> lits;
     bool is_xor, rhs;
     bool ret = s.get_next_constraint(lits, is_xor, rhs);
-    ASSERT_TRUE(ret); ASSERT_FALSE(is_xor); ASSERT_TRUE(rhs);
+    ASSERT_TRUE(ret);
+    ASSERT_FALSE(is_xor);
+    ASSERT_TRUE(rhs);
     std::sort(lits.begin(), lits.end());
     ASSERT_EQ(str_to_cl(" 5, 6"), lits);
 
     ret = s.get_next_constraint(lits, is_xor, rhs);
-    ASSERT_TRUE(ret); ASSERT_FALSE(is_xor); ASSERT_TRUE(rhs);
+    ASSERT_TRUE(ret);
+    ASSERT_FALSE(is_xor);
+    ASSERT_TRUE(rhs);
     std::sort(lits.begin(), lits.end());
     ASSERT_EQ(str_to_cl("7, 8"), lits);
 
@@ -1107,7 +1120,7 @@ TEST(get_small_clauses, full_bins)
 
     vector<Lit> cl;
     uint32_t found = 0;
-    for(const auto& l: lits) {
+    for (const auto &l: lits) {
         if (l != lit_Undef) {
             cl.push_back(l);
         } else {
@@ -1154,12 +1167,16 @@ TEST(get_small_clauses, unit)
     vector<Lit> lits;
     bool is_xor, rhs;
     bool ret = s.get_next_constraint(lits, is_xor, rhs);
-    ASSERT_TRUE(ret); ASSERT_FALSE(is_xor); ASSERT_TRUE(rhs);
+    ASSERT_TRUE(ret);
+    ASSERT_FALSE(is_xor);
+    ASSERT_TRUE(rhs);
     std::sort(lits.begin(), lits.end());
     ASSERT_EQ(str_to_cl(" 5"), lits);
 
     ret = s.get_next_constraint(lits, is_xor, rhs);
-    ASSERT_TRUE(ret); ASSERT_FALSE(is_xor); ASSERT_TRUE(rhs);
+    ASSERT_TRUE(ret);
+    ASSERT_FALSE(is_xor);
+    ASSERT_TRUE(rhs);
     std::sort(lits.begin(), lits.end());
     ASSERT_EQ(str_to_cl(" 6"), lits);
 
@@ -1210,12 +1227,11 @@ TEST(sampling, indep2)
 
     lbool ret = s.solve(NULL, true);
     EXPECT_EQ(ret, l_True);
-    for(uint32_t i = 0; i < 6; i++) {
+    for (uint32_t i = 0; i < 6; i++) {
         EXPECT_NE(s.get_model()[i], l_Undef);
     }
     EXPECT_EQ(s.get_model()[6], l_Undef);
 }
-
 
 
 TEST(xor_recovery, find_1_3_xor)
@@ -1227,7 +1243,7 @@ TEST(xor_recovery, find_1_3_xor)
     s.add_xor_clause(str_to_vars("1, 2, 3"), false);
     s.simplify();
 
-    vector<std::pair<vector<uint32_t>, bool> > xors = s.get_recovered_xors(false);
+    vector<std::pair<vector<uint32_t>, bool>> xors = s.get_recovered_xors(false);
     EXPECT_EQ(xors.size(), 1);
 }
 
@@ -1240,7 +1256,7 @@ TEST(xor_recovery, find_1_3_xor2)
     s.add_xor_clause(str_to_vars("1, 2, 3"), true);
     s.simplify();
 
-    vector<std::pair<vector<uint32_t>, bool> > xors = s.get_recovered_xors(false);
+    vector<std::pair<vector<uint32_t>, bool>> xors = s.get_recovered_xors(false);
     EXPECT_EQ(xors.size(), 1);
 }
 
@@ -1255,7 +1271,7 @@ TEST(xor_recovery, find_2_3_xor_2)
     s.add_xor_clause(str_to_vars("4, 5, 6"), false);
     s.simplify();
 
-    vector<std::pair<vector<uint32_t>, bool> > xors = s.get_recovered_xors(true);
+    vector<std::pair<vector<uint32_t>, bool>> xors = s.get_recovered_xors(true);
     EXPECT_EQ(xors.size(), 2);
     if (xors.size() == 2) {
         EXPECT_EQ(xors[0].first, str_to_vars("1, 2, 3"));
@@ -1274,7 +1290,7 @@ TEST(xor_recovery, find_1_3_xor_exact)
     s.add_xor_clause(str_to_vars("1, 2, 3"), false);
     s.simplify();
 
-    vector<std::pair<vector<uint32_t>, bool> > xors = s.get_recovered_xors(false);
+    vector<std::pair<vector<uint32_t>, bool>> xors = s.get_recovered_xors(false);
     EXPECT_EQ(xors.size(), 1);
     EXPECT_EQ(xors[0].first, str_to_vars("1, 2, 3"));
     EXPECT_EQ(xors[0].second, false);
@@ -1289,7 +1305,7 @@ TEST(xor_recovery, find_1_3_xor_exact2)
     s.add_xor_clause(str_to_vars("1, 2, 3"), true);
     s.simplify();
 
-    vector<std::pair<vector<uint32_t>, bool> > xors = s.get_recovered_xors(false);
+    vector<std::pair<vector<uint32_t>, bool>> xors = s.get_recovered_xors(false);
     EXPECT_EQ(xors.size(), 1);
     EXPECT_EQ(xors[0].first, str_to_vars("1, 2, 3"));
     EXPECT_EQ(xors[0].second, true);
@@ -1304,7 +1320,7 @@ TEST(xor_recovery, find_1_4_xor_exact)
     s.add_xor_clause(str_to_vars("1, 2, 3, 4"), false);
     s.simplify();
 
-    vector<std::pair<vector<uint32_t>, bool> > xors = s.get_recovered_xors(false);
+    vector<std::pair<vector<uint32_t>, bool>> xors = s.get_recovered_xors(false);
     EXPECT_EQ(xors.size(), 1);
     EXPECT_EQ(xors[0].first, str_to_vars("1, 2, 3, 4"));
 }
@@ -1318,7 +1334,7 @@ TEST(xor_recovery, find_xor_one_only)
     s.add_xor_clause(str_to_vars("1, 2, 3, 4, 6"), false);
     s.simplify();
 
-    vector<std::pair<vector<uint32_t>, bool> > xors = s.get_recovered_xors(true);
+    vector<std::pair<vector<uint32_t>, bool>> xors = s.get_recovered_xors(true);
     EXPECT_EQ(xors.size(), 1);
     std::sort(xors[0].first.begin(), xors[0].first.end());
     EXPECT_EQ(xors[0].first, str_to_vars("1, 2, 3, 4, 6"));
@@ -1334,7 +1350,7 @@ TEST(xor_recovery, find_xor_one_only_inv)
     s.add_xor_clause(str_to_vars("1, 2, 3, 4, 6"), true);
     s.simplify();
 
-    vector<std::pair<vector<uint32_t>, bool> > xors = s.get_recovered_xors(true);
+    vector<std::pair<vector<uint32_t>, bool>> xors = s.get_recovered_xors(true);
     EXPECT_EQ(xors.size(), 1);
     std::sort(xors[0].first.begin(), xors[0].first.end());
     EXPECT_EQ(xors[0].first, str_to_vars("1, 2, 3, 4, 6"));
@@ -1350,7 +1366,7 @@ TEST(xor_recovery, find_xor_one_only_inv_external)
     s.add_xor_clause(str_to_vars("1, 2, 3, 4, 6"), true);
     s.simplify();
 
-    vector<std::pair<vector<uint32_t>, bool> > xors = s.get_recovered_xors(false);
+    vector<std::pair<vector<uint32_t>, bool>> xors = s.get_recovered_xors(false);
     EXPECT_EQ(xors.size(), 1);
 }
 
@@ -1367,13 +1383,14 @@ TEST(xor_recovery, DISABLED_find_xor_renumber)
     s.simplify();
     s.simplify();
 
-    vector<std::pair<vector<uint32_t>, bool> > xors = s.get_recovered_xors(true);
+    vector<std::pair<vector<uint32_t>, bool>> xors = s.get_recovered_xors(true);
     EXPECT_EQ(xors.size(), 1);
     EXPECT_EQ(xors[0].first, str_to_vars("2, 3, 4, 5, 6, 7,8, 9, 10"));
 }
 
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+int main(int argc, char **argv)
+{
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

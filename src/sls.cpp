@@ -27,22 +27,21 @@ THE SOFTWARE.
 
 using namespace CMSat;
 
-SLS::SLS(Solver* _solver) :
-    solver(_solver)
-{}
+SLS::SLS(Solver *_solver) : solver(_solver) {}
 
 lbool SLS::run(const uint32_t num_sls_called)
 {
     return run_ccnr(num_sls_called);
 }
 
-vector<vector<uint8_t>> SLS::run_alter(const int64_t mems, uint32_t num) {
+vector<vector<uint8_t>> SLS::run_alter(const int64_t mems, uint32_t num)
+{
     vector<vector<uint8_t>> sols;
-    for(uint32_t i = 0; i < num; i++) {
-      CMS_ccnr ccnr(solver);
-      vector<uint8_t> sol;
-      auto ret = ccnr.main_alter(mems, sol);
-      if (ret == l_True) sols.push_back(sol);
+    for (uint32_t i = 0; i < num; i++) {
+        CMS_ccnr ccnr(solver);
+        vector<uint8_t> sol;
+        auto ret = ccnr.main_alter(mems, sol);
+        if (ret == l_True) sols.push_back(sol);
     }
     return sols;
 }
@@ -50,17 +49,16 @@ vector<vector<uint8_t>> SLS::run_alter(const int64_t mems, uint32_t num) {
 lbool SLS::run_ccnr(const uint32_t num_sls_called)
 {
     CMS_ccnr ccnr(solver);
-    double mem_needed_mb = (double)approx_mem_needed()/(1000.0*1000.0);
-    double maxmem = solver->conf.sls_memoutMB*solver->conf.var_and_mem_out_mult;
+    double mem_needed_mb = (double)approx_mem_needed() / (1000.0 * 1000.0);
+    double maxmem = solver->conf.sls_memoutMB * solver->conf.var_and_mem_out_mult;
     if (mem_needed_mb < maxmem) {
         lbool ret = ccnr.main(num_sls_called);
         return ret;
     }
 
-    verb_print(1, "[sls] would need "
-        << std::setprecision(2) << std::fixed << mem_needed_mb
-        << " MB but that's over limit of " << std::fixed << maxmem
-        << " MB -- skipping");
+    verb_print(1,
+               "[sls] would need " << std::setprecision(2) << std::fixed << mem_needed_mb
+                                   << " MB but that's over limit of " << std::fixed << maxmem << " MB -- skipping");
 
     return l_Undef;
 }
@@ -69,11 +67,11 @@ uint64_t SLS::approx_mem_needed()
 {
     uint32_t numvars = solver->nVars();
     uint32_t numclauses = solver->longIrredCls.size() + solver->binTri.irredBins;
-    uint64_t numliterals = solver->litStats.irredLits + solver->binTri.irredBins*2;
+    uint64_t numliterals = solver->litStats.irredLits + solver->binTri.irredBins * 2;
     uint64_t needed = 0;
 
     //LIT storage (all clause data)
-    needed += (solver->litStats.irredLits+solver->binTri.irredBins*2)*sizeof(Lit);
+    needed += (solver->litStats.irredLits + solver->binTri.irredBins * 2) * sizeof(Lit);
 
     //This is just an estimation of yalsat's memory needs.
 

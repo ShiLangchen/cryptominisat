@@ -31,7 +31,8 @@ THE SOFTWARE.
 #include <vector>
 using std::vector;
 
-namespace CMSat {
+namespace CMSat
+{
 
 class OccSimplifier;
 class GateFinder;
@@ -39,8 +40,8 @@ class Solver;
 
 class SubsumeStrengthen
 {
-public:
-    SubsumeStrengthen(OccSimplifier* simplifier, Solver* solver);
+  public:
+    SubsumeStrengthen(OccSimplifier *simplifier, Solver *solver);
     size_t mem_used() const;
 
     void backw_sub_long_with_long();
@@ -48,27 +49,20 @@ public:
     bool backw_sub_str_long_with_bins();
     bool backw_sub_str_long_with_bins_watch(const Lit lit, bool both_bins = false);
     bool handle_added_long_cl(const bool main_run);
-    void remove_binary_cl(const OccurClause& cl);
+    void remove_binary_cl(const OccurClause &cl);
 
 
     Sub0Ret backw_sub_with_long(const ClOffset offset);
 
-    void backw_sub_with_impl(
-        const vector<Lit>& lits,
-        Sub1Ret& ret_sub_str
-    );
-    bool backw_sub_str_with_impl(
-        const vector<Lit>& lits,
-        Sub1Ret& ret_sub_str);
-    bool backw_sub_str_with_long(
-        ClOffset offset,
-        Sub1Ret& ret_sub_str);
+    void backw_sub_with_impl(const vector<Lit> &lits, Sub1Ret &ret_sub_str);
+    bool backw_sub_str_with_impl(const vector<Lit> &lits, Sub1Ret &ret_sub_str);
+    bool backw_sub_str_with_long(ClOffset offset, Sub1Ret &ret_sub_str);
 
     struct Stats
     {
-        Stats& operator+=(const Stats& other);
-        void print_short(const Solver* solver) const;
-        void print(const string& prefix) const;
+        Stats &operator+=(const Stats &other);
+        void print_short(const Solver *solver) const;
+        void print(const string &prefix) const;
 
         Sub0Ret sub0;
         Sub1Ret sub1;
@@ -78,61 +72,47 @@ public:
     };
 
     void finishedRun();
-    const Stats& get_stats() const;
-    const Stats& getRunStats() const;
+    const Stats &get_stats() const;
+    const Stats &getRunStats() const;
 
     template<class T>
-    void find_subsumed(
-        const ClOffset offset
-        , const T& ps
-        , const cl_abst_type abs
-        , vector<OccurClause>& out_subsumed
-        , const bool only_irred = false
-    );
+    void find_subsumed(const ClOffset offset,
+                       const T &ps,
+                       const cl_abst_type abs,
+                       vector<OccurClause> &out_subsumed,
+                       const bool only_irred = false);
 
-private:
+  private:
     Stats globalstats;
     Stats runStats;
 
-    OccSimplifier* simplifier;
-    Solver* solver;
+    OccSimplifier *simplifier;
+    Solver *solver;
 
     //Called from simplifier at resolvent-adding of var-elim
-    template<class T>
-    Sub0Ret subsume_and_unlink(
-        const ClOffset offset
-        , const T& ps
-        , const cl_abst_type abs
-    );
+    template<class T> Sub0Ret subsume_and_unlink(const ClOffset offset, const T &ps, const cl_abst_type abs);
+
+    template<class T> uint32_t find_smallest_watchlist_for_clause(const T &ps) const;
 
     template<class T>
-    uint32_t find_smallest_watchlist_for_clause(const T& ps) const;
+    void find_subsumed_and_strengthened(const ClOffset offset,
+                                        const T &ps,
+                                        const cl_abst_type abs,
+                                        vector<OccurClause> &out_subsumed,
+                                        vector<Lit> &out_lits);
 
     template<class T>
-    void find_subsumed_and_strengthened(
-        const ClOffset offset
-        , const T& ps
-        , const cl_abst_type abs
-        , vector<OccurClause>& out_subsumed
-        , vector<Lit>& out_lits
-    );
+    void fill_sub_str(const ClOffset offset,
+                      const T &ps,
+                      cl_abst_type abs,
+                      vector<OccurClause> &out_subsumed,
+                      vector<Lit> &out_lits,
+                      const Lit lit,
+                      const bool inverted);
 
-    template<class T>
-    void fill_sub_str(
-        const ClOffset offset
-        , const T& ps
-        , cl_abst_type abs
-        , vector<OccurClause>& out_subsumed
-        , vector<Lit>& out_lits
-        , const Lit lit
-        , const bool inverted
-    );
+    template<class T1, class T2> bool subset(const T1 &A, const T2 &B);
 
-    template<class T1, class T2>
-    bool subset(const T1& A, const T2& B);
-
-    template<class T1, class T2>
-    Lit subset1(const T1& A, const T2& B);
+    template<class T1, class T2> Lit subset1(const T1 &A, const T2 &B);
 
     vector<OccurClause> subs;
     vec<Watched> tmp;
@@ -143,16 +123,16 @@ private:
     uint64_t strBin = 0;
 };
 
-inline const SubsumeStrengthen::Stats& SubsumeStrengthen::getRunStats() const
+inline const SubsumeStrengthen::Stats &SubsumeStrengthen::getRunStats() const
 {
     return runStats;
 }
 
-inline const SubsumeStrengthen::Stats& SubsumeStrengthen::get_stats() const
+inline const SubsumeStrengthen::Stats &SubsumeStrengthen::get_stats() const
 {
     return globalstats;
 }
 
-} //end namespace
+} // namespace CMSat
 
 #endif //__SUBSUMESTRENGTHEN_H__

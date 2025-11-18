@@ -32,8 +32,8 @@ using namespace CMSat;
 
 int main(int argc, char **argv)
 {
-    Solver* s;
-    DistillerLongWithImpl* distillwbin;
+    Solver *s;
+    DistillerLongWithImpl *distillwbin;
     std::atomic<bool> must_inter;
     SolverConf conf;
     //conf.verbosity = 20;
@@ -51,4 +51,3 @@ int main(int argc, char **argv)
 
     return 0;
 }
-

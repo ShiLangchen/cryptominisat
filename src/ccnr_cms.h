@@ -28,25 +28,28 @@ THE SOFTWARE.
 #include <utility>
 #include "solvertypes.h"
 
-namespace CCNR {
-    class ls_solver;
+namespace CCNR
+{
+class ls_solver;
 }
 
-namespace CMSat {
+namespace CMSat
+{
 
 class Solver;
 using std::pair;
 using std::make_pair;
 
-class CMS_ccnr {
-public:
+class CMS_ccnr
+{
+  public:
     lbool main(const uint32_t num_sls_called);
-    lbool main_alter(int64_t mems, vector<uint8_t>& ret);
-    CMS_ccnr(Solver* _solver);
+    lbool main_alter(int64_t mems, vector<uint8_t> &ret);
+    CMS_ccnr(Solver *_solver);
     ~CMS_ccnr();
 
-private:
-    Solver* solver;
+  private:
+    Solver *solver;
 
     /************************************/
     /* Main                             */
@@ -60,15 +63,19 @@ private:
     void init_for_round();
     bool init_problem();
     lbool deal_with_solution(int res, const uint32_t num_sls_called);
-    CCNR::ls_solver* ls_s = nullptr;
+    CCNR::ls_solver *ls_s = nullptr;
     uint32_t cl_num = 0;
 
-    enum class add_cl_ret {added_cl, skipped_cl, unsat};
-    template<class T>
-    add_cl_ret add_this_clause(const T& cl);
+    enum class add_cl_ret
+    {
+        added_cl,
+        skipped_cl,
+        unsat
+    };
+    template<class T> add_cl_ret add_this_clause(const T &cl);
     vector<int> yals_lits;
-    vector<uint32_t>& seen;
-    vector<Lit>& toClear;
+    vector<uint32_t> &seen;
+    vector<Lit> &toClear;
 
     //Bumping of variable scores
     vector<pair<uint32_t, double>> get_bump_based_on_cls();
@@ -77,6 +84,6 @@ private:
     vector<pair<uint32_t, double>> get_bump_based_on_conflict_ct();
 };
 
-}
+} // namespace CMSat
 
 #endif //CMS_WALKSAT_H

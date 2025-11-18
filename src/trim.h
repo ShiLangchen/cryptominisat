@@ -25,15 +25,11 @@ THE SOFTWARE.
 
 #include <string.h>
 
-static inline std::string trim(const std::string& str)
+static inline std::string trim(const std::string &str)
 {
     std::string ret;
-    for(const char c: str)
-    {
-        if (c != ' '
-            && c != '\n'
-            && c != '\r'
-        ) {
+    for (const char c: str) {
+        if (c != ' ' && c != '\n' && c != '\r') {
             ret += c;
         }
     }

@@ -31,7 +31,8 @@ THE SOFTWARE.
 #include "watcharray.h"
 #include "touchlist.h"
 
-namespace CMSat {
+namespace CMSat
+{
 
 using std::vector;
 
@@ -40,21 +41,17 @@ class Clause;
 
 class SubsumeImplicit
 {
-public:
-    explicit SubsumeImplicit(Solver* solver);
+  public:
+    explicit SubsumeImplicit(Solver *solver);
     void subsume_implicit(bool check_stats = true, std::string caller = std::string());
-    uint32_t subsume_at_watch(const uint32_t at,
-                              int64_t *timeAvail,
-                              TouchList* touched = nullptr);
+    uint32_t subsume_at_watch(const uint32_t at, int64_t *timeAvail, TouchList *touched = nullptr);
 
-    struct Stats {
-        void clear()
-        {
-            *this = Stats();
-        }
-        Stats operator+=(const Stats& other);
-        void print_short(const Solver* solver, const char* caller) const;
-        void print(const char* caller) const;
+    struct Stats
+    {
+        void clear() { *this = Stats(); }
+        Stats operator+=(const Stats &other);
+        void print_short(const Solver *solver, const char *caller) const;
+        void print(const char *caller) const;
 
         double time_used = 0.0;
         uint64_t numCalled = 0;
@@ -65,12 +62,12 @@ public:
     Stats get_stats() const;
     double mem_used() const;
 
-private:
-    Solver* solver;
+  private:
+    Solver *solver;
     int64_t timeAvailable;
 
     Lit lastLit2;
-    Watched* lastBin;
+    Watched *lastBin;
     bool lastRed;
     vector<Lit> tmplits;
     Stats runStats;
@@ -84,15 +81,9 @@ private:
     }
 
     //ImplSubsumeData impl_subs_dat;
-    void try_subsume_bin(
-       const Lit lit
-        , Watched* i
-        , Watched*& j
-        , int64_t* timeAvail
-        , TouchList* touched = nullptr
-    );
+    void try_subsume_bin(const Lit lit, Watched *i, Watched *&j, int64_t *timeAvail, TouchList *touched = nullptr);
 };
 
-} //end namespace
+} // namespace CMSat
 
 #endif //SUBSUMEIMPLICIT_H

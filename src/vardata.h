@@ -33,7 +33,8 @@ namespace CMSat
 
 struct VarData
 {
-    VarData([[maybe_unused]] uint32_t num) {
+    VarData([[maybe_unused]] uint32_t num)
+    {
         is_bva = 0;
         occ_simp_tried = 0;
         saved_polarity = false;
@@ -56,27 +57,27 @@ struct VarData
     Removed removed = Removed::none;
 
     ///The preferred polarity of each variable.
-    uint8_t stable_polarity:1;
-    uint8_t saved_polarity:1;
-    uint8_t best_polarity:1;
-    uint8_t inv_polarity:1;
-    uint8_t is_bva:1;
-    uint8_t occ_simp_tried:1;
-    uint8_t propagated:1 = false;
+    uint8_t stable_polarity : 1;
+    uint8_t saved_polarity : 1;
+    uint8_t best_polarity : 1;
+    uint8_t inv_polarity : 1;
+    uint8_t is_bva : 1;
+    uint8_t occ_simp_tried : 1;
+    uint8_t propagated : 1 = false;
 
     float weight = 0.5;
 
-    #if defined(STATS_NEEDED)
+#if defined(STATS_NEEDED)
     uint32_t community_num = numeric_limits<uint32_t>::max();
-    #endif
+#endif
 
-    #if defined(STATS_NEEDED_BRANCH) || defined(FINAL_PREDICTOR_BRANCH)
+#if defined(STATS_NEEDED_BRANCH) || defined(FINAL_PREDICTOR_BRANCH)
     uint32_t set = 0;
     uint64_t num_propagated = 0;
     uint64_t num_propagated_pos = 0;
     uint64_t num_decided = 0;
     uint64_t num_decided_pos = 0;
-    bool     last_time_set_was_dec;
+    bool last_time_set_was_dec;
     uint32_t last_seen_in_1uip = 0;
     uint32_t last_decided_on = 0;
     uint32_t last_propagated = 0;
@@ -118,7 +119,7 @@ struct VarData
 
     uint64_t last_flipped = 0;
     bool dump;
-    #endif
+#endif
 };
 
-}
+} // namespace CMSat

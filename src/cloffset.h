@@ -25,7 +25,8 @@ THE SOFTWARE.
 
 #include "constants.h"
 
-namespace CMSat {
+namespace CMSat
+{
 
 #ifndef LARGE_OFFSETS
 typedef uint32_t ClOffset;
@@ -35,7 +36,6 @@ typedef uint64_t ClOffset;
 #define CL_OFFSET_MAX (numeric_limits<ClOffset>::max())
 
 
-
-}
+} // namespace CMSat
 
 #endif //CLAUSEOFFSET_H

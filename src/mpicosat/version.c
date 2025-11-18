@@ -1,14 +1,11 @@
 #include "mpico_config.h"
 
-const char *
-picosat_version (void)
+const char *picosat_version(void)
 {
-  return PICOSAT_VERSION;
+    return PICOSAT_VERSION;
 }
 
-const char *
-picosat_config (void)
+const char *picosat_config(void)
 {
-  return PICOSAT_CC " " PICOSAT_CFLAGS;
+    return PICOSAT_CC " " PICOSAT_CFLAGS;
 }
-

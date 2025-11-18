@@ -29,25 +29,25 @@ THE SOFTWARE.
 
 using std::numeric_limits;
 
-namespace CMSat {
+namespace CMSat
+{
 
 class Solver;
 
-class GetClauseQuery {
-public:
-    GetClauseQuery(Solver* solver);
-    void start_getting_constraints(
-           bool red,
-           bool simplified = false,
-           uint32_t max_len = std::numeric_limits<uint32_t>::max(),
-           uint32_t max_glue = std::numeric_limits<uint32_t>::max());
-    bool get_next_constraint(std::vector<Lit>& ret, bool& is_xor, bool& rhs);
+class GetClauseQuery
+{
+  public:
+    GetClauseQuery(Solver *solver);
+    void start_getting_constraints(bool red,
+                                   bool simplified = false,
+                                   uint32_t max_len = std::numeric_limits<uint32_t>::max(),
+                                   uint32_t max_glue = std::numeric_limits<uint32_t>::max());
+    bool get_next_constraint(std::vector<Lit> &ret, bool &is_xor, bool &rhs);
     void end_getting_constraints();
-    vector<uint32_t> translate_sampl_set(
-            const vector<uint32_t>& sampl_set, bool also_removed);
+    vector<uint32_t> translate_sampl_set(const vector<uint32_t> &sampl_set, bool also_removed);
 
-private:
-    Solver* solver;
+  private:
+    Solver *solver;
 
     bool red = false;
     uint32_t max_len = numeric_limits<uint32_t>::max();
@@ -66,6 +66,6 @@ private:
     uint32_t xor_at = numeric_limits<uint32_t>::max();
     bool simplified = false;
 
-    bool all_vars_outside(const vector<Lit>& cl) const;
+    bool all_vars_outside(const vector<Lit> &cl) const;
 };
-}
+} // namespace CMSat

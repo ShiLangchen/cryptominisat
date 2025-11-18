@@ -29,10 +29,7 @@ THE SOFTWARE.
 
 using namespace CMSat;
 
-Lucky::Lucky(Solver* _solver) :
-    solver(_solver)
-{
-}
+Lucky::Lucky(Solver *_solver) : solver(_solver) {}
 
 void CMSat::Lucky::doit()
 {
@@ -50,26 +47,20 @@ void CMSat::Lucky::doit()
     if (horn_sat(true)) goto end;
     if (horn_sat(false)) goto end;
 
-    end:
+end:
     double time_used = cpuTime() - my_time;
     if (solver->conf.verbosity) {
-        cout << "c [lucky] finished "
-        << solver->conf.print_times(time_used)
-        << endl;
+        cout << "c [lucky] finished " << solver->conf.print_times(time_used) << endl;
     }
     if (solver->sqlStats) {
-        solver->sqlStats->time_passed_min(
-            solver
-            , "lucky"
-            , time_used
-        );
+        solver->sqlStats->time_passed_min(solver, "lucky", time_used);
     }
     assert(solver->decisionLevel() == 0);
 }
 
 bool CMSat::Lucky::check_all(bool polar)
 {
-    for(uint32_t i = 0; i < solver->nVars()*2; i++) {
+    for (uint32_t i = 0; i < solver->nVars() * 2; i++) {
         Lit lit = Lit::toLit(i);
 
         if (solver->value(lit) == l_True) {
@@ -78,20 +69,17 @@ bool CMSat::Lucky::check_all(bool polar)
         if (!lit.sign() == polar) {
             continue;
         }
-        for(const auto& w: solver->watches[lit]) {
-            if (w.isBin() && solver->value(w.lit2()) == l_True)
-                continue;
-            if (w.isBin() && solver->value(w.lit2()) == l_False)
-                return false;
-            if (w.isBin() && !w.lit2().sign() != polar)
-                return false;
+        for (const auto &w: solver->watches[lit]) {
+            if (w.isBin() && solver->value(w.lit2()) == l_True) continue;
+            if (w.isBin() && solver->value(w.lit2()) == l_False) return false;
+            if (w.isBin() && !w.lit2().sign() != polar) return false;
         }
     }
 
-    for(const auto& off: solver->longIrredCls) {
-        Clause* cl = solver->cl_alloc.ptr(off);
+    for (const auto &off: solver->longIrredCls) {
+        Clause *cl = solver->cl_alloc.ptr(off);
         bool ok = false;
-        for(const Lit l: *cl) {
+        for (const Lit l: *cl) {
             if (solver->value(l) == l_True) {
                 ok = true;
                 break;
@@ -109,7 +97,7 @@ bool CMSat::Lucky::check_all(bool polar)
     if (solver->conf.verbosity) {
         cout << "c [lucky] all " << (int)polar << " worked. Saving phases." << endl;
     }
-    for(auto& x: solver->varData) {
+    for (auto &x: solver->varData) {
         x.best_polarity = polar;
     }
     return true;
@@ -118,14 +106,14 @@ bool CMSat::Lucky::check_all(bool polar)
 
 void Lucky::set_polarities_to_enq_val()
 {
-    for(uint32_t i = 0; i < solver->nVars(); i++) {
+    for (uint32_t i = 0; i < solver->nVars(); i++) {
         solver->varData[i].stable_polarity = solver->value(i) == l_True;
     }
 }
 
 bool CMSat::Lucky::search_fwd_sat(bool polar)
 {
-    for(uint32_t i = 0; i < solver->nVars(); i++) {
+    for (uint32_t i = 0; i < solver->nVars(); i++) {
         if (solver->varData[i].removed != Removed::none) {
             continue;
         }
@@ -145,7 +133,7 @@ bool CMSat::Lucky::search_fwd_sat(bool polar)
     }
 
     if (solver->conf.verbosity) {
-        cout << "c [lucky] Forward polar " << (int)polar  << " worked. Saving phases." << endl;
+        cout << "c [lucky] Forward polar " << (int)polar << " worked. Saving phases." << endl;
     }
 
     set_polarities_to_enq_val();
@@ -189,7 +177,7 @@ bool CMSat::Lucky::search_backw_sat(bool polar)
         return false;
     }
 
-    for(int i = (int)solver->nVars() - 1; i >= 0; i--) {
+    for (int i = (int)solver->nVars() - 1; i >= 0; i--) {
         if (solver->varData[i].removed != Removed::none) {
             continue;
         }
@@ -209,7 +197,7 @@ bool CMSat::Lucky::search_backw_sat(bool polar)
     }
 
     if (solver->conf.verbosity) {
-        cout << "c [lucky] Backward polar " << (int)polar  << " worked. Saving phases." << endl;
+        cout << "c [lucky] Backward polar " << (int)polar << " worked. Saving phases." << endl;
     }
 
     set_polarities_to_enq_val();
@@ -223,11 +211,11 @@ bool CMSat::Lucky::horn_sat(bool polar)
         return false;
     }
 
-    for(const auto& off: solver->longIrredCls) {
-        Clause* cl = solver->cl_alloc.ptr(off);
+    for (const auto &off: solver->longIrredCls) {
+        Clause *cl = solver->cl_alloc.ptr(off);
         bool satisfied = false;
         Lit to_set = lit_Undef;
-        for(const Lit l: *cl) {
+        for (const Lit l: *cl) {
             if (!l.sign() == polar && solver->value(l) == l_Undef) {
                 to_set = l;
             }
@@ -256,17 +244,15 @@ bool CMSat::Lucky::horn_sat(bool polar)
 
     //NOTE: propagating WHILE going through a watchlist will SEGFAULT
     vector<Lit> toset;
-    for(uint32_t i = 0; i < solver->nVars()*2; i++) {
+    for (uint32_t i = 0; i < solver->nVars() * 2; i++) {
         Lit lit = Lit::toLit(i);
         if (solver->value(lit) == l_True) {
             continue;
         }
         if (!lit.sign() == polar) {
             bool must_set = false;
-            for(const auto& w: solver->watches[lit]) {
-                if (w.isBin() &&
-                    solver->value(w.lit2()) != l_True)
-                {
+            for (const auto &w: solver->watches[lit]) {
+                if (w.isBin() && solver->value(w.lit2()) != l_True) {
                     must_set = true;
                     break;
                 }
@@ -283,10 +269,8 @@ bool CMSat::Lucky::horn_sat(bool polar)
         } else {
             toset.clear();
             bool ok = true;
-            for(const auto& w: solver->watches[lit]) {
-                if (w.isBin() &&
-                    solver->value(w.lit2()) != l_True)
-                {
+            for (const auto &w: solver->watches[lit]) {
+                if (w.isBin() && solver->value(w.lit2()) != l_True) {
                     if (w.lit2().sign() != polar) {
                         ok = false;
                         break;
@@ -299,7 +283,7 @@ bool CMSat::Lucky::horn_sat(bool polar)
                 solver->cancelUntil<false, true>(0);
                 return false;
             }
-            for(const auto& x: toset) {
+            for (const auto &x: toset) {
                 if (solver->value(x) == l_False) {
                     solver->cancelUntil<false, true>(0);
                     return false;
@@ -319,7 +303,7 @@ bool CMSat::Lucky::horn_sat(bool polar)
     }
 
     if (solver->conf.verbosity) {
-        cout << "c [lucky] Horn polar " << (int)polar  << " worked. Saving phases." << endl;
+        cout << "c [lucky] Horn polar " << (int)polar << " worked. Saving phases." << endl;
     }
 
     set_polarities_to_enq_val();

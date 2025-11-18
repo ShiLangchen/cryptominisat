@@ -27,37 +27,53 @@
 /* #define DEBUG_ORACLE_VERB */
 
 #ifdef DEBUG_ORACLE_VERB
-#define oclv(x) do {cout << x << endl;} while(0)
-#define oclv2(x) do {cout << x;} while(0)
+    #define oclv(x)                                                                                                    \
+        do {                                                                                                           \
+            cout << x << endl;                                                                                         \
+        } while (0)
+    #define oclv2(x)                                                                                                   \
+        do {                                                                                                           \
+            cout << x;                                                                                                 \
+        } while (0)
 #else
-#define oclv(x) do {} while(0)
-#define oclv2(x) do {} while(0)
+    #define oclv(x)                                                                                                    \
+        do {                                                                                                           \
+        } while (0)
+    #define oclv2(x)                                                                                                   \
+        do {                                                                                                           \
+        } while (0)
 #endif
 
-namespace sspp {
-namespace oracle {
+namespace sspp
+{
+namespace oracle
+{
 
-struct TriState {
+struct TriState
+{
     TriState() = default;
 
-    TriState(bool _b) {
+    TriState(bool _b)
+    {
         if (_b) val = 1;
         else val = 0;
     }
 
-    static TriState unknown() {
+    static TriState unknown()
+    {
         TriState tmp;
         tmp.val = 2;
         return tmp;
     }
 
-    bool isTrue() const {return val == 1;}
-    bool isFalse() const {return val == 0;}
-    bool isUnknown() const {return val == 2;}
+    bool isTrue() const { return val == 1; }
+    bool isFalse() const { return val == 0; }
+    bool isUnknown() const { return val == 2; }
     int val;
 };
 
-inline std::ostream& operator<<(std::ostream& os, const TriState& ts) {
+inline std::ostream &operator<<(std::ostream &os, const TriState &ts)
+{
     if (ts.isTrue()) os << "true";
     else if (ts.isFalse()) os << "false";
     else if (ts.isUnknown()) os << "unknown";
@@ -65,7 +81,8 @@ inline std::ostream& operator<<(std::ostream& os, const TriState& ts) {
     return os;
 }
 
-struct Stats {
+struct Stats
+{
     int64_t mems = 0;
     int64_t decisions = 0;
     int64_t learned_clauses = 0;
@@ -80,20 +97,23 @@ struct Stats {
     void Print() const;
 };
 
-struct Watch {
+struct Watch
+{
     // should align to 8+4+4=16 bytes
     size_t cls;
     Lit blit; // blocked literal
     int size;
 };
 
-struct VarC {
+struct VarC
+{
     size_t reason = 0;
     int level = 0;
     char phase = 0;
 };
 
-struct CInfo {
+struct CInfo
+{
     size_t pt;
     int glue;
     int used;
@@ -101,26 +121,27 @@ struct CInfo {
     bool Keep() const;
 };
 
-class Oracle {
-public:
-    Oracle(int vars_, const vector<vector<Lit>>& clauses_);
-    Oracle(int vars_, const vector<vector<Lit>>& clauses_, const vector<vector<Lit>>& learned_clauses_);
+class Oracle
+{
+  public:
+    Oracle(int vars_, const vector<vector<Lit>> &clauses_);
+    Oracle(int vars_, const vector<vector<Lit>> &clauses_, const vector<vector<Lit>> &learned_clauses_);
 
     void SetAssumpLit(Lit lit, bool freeze);
-    void SetVerbosity(uint32_t _verb) { verb=_verb;}
-    TriState Solve(const vector<Lit>& assumps, bool usecache=true, int64_t max_mems = 1000ULL*1000LL*1000LL);
+    void SetVerbosity(uint32_t _verb) { verb = _verb; }
+    TriState Solve(const vector<Lit> &assumps, bool usecache = true, int64_t max_mems = 1000ULL * 1000LL * 1000LL);
     bool FreezeUnit(Lit unit);
     bool AddClauseIfNeededAndStr(vector<Lit> clause, bool entailed);
-    void AddClause(const vector<Lit>& clause, bool entailed);
+    void AddClause(const vector<Lit> &clause, bool entailed);
     void PrintStats() const;
     vector<vector<Lit>> GetLearnedClauses() const;
 
     int CurLevel() const;
     int LitVal(Lit lit) const;
-    const Stats& getStats() const {return stats;}
-    void reset_mems() {stats.mems = 0;}
+    const Stats &getStats() const { return stats; }
+    void reset_mems() { stats.mems = 0; }
 
- private:
+  private:
     uint32_t verb = 0;
     size_t total_confls = 0;
     size_t last_db_clean = 0;
@@ -177,58 +198,66 @@ public:
     void Decide(Lit dec, int level);
     void UnDecide(int level);
 
-    TriState HardSolve(int64_t max_mems = 1000LL*1000LL*1000LL);
+    TriState HardSolve(int64_t max_mems = 1000LL * 1000LL * 1000LL);
     // True if conflict
     size_t Propagate(int level);
 
-    size_t AddLearnedClause(const vector<Lit>& clause);
+    size_t AddLearnedClause(const vector<Lit> &clause);
     bool LitReduntant(Lit lit);
-    void PopLit(vector<Lit>& clause, int& confl_levels, int& impl_lits, int level);
+    void PopLit(vector<Lit> &clause, int &confl_levels, int &impl_lits, int level);
     vector<Lit> LearnUip(size_t conflict_clause);
-    int CDCLBT(size_t confl_clause, int min_level=0);
+    int CDCLBT(size_t confl_clause, int min_level = 0);
 
     vector<vector<char>> sol_cache; // Caches found FULL solutions
     void AddSolToCache();
-    bool SatByCache(const vector<Lit>& assumps) const;
+    bool SatByCache(const vector<Lit> &assumps) const;
     void ClearSolCache();
 };
 
 
-inline int Oracle::LitVal(Lit lit) const {
+inline int Oracle::LitVal(Lit lit) const
+{
     return lit_val[lit];
 }
 
-inline bool Oracle::LitSat(Lit lit) const {
+inline bool Oracle::LitSat(Lit lit) const
+{
     return LitVal(lit) > 0;
 }
 
-inline bool Oracle::LitAssigned(Lit lit) const {
+inline bool Oracle::LitAssigned(Lit lit) const
+{
     return LitVal(lit) != 0;
 }
 
 // TOP level is 1.
-inline int Oracle::CurLevel() const {
+inline int Oracle::CurLevel() const
+{
     if (decided.empty()) {
         return 1;
     }
     return vs[decided.back()].level;
 }
 
-inline void Oracle::Decide(Lit dec, int level) {
+inline void Oracle::Decide(Lit dec, int level)
+{
     assert(LitVal(dec) == 0);
     stats.decisions++;
     Assign(dec, 0, level);
 }
 
-inline void Oracle::AddClause(const vector<Lit>& clause, bool entailed) {
+inline void Oracle::AddClause(const vector<Lit> &clause, bool entailed)
+{
     AddOrigClause(clause, entailed);
 }
 
-inline void Oracle::PrintStats() const {
+inline void Oracle::PrintStats() const
+{
     stats.Print();
 }
 
-inline bool CInfo::Keep() const {
+inline bool CInfo::Keep() const
+{
     return glue <= 2;
 }
 

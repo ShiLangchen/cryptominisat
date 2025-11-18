@@ -23,38 +23,30 @@ THE SOFTWARE.
 #ifndef NO_MUTEX_H
 #define NO_MUTEX_H
 
-namespace std {
-    struct mutex {
-        void lock() {}
-        void unlock() {}
-    };
+namespace std
+{
+struct mutex
+{
+    void lock() {}
+    void unlock() {}
+};
 
-    static const bool memory_order_relaxed = true;
-    static const bool memory_order_acquire = true;
+static const bool memory_order_relaxed = true;
+static const bool memory_order_acquire = true;
 
-    inline void atomic_thread_fence(bool)
-    {}
+inline void atomic_thread_fence(bool) {}
 
-    template<class T>
-    struct atomic {
-        atomic()
-        {}
+template<class T> struct atomic
+{
+    atomic() {}
 
-        atomic(bool _val) :
-        val(_val)
-        {}
+    atomic(bool _val) : val(_val) {}
 
-        void store(bool _val, bool) {
-            val = _val;
-        }
-        bool load(bool) const {
-            return val;
-        }
-        operator bool() {
-            return val;
-        }
-        T val;
-    };
-}
+    void store(bool _val, bool) { val = _val; }
+    bool load(bool) const { return val; }
+    operator bool() { return val; }
+    T val;
+};
+} // namespace std
 
 #endif //NO_MUTEX_H

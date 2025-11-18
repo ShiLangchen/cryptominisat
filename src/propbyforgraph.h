@@ -26,117 +26,84 @@ THE SOFTWARE.
 #include "clauseallocator.h"
 
 #ifndef __PROPBYFORGRAPH_H__
-#define __PROPBYFORGRAPH_H__
+    #define __PROPBYFORGRAPH_H__
 
-namespace CMSat {
+namespace CMSat
+{
 
 class PropByForGraph
 {
-    private:
-        uint16_t type;
-        uint32_t isize;
-        Clause* clause;
-        Lit lits[3];
+  private:
+    uint16_t type;
+    uint32_t isize;
+    Clause *clause;
+    Lit lits[3];
 
-    public:
-        PropByForGraph(PropBy orig
-                    , Lit otherLit
-                    , const ClauseAllocator& alloc
-        ) :
-            type(10)
-            , isize(0)
-            , clause(nullptr)
-        {
-            if (orig.getType() == binary_t) {
-                lits[0] = otherLit;
-                lits[1] = orig.lit2();
-                type = 1;
-                isize = 2;
-            }
-            if (orig.isClause()) {
-                if (orig.isnullptr()) {
-                    type = 0;
-                    isize = 0;
-                    clause = nullptr;
-                    return;
-                }
-                clause = alloc.ptr(orig.get_offset());
-                isize = clause->size();
+  public:
+    PropByForGraph(PropBy orig, Lit otherLit, const ClauseAllocator &alloc) : type(10), isize(0), clause(nullptr)
+    {
+        if (orig.getType() == binary_t) {
+            lits[0] = otherLit;
+            lits[1] = orig.lit2();
+            type = 1;
+            isize = 2;
+        }
+        if (orig.isClause()) {
+            if (orig.isnullptr()) {
                 type = 0;
+                isize = 0;
+                clause = nullptr;
+                return;
             }
+            clause = alloc.ptr(orig.get_offset());
+            isize = clause->size();
+            type = 0;
         }
+    }
 
-        PropByForGraph() :
-            type(0)
-            , clause(nullptr)
-        {}
+    PropByForGraph() : type(0), clause(nullptr) {}
 
-        PropByForGraph(const PropByForGraph& other) :
-            type(other.type)
-            , isize(other.isize)
-            , clause(other.clause)
-        {
-            memcpy(lits, other.lits, sizeof(Lit)*3);
+    PropByForGraph(const PropByForGraph &other) : type(other.type), isize(other.isize), clause(other.clause)
+    {
+        memcpy(lits, other.lits, sizeof(Lit) * 3);
+    }
+
+    PropByForGraph &operator=(const PropByForGraph &other)
+    {
+        type = other.type, isize = other.isize;
+        clause = other.clause;
+        //delete xorLits;
+        memcpy(lits, other.lits, sizeof(Lit) * 3);
+        return *this;
+    }
+
+    uint32_t size() const { return isize; }
+
+    bool isnullptr() const { return type == 0 && clause == nullptr; }
+
+    bool isClause() const { return type == 0; }
+
+    bool isBin() const { return type == 1; }
+
+    const Clause *getClause() const { return clause; }
+
+    Clause *getClause() { return clause; }
+
+    Lit operator[](const uint32_t i) const
+    {
+        switch (type) {
+            case 0:
+                assert(clause != nullptr);
+                return (*clause)[i];
+
+            default:
+                return lits[i];
         }
-
-        PropByForGraph& operator=(const PropByForGraph& other)
-        {
-            type = other.type,
-            isize = other.isize;
-            clause = other.clause;
-            //delete xorLits;
-            memcpy(lits, other.lits, sizeof(Lit)*3);
-            return *this;
-        }
-
-        uint32_t size() const
-        {
-            return isize;
-        }
-
-        bool isnullptr() const
-        {
-            return type == 0 && clause == nullptr;
-        }
-
-        bool isClause() const
-        {
-            return type == 0;
-        }
-
-        bool isBin() const
-        {
-            return type == 1;
-        }
-
-        const Clause* getClause() const
-        {
-            return clause;
-        }
-
-        Clause* getClause()
-        {
-            return clause;
-        }
-
-        Lit operator[](const uint32_t i) const
-        {
-            switch (type) {
-                case 0:
-                    assert(clause != nullptr);
-                    return (*clause)[i];
-
-                default :
-                    return lits[i];
-            }
-        }
+    }
 };
 
-inline std::ostream& operator<<(
-    std::ostream& os
-    , const PropByForGraph& propByFull
-) {
-
+inline std::ostream &operator<<(std::ostream &os, const PropByForGraph &propByFull)
+{
     if (propByFull.isBin()) {
         os << propByFull[0] << " " << propByFull[1];
     } else if (propByFull.isClause()) {
@@ -146,6 +113,6 @@ inline std::ostream& operator<<(
     return os;
 }
 
-} //end namespace
+} // namespace CMSat
 
 #endif //__PROPBYFORGRAPH_H__

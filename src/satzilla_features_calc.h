@@ -33,41 +33,34 @@ using std::vector;
 using std::pair;
 using std::make_pair;
 
-namespace CMSat {
+namespace CMSat
+{
 
 class Solver;
 
-struct SatZillaFeaturesCalc {
-public:
-    SatZillaFeaturesCalc(const Solver* _solver) :
-        solver(_solver) {
-    }
+struct SatZillaFeaturesCalc
+{
+  public:
+    SatZillaFeaturesCalc(const Solver *_solver) : solver(_solver) {}
     SatZillaFeatures extract();
 
-private:
+  private:
     void fill_vars_cls();
     void calculate_clause_stats();
     void calculate_variable_stats();
     void calculate_extra_var_stats();
     void calculate_extra_clause_stats();
     void normalise_values();
-    void calculate_cl_distributions(
-        const vector<ClOffset>& clauses
-        , struct SatZillaFeatures::Distrib& distrib_data
-    );
+    void calculate_cl_distributions(const vector<ClOffset> &clauses, struct SatZillaFeatures::Distrib &distrib_data);
 
 
-    const Solver* solver;
+    const Solver *solver;
     template<class Function, class Function2>
-    void for_one_clause(
-        const Watched& cl
-        , const Lit lit
-        ,  Function func
-        ,  Function2 func_each_lit
-    ) const;
+    void for_one_clause(const Watched &cl, const Lit lit, Function func, Function2 func_each_lit) const;
     template<class Function, class Function2>
-    void for_all_clauses(Function for_each_clause,  Function2 func_each_lit) const;
-    struct VARIABLE {
+    void for_all_clauses(Function for_each_clause, Function2 func_each_lit) const;
+    struct VARIABLE
+    {
         int numPos = 0;
         int size = 0;
         int horn = 0;
@@ -77,6 +70,6 @@ private:
     SatZillaFeatures satzilla_feat;
 };
 
-} //end namespace
+} // namespace CMSat
 
 #endif //__FEATURES_FAST_H__

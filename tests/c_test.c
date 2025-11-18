@@ -24,13 +24,15 @@ THE SOFTWARE.
 #include "cryptominisat5/cryptominisat_c.h"
 #include "assert.h"
 
-c_Lit new_lit(uint32_t var, bool neg) {
+c_Lit new_lit(uint32_t var, bool neg)
+{
     c_Lit x;
     x.x = (var << 1) | neg;
     return x;
 }
 
-int main(void) {
+int main(void)
+{
     int new; // make sure this is actually compiled as C
 
     SATSolver *solver = cmsat_new();

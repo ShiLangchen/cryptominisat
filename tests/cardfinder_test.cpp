@@ -30,7 +30,8 @@ THE SOFTWARE.
 using namespace CMSat;
 #include "test_helper.h"
 
-struct card_finder : public ::testing::Test {
+struct card_finder : public ::testing::Test
+{
     card_finder()
     {
         must_inter.store(false, std::memory_order_relaxed);
@@ -38,15 +39,15 @@ struct card_finder : public ::testing::Test {
         //conf.verbosity = 1;
         s = new Solver(&conf, &must_inter);
         s->new_vars(50);
-        finder =  new CardFinder(s);
+        finder = new CardFinder(s);
     }
     ~card_finder()
     {
         delete finder;
         delete s;
     }
-    Solver* s = NULL;
-    CardFinder* finder = NULL;
+    Solver *s = NULL;
+    CardFinder *finder = NULL;
     std::atomic<bool> must_inter;
 };
 
@@ -193,7 +194,8 @@ TEST_F(card_finder, find_two_product)
     EXPECT_EQ(lits, str_to_cl("1, 2, 3, 4, 5, 6, 7, 8, 9"));
 }
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+int main(int argc, char **argv)
+{
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

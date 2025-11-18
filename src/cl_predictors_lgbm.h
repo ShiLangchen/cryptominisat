@@ -33,40 +33,37 @@ THE SOFTWARE.
 
 using std::vector;
 
-namespace CMSat {
+namespace CMSat
+{
 
 class Clause;
 class Solver;
 
 class ClPredictorsLGBM : public ClPredictorsAbst
 {
-public:
+  public:
     ClPredictorsLGBM();
     virtual ~ClPredictorsLGBM();
-    virtual int load_models(const std::string& short_fname,
-                     const std::string& long_fname,
-                     const std::string& forever_fname,
-                     const std::string& best_feats_fname) override;
+    virtual int load_models(const std::string &short_fname,
+                            const std::string &long_fname,
+                            const std::string &forever_fname,
+                            const std::string &best_feats_fname) override;
     virtual int load_models_from_buffers() override;
 
-    float predict(
-        predict_type pred_type,
-        const CMSat::Clause* cl,
-        const uint64_t sumConflicts,
-        const double   act_ranking_rel,
-        const double   uip1_ranking_rel,
-        const double   prop_ranking_rel,
-        const ReduceCommonData& commdata
-    );
+    float predict(predict_type pred_type,
+                  const CMSat::Clause *cl,
+                  const uint64_t sumConflicts,
+                  const double act_ranking_rel,
+                  const double uip1_ranking_rel,
+                  const double prop_ranking_rel,
+                  const ReduceCommonData &commdata);
 
-    virtual void predict_all(
-        float* const data,
-        const uint32_t num) override;
+    virtual void predict_all(float *const data, const uint32_t num) override;
 
-    virtual void get_prediction_at(ClauseStatsExtra& extdata, const uint32_t at) override;
+    virtual void get_prediction_at(ClauseStatsExtra &extdata, const uint32_t at) override;
     virtual void finish_all_predict() override;
 
-private:
+  private:
     BoosterHandle handle[3];
     int num_iterations[3];
     DMatrixHandle dmat;
@@ -74,6 +71,6 @@ private:
     vector<double> out_result[3];
 };
 
-}
+} // namespace CMSat
 
 #endif

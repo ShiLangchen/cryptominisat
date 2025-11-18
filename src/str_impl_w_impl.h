@@ -31,30 +31,25 @@ THE SOFTWARE.
 #include "watcharray.h"
 using std::vector;
 
-namespace CMSat {
+namespace CMSat
+{
 
 class Solver;
 class Clause;
 
-class StrImplWImpl {
-public:
-    explicit StrImplWImpl(Solver* _solver) :
-        solver(_solver)
-    {}
+class StrImplWImpl
+{
+  public:
+    explicit StrImplWImpl(Solver *_solver) : solver(_solver) {}
 
     bool str_impl_w_impl();
     double mem_used() const;
 
-private:
-    Solver* solver;
+  private:
+    Solver *solver;
     void distill_implicit_with_implicit_lit(const Lit lit);
 
-    void strengthen_bin_with_bin(
-        const Lit lit
-        , Watched* i
-        , Watched*& j
-        , const Watched* end
-    );
+    void strengthen_bin_with_bin(const Lit lit, Watched *i, Watched *&j, const Watched *end);
 
     //Vars for strengthen implicit
     struct StrImplicitData
@@ -73,19 +68,17 @@ private:
             *this = tmp;
         }
 
-        void print(
-            const size_t trail_diff
-            , const double time_used
-            , const int64_t timeAvailable
-            , const int64_t orig_time
-            , Solver* solver
-        ) const;
+        void print(const size_t trail_diff,
+                   const double time_used,
+                   const int64_t timeAvailable,
+                   const int64_t orig_time,
+                   Solver *solver) const;
     };
     StrImplicitData str_impl_data;
     int64_t timeAvailable;
     vector<Lit> lits;
 };
 
-}
+} // namespace CMSat
 
 #endif // __DISTILLER_IMPL_WITH_IMP__

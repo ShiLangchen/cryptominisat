@@ -27,109 +27,97 @@ THE SOFTWARE.
 #include <stack>
 #include <set>
 
-namespace CMSat {
+namespace CMSat
+{
 
 class Solver;
 
-class SCCFinder {
-    public:
-        explicit SCCFinder(Solver* _solver);
-        bool performSCC(uint64_t* bogoprops_given = nullptr);
-        const std::set<BinaryXor>& get_binxors() const;
-        size_t get_num_binxors_found() const;
-        void clear_binxors();
+class SCCFinder
+{
+  public:
+    explicit SCCFinder(Solver *_solver);
+    bool performSCC(uint64_t *bogoprops_given = nullptr);
+    const std::set<BinaryXor> &get_binxors() const;
+    size_t get_num_binxors_found() const;
+    void clear_binxors();
 
-        struct Stats
+    struct Stats
+    {
+        void clear()
         {
-            void clear()
-            {
-                Stats _tmp;
-                *this = _tmp;
-            }
+            Stats _tmp;
+            *this = _tmp;
+        }
 
-            uint64_t numCalls = 0;
-            double cpu_time = 0.0;
-            uint64_t foundXors = 0;
-            uint64_t foundXorsNew = 0;
-            uint64_t bogoprops = 0;
+        uint64_t numCalls = 0;
+        double cpu_time = 0.0;
+        uint64_t foundXors = 0;
+        uint64_t foundXorsNew = 0;
+        uint64_t bogoprops = 0;
 
-            Stats& operator+=(const Stats& other)
-            {
-                numCalls += other.numCalls;
-                cpu_time += other.cpu_time;
-                foundXors += other.foundXors;
-                foundXorsNew += other.foundXorsNew;
-                bogoprops += other.bogoprops;
+        Stats &operator+=(const Stats &other)
+        {
+            numCalls += other.numCalls;
+            cpu_time += other.cpu_time;
+            foundXors += other.foundXors;
+            foundXorsNew += other.foundXorsNew;
+            bogoprops += other.bogoprops;
 
-                return *this;
-            }
+            return *this;
+        }
 
-            void print() const
-            {
-                cout << "c ----- SCC STATS --------" << endl;
-                print_stats_line("c time"
-                    , cpu_time
-                    , float_div(cpu_time, numCalls)
-                    , "per call"
-                );
+        void print() const
+        {
+            cout << "c ----- SCC STATS --------" << endl;
+            print_stats_line("c time", cpu_time, float_div(cpu_time, numCalls), "per call");
 
-                print_stats_line("c called"
-                    , numCalls
-                    , float_div(foundXorsNew, numCalls)
-                    , "new found per call"
-                );
+            print_stats_line("c called", numCalls, float_div(foundXorsNew, numCalls), "new found per call");
 
-                print_stats_line("c found"
-                    , foundXorsNew
-                    , stats_line_percent(foundXorsNew, foundXors)
-                    , "% of all found"
-                );
+            print_stats_line("c found", foundXorsNew, stats_line_percent(foundXorsNew, foundXors), "% of all found");
 
-                print_stats_line("c bogoprops"
-                    , bogoprops
-                    , "% of all found"
-                );
+            print_stats_line("c bogoprops", bogoprops, "% of all found");
 
-                cout << "c ----- SCC STATS END --------" << endl;
-            }
+            cout << "c ----- SCC STATS END --------" << endl;
+        }
 
-            void print_short(const Solver* solver) const;
-        };
+        void print_short(const Solver *solver) const;
+    };
 
-        const Stats& get_stats() const;
-        size_t mem_used() const;
-        bool depth_warning_triggered() const;
+    const Stats &get_stats() const;
+    size_t mem_used() const;
+    bool depth_warning_triggered() const;
 
-    private:
-        void tarjan(const uint32_t vertex);
-        bool depth_warning_issued;
-        void doit(const Lit lit, const uint32_t vertex);
-        void add_bin_xor_in_tmp();
+  private:
+    void tarjan(const uint32_t vertex);
+    bool depth_warning_issued;
+    void doit(const Lit lit, const uint32_t vertex);
+    void add_bin_xor_in_tmp();
 
-        //temporaries
-        uint32_t globalIndex;
-        vector<uint32_t> index;
-        vector<uint32_t> lowlink;
-        std::stack<uint32_t, vector<uint32_t> > stack;
-        vector<char> stackIndicator;
-        vector<uint32_t> tmp;
-        uint32_t depth;
+    //temporaries
+    uint32_t globalIndex;
+    vector<uint32_t> index;
+    vector<uint32_t> lowlink;
+    std::stack<uint32_t, vector<uint32_t>> stack;
+    vector<char> stackIndicator;
+    vector<uint32_t> tmp;
+    uint32_t depth;
 
-        Solver* solver;
-        std::set<BinaryXor> binxors;
+    Solver *solver;
+    std::set<BinaryXor> binxors;
 
-        //Stats
-        Stats runStats;
-        Stats globalStats;
+    //Stats
+    Stats runStats;
+    Stats globalStats;
 };
 
-inline void SCCFinder::doit(const Lit lit, const uint32_t vertex) {
+inline void SCCFinder::doit(const Lit lit, const uint32_t vertex)
+{
     // Was successor v' visited?
-    if (index[lit.toInt()] ==  numeric_limits<uint32_t>::max()) {
+    if (index[lit.toInt()] == numeric_limits<uint32_t>::max()) {
         tarjan(lit.toInt());
         depth--;
         lowlink[vertex] = std::min(lowlink[vertex], lowlink[lit.toInt()]);
-    } else if (stackIndicator[lit.toInt()])  {
+    } else if (stackIndicator[lit.toInt()]) {
         lowlink[vertex] = std::min(lowlink[vertex], lowlink[lit.toInt()]);
     }
 }
@@ -139,12 +127,12 @@ inline bool SCCFinder::depth_warning_triggered() const
     return depth_warning_issued;
 }
 
-inline const SCCFinder::Stats& SCCFinder::get_stats() const
+inline const SCCFinder::Stats &SCCFinder::get_stats() const
 {
     return globalStats;
 }
 
-inline const std::set<BinaryXor>& SCCFinder::get_binxors() const
+inline const std::set<BinaryXor> &SCCFinder::get_binxors() const
 {
     return binxors;
 }
@@ -159,6 +147,6 @@ inline void SCCFinder::clear_binxors()
     binxors.clear();
 }
 
-} //end namespaceC
+} // namespace CMSat
 
 #endif //SCCFINDER_H

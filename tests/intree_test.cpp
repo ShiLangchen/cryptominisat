@@ -31,7 +31,8 @@ using std::set;
 using namespace CMSat;
 #include "test_helper.h"
 
-struct intree : public ::testing::Test {
+struct intree : public ::testing::Test
+{
     intree()
     {
         must_inter.store(false, std::memory_order_relaxed);
@@ -42,13 +43,10 @@ struct intree : public ::testing::Test {
         s->new_vars(30);
         inp = s->intree;
     }
-    ~intree()
-    {
-        delete s;
-    }
+    ~intree() { delete s; }
 
-    Solver* s;
-    InTree* inp;
+    Solver *s;
+    InTree *inp;
     std::atomic<bool> must_inter;
 };
 
@@ -168,7 +166,8 @@ TEST_F(intree, trans_red_and_hyper_bin_1)
     check_red_cls_contains(s, "-3, 6");
 }
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+int main(int argc, char **argv)
+{
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

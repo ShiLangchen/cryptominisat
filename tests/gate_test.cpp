@@ -32,8 +32,10 @@ THE SOFTWARE.
 
 using namespace CMSat;
 
-struct gate_test : public ::testing::Test {
-    gate_test() {
+struct gate_test : public ::testing::Test
+{
+    gate_test()
+    {
         must_inter.store(false, std::memory_order_relaxed);
         SolverConf conf;
         s = new Solver(&conf, &must_inter);
@@ -41,8 +43,8 @@ struct gate_test : public ::testing::Test {
         occsimp = s->occsimplifier;
     }
     ~gate_test() { delete s; }
-    Solver* s = NULL;
-    OccSimplifier* occsimp = NULL;
+    Solver *s = NULL;
+    OccSimplifier *occsimp = NULL;
     std::atomic<bool> must_inter;
 };
 
@@ -90,7 +92,8 @@ TEST_F(gate_test, do_3)
 }
 
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+int main(int argc, char **argv)
+{
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

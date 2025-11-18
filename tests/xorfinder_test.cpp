@@ -31,7 +31,8 @@ THE SOFTWARE.
 using namespace CMSat;
 #include "test_helper.h"
 
-struct xor_finder : public ::testing::Test {
+struct xor_finder : public ::testing::Test
+{
     xor_finder()
     {
         must_inter.store(false, std::memory_order_relaxed);
@@ -40,12 +41,9 @@ struct xor_finder : public ::testing::Test {
         s->new_vars(30);
         occsimp = s->occsimplifier;
     }
-    ~xor_finder()
-    {
-        delete s;
-    }
-    Solver* s = NULL;
-    OccSimplifier* occsimp = NULL;
+    ~xor_finder() { delete s; }
+    Solver *s = NULL;
+    OccSimplifier *occsimp = NULL;
     std::atomic<bool> must_inter;
 };
 
@@ -361,7 +359,8 @@ TEST_F(xor_finder, find_6_1)
     check_xors_eq(s->xorclauses, "6, 7, 3, 4, 5, 9 = 1;");
 }*/
 
-struct xor_finder2 : public ::testing::Test {
+struct xor_finder2 : public ::testing::Test
+{
     xor_finder2()
     {
         must_inter.store(false, std::memory_order_relaxed);
@@ -377,14 +376,15 @@ struct xor_finder2 : public ::testing::Test {
         delete s;
         delete finder;
     }
-    Solver* s = NULL;
-    OccSimplifier* occsimp = NULL;
+    Solver *s = NULL;
+    OccSimplifier *occsimp = NULL;
     std::atomic<bool> must_inter;
-    XorFinder* finder;
+    XorFinder *finder;
 };
 
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+int main(int argc, char **argv)
+{
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

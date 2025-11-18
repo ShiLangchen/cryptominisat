@@ -32,12 +32,11 @@ using std::vector;
 using namespace CMSat;
 
 template<class Function, class Function2>
-void SatZillaFeaturesCalc::for_one_clause(
-    const Watched& cl
-    , const Lit lit
-    ,  Function func_each_cl
-    ,  Function2 func_each_lit
-) const {
+void SatZillaFeaturesCalc::for_one_clause(const Watched &cl,
+                                          const Lit lit,
+                                          Function func_each_cl,
+                                          Function2 func_each_lit) const
+{
     unsigned neg_vars = 0;
     unsigned pos_vars = 0;
     unsigned size = 0;
@@ -67,7 +66,7 @@ void SatZillaFeaturesCalc::for_one_clause(
             break;
 
         case WatchType::watch_clause_t: {
-            const Clause& clause = *solver->cl_alloc.ptr(cl.get_offset());
+            const Clause &clause = *solver->cl_alloc.ptr(cl.get_offset());
             if (clause.red()) {
                 //only irred cls
                 break;
@@ -77,20 +76,20 @@ void SatZillaFeaturesCalc::for_one_clause(
                 break;
             }
 
-            for (const Lit cl_lit : clause) {
+            for (const Lit cl_lit: clause) {
                 pos_vars += !cl_lit.sign();
             }
             size = clause.size();
             neg_vars = size - pos_vars;
             func_each_cl(size, pos_vars, neg_vars);
-            for (const Lit cl_lit : clause) {
+            for (const Lit cl_lit: clause) {
                 func_each_lit(cl_lit, size, pos_vars, neg_vars);
             }
             break;
         }
 
         case WatchType::watch_idx_t: {
-             // This should never be here
+            // This should never be here
             assert(false);
             exit(-1);
             break;
@@ -103,7 +102,7 @@ void SatZillaFeaturesCalc::for_all_clauses(Function func_each_cl, Function2 func
 {
     for (size_t i = 0; i < solver->nVars() * 2; i++) {
         Lit lit = Lit::toLit(i);
-        for (const Watched & w : solver->watches[lit]) {
+        for (const Watched &w: solver->watches[lit]) {
             for_one_clause(w, lit, func_each_cl, func_each_lit);
         }
     }
@@ -116,14 +115,14 @@ void SatZillaFeaturesCalc::fill_vars_cls()
     myVars.resize(solver->nVars());
 
     auto func_each_cl = [&](unsigned /*size*/, unsigned pos_vars, unsigned /*neg_vars*/) -> bool {
-        if (pos_vars <= 1 ) {
+        if (pos_vars <= 1) {
             satzilla_feat.horn += 1;
             return true;
         }
         return false;
     };
     auto func_each_lit = [&](Lit lit, unsigned /*size*/, unsigned pos_vars, unsigned /*neg_vars*/) -> void {
-        if (pos_vars <= 1 ) {
+        if (pos_vars <= 1) {
             myVars[lit.var()].horn++;
         }
 
@@ -139,7 +138,7 @@ void SatZillaFeaturesCalc::calculate_clause_stats()
 {
     auto empty_func = [](const Lit, unsigned /*size*/, unsigned /*pos_vars*/, unsigned /*neg_vars*/) -> void {};
     auto func_each_cl = [&](unsigned size, unsigned pos_vars, unsigned /*neg_vars*/) -> void {
-        if (size == 0 ) {
+        if (size == 0) {
             return;
         }
 
@@ -166,11 +165,10 @@ void SatZillaFeaturesCalc::calculate_clause_stats()
 
 void SatZillaFeaturesCalc::calculate_variable_stats()
 {
-    if (satzilla_feat.numVars == 0)
-        return;
+    if (satzilla_feat.numVars == 0) return;
 
-    for ( int vv = 0; vv < (int)myVars.size(); vv++ ) {
-        if ( myVars[vv].size == 0 ) {
+    for (int vv = 0; vv < (int)myVars.size(); vv++) {
+        if (myVars[vv].size == 0) {
             continue;
         }
 
@@ -179,8 +177,7 @@ void SatZillaFeaturesCalc::calculate_variable_stats()
         satzilla_feat.vcg_var_max = std::max(satzilla_feat.vcg_var_max, _size);
         satzilla_feat.vcg_var_mean += _size;
 
-        double _pnr = 0.5 + ((2.0 * myVars[vv].numPos - myVars[vv].size)
-                             / (2.0 * myVars[vv].size));
+        double _pnr = 0.5 + ((2.0 * myVars[vv].numPos - myVars[vv].size) / (2.0 * myVars[vv].size));
         satzilla_feat.pnr_var_min = std::min(satzilla_feat.pnr_var_min, _pnr);
         satzilla_feat.pnr_var_max = std::max(satzilla_feat.pnr_var_max, _pnr);
         satzilla_feat.pnr_var_mean += _pnr;
@@ -210,7 +207,7 @@ void SatZillaFeaturesCalc::calculate_extra_clause_stats()
 {
     auto empty_func = [](const Lit, unsigned /*size*/, unsigned /*pos_vars*/, unsigned /*neg_vars*/) -> void {};
     auto each_clause = [&](unsigned size, unsigned pos_vars, unsigned /*neg_vars*/) -> void {
-        if ( size == 0 ) {
+        if (size == 0) {
             return;
         }
 
@@ -222,13 +219,15 @@ void SatZillaFeaturesCalc::calculate_extra_clause_stats()
     };
     for_all_clauses(each_clause, empty_func);
 
-    if ( satzilla_feat.vcg_cls_std > satzilla_feat.eps && satzilla_feat.vcg_cls_mean > satzilla_feat.eps ) {
-        satzilla_feat.vcg_cls_std = std::sqrt(satzilla_feat.vcg_cls_std / (double)satzilla_feat.numClauses) / satzilla_feat.vcg_cls_mean;
+    if (satzilla_feat.vcg_cls_std > satzilla_feat.eps && satzilla_feat.vcg_cls_mean > satzilla_feat.eps) {
+        satzilla_feat.vcg_cls_std =
+                std::sqrt(satzilla_feat.vcg_cls_std / (double)satzilla_feat.numClauses) / satzilla_feat.vcg_cls_mean;
     } else {
         satzilla_feat.vcg_cls_std = 0;
     }
-    if ( satzilla_feat.pnr_cls_std > satzilla_feat.eps && satzilla_feat.pnr_cls_mean > satzilla_feat.eps ) {
-        satzilla_feat.pnr_cls_std = std::sqrt(satzilla_feat.pnr_cls_std / (double)satzilla_feat.numClauses) / satzilla_feat.pnr_cls_mean;
+    if (satzilla_feat.pnr_cls_std > satzilla_feat.eps && satzilla_feat.pnr_cls_mean > satzilla_feat.eps) {
+        satzilla_feat.pnr_cls_std =
+                std::sqrt(satzilla_feat.pnr_cls_std / (double)satzilla_feat.numClauses) / satzilla_feat.pnr_cls_mean;
     } else {
         satzilla_feat.pnr_cls_std = 0;
     }
@@ -236,11 +235,10 @@ void SatZillaFeaturesCalc::calculate_extra_clause_stats()
 
 void SatZillaFeaturesCalc::calculate_extra_var_stats()
 {
-    if (satzilla_feat.numVars == 0)
-        return;
+    if (satzilla_feat.numVars == 0) return;
 
-    for ( int vv = 0; vv < (int)myVars.size(); vv++ ) {
-        if ( myVars[vv].size == 0 ) {
+    for (int vv = 0; vv < (int)myVars.size(); vv++) {
+        if (myVars[vv].size == 0) {
             continue;
         }
 
@@ -253,33 +251,33 @@ void SatZillaFeaturesCalc::calculate_extra_var_stats()
         double _horn = myVars[vv].horn / (double)satzilla_feat.numClauses;
         satzilla_feat.horn_std += (satzilla_feat.horn_mean - _horn) * (satzilla_feat.horn_mean - _horn);
     }
-    if ( satzilla_feat.vcg_var_std > satzilla_feat.eps && satzilla_feat.vcg_var_mean > satzilla_feat.eps ) {
-        satzilla_feat.vcg_var_std = std::sqrt(satzilla_feat.vcg_var_std / (double)satzilla_feat.numVars) / satzilla_feat.vcg_var_mean;
+    if (satzilla_feat.vcg_var_std > satzilla_feat.eps && satzilla_feat.vcg_var_mean > satzilla_feat.eps) {
+        satzilla_feat.vcg_var_std =
+                std::sqrt(satzilla_feat.vcg_var_std / (double)satzilla_feat.numVars) / satzilla_feat.vcg_var_mean;
     } else {
         satzilla_feat.vcg_var_std = 0;
     }
 
-    if ( satzilla_feat.pnr_var_std > satzilla_feat.eps && satzilla_feat.pnr_var_mean > satzilla_feat.eps
-        && satzilla_feat.pnr_var_mean != 0
-    ) {
-        satzilla_feat.pnr_var_std = std::sqrt(satzilla_feat.pnr_var_std / (double)satzilla_feat.numVars) / satzilla_feat.pnr_var_mean;
+    if (satzilla_feat.pnr_var_std > satzilla_feat.eps && satzilla_feat.pnr_var_mean > satzilla_feat.eps
+        && satzilla_feat.pnr_var_mean != 0) {
+        satzilla_feat.pnr_var_std =
+                std::sqrt(satzilla_feat.pnr_var_std / (double)satzilla_feat.numVars) / satzilla_feat.pnr_var_mean;
     } else {
         satzilla_feat.pnr_var_std = 0;
     }
 
-    if ( satzilla_feat.horn_std / (double)satzilla_feat.numVars > satzilla_feat.eps && satzilla_feat.horn_mean > satzilla_feat.eps
-        && satzilla_feat.horn_mean != 0
-    ) {
-        satzilla_feat.horn_std = std::sqrt(satzilla_feat.horn_std / (double)satzilla_feat.numVars) / satzilla_feat.horn_mean;
+    if (satzilla_feat.horn_std / (double)satzilla_feat.numVars > satzilla_feat.eps
+        && satzilla_feat.horn_mean > satzilla_feat.eps && satzilla_feat.horn_mean != 0) {
+        satzilla_feat.horn_std =
+                std::sqrt(satzilla_feat.horn_std / (double)satzilla_feat.numVars) / satzilla_feat.horn_mean;
     } else {
         satzilla_feat.horn_std = 0;
     }
 }
 
-void SatZillaFeaturesCalc::calculate_cl_distributions(
-    const vector<ClOffset>& clauses
-    , struct SatZillaFeatures::Distrib& distrib_data
-) {
+void SatZillaFeaturesCalc::calculate_cl_distributions(const vector<ClOffset> &clauses,
+                                                      struct SatZillaFeatures::Distrib &distrib_data)
+{
     if (clauses.empty()) {
         return;
     }
@@ -295,13 +293,12 @@ void SatZillaFeaturesCalc::calculate_cl_distributions(
 
     //Calculate means
     double cla_inc = solver->get_cla_inc();
-    for(ClOffset off: clauses)
-    {
-        const Clause& cl = *solver->cl_alloc.ptr(off);
+    for (ClOffset off: clauses) {
+        const Clause &cl = *solver->cl_alloc.ptr(off);
         size_mean += cl.size();
         glue_mean += cl.stats.glue;
         if (cl.red()) {
-            activity_mean += (double)cl.stats.activity/cla_inc;
+            activity_mean += (double)cl.stats.activity / cla_inc;
         }
     }
     size_mean /= clauses.size();
@@ -309,12 +306,11 @@ void SatZillaFeaturesCalc::calculate_cl_distributions(
     activity_mean /= clauses.size();
 
     //Calculate variances
-    for(ClOffset off: clauses)
-    {
-        const Clause& cl = *solver->cl_alloc.ptr(off);
-        size_var += std::pow(size_mean-cl.size(), 2);
-        glue_var += std::pow(glue_mean-cl.stats.glue, 2);
-        activity_var += std::pow(activity_mean-(double)cl.stats.activity/cla_inc, 2);
+    for (ClOffset off: clauses) {
+        const Clause &cl = *solver->cl_alloc.ptr(off);
+        size_var += std::pow(size_mean - cl.size(), 2);
+        glue_var += std::pow(glue_mean - cl.stats.glue, 2);
+        activity_var += std::pow(activity_mean - (double)cl.stats.activity / cla_inc, 2);
     }
     size_var /= clauses.size();
     glue_var /= clauses.size();
@@ -331,30 +327,20 @@ void SatZillaFeaturesCalc::calculate_cl_distributions(
 
 void SatZillaFeaturesCalc::normalise_values()
 {
-    if (satzilla_feat.vcg_var_min == numeric_limits<double>::max())
-        satzilla_feat.vcg_var_min = -1;
-    if (satzilla_feat.vcg_var_max == numeric_limits<double>::min())
-        satzilla_feat.vcg_var_max = -1;
+    if (satzilla_feat.vcg_var_min == numeric_limits<double>::max()) satzilla_feat.vcg_var_min = -1;
+    if (satzilla_feat.vcg_var_max == numeric_limits<double>::min()) satzilla_feat.vcg_var_max = -1;
 
-    if (satzilla_feat.vcg_cls_min  == numeric_limits<double>::max())
-        satzilla_feat.vcg_cls_min = -1;
-    if (satzilla_feat.vcg_cls_max == numeric_limits<double>::min())
-        satzilla_feat.vcg_cls_max = -1;
+    if (satzilla_feat.vcg_cls_min == numeric_limits<double>::max()) satzilla_feat.vcg_cls_min = -1;
+    if (satzilla_feat.vcg_cls_max == numeric_limits<double>::min()) satzilla_feat.vcg_cls_max = -1;
 
-    if (satzilla_feat.pnr_var_min == numeric_limits<double>::max())
-        satzilla_feat.pnr_var_min = -1;
-    if (satzilla_feat.pnr_var_max == numeric_limits<double>::min())
-        satzilla_feat.pnr_var_max = -1;
+    if (satzilla_feat.pnr_var_min == numeric_limits<double>::max()) satzilla_feat.pnr_var_min = -1;
+    if (satzilla_feat.pnr_var_max == numeric_limits<double>::min()) satzilla_feat.pnr_var_max = -1;
 
-    if (satzilla_feat.horn_min == numeric_limits<double>::max())
-        satzilla_feat.horn_min = -1;
-    if (satzilla_feat.horn_max == numeric_limits<double>::min())
-        satzilla_feat.horn_max = -1;
+    if (satzilla_feat.horn_min == numeric_limits<double>::max()) satzilla_feat.horn_min = -1;
+    if (satzilla_feat.horn_max == numeric_limits<double>::min()) satzilla_feat.horn_max = -1;
 
-    if (satzilla_feat.pnr_cls_min == numeric_limits<double>::max())
-        satzilla_feat.pnr_cls_min = -1;
-    if (satzilla_feat.pnr_cls_max == numeric_limits<double>::min())
-        satzilla_feat.pnr_cls_max = -1;
+    if (satzilla_feat.pnr_cls_min == numeric_limits<double>::max()) satzilla_feat.pnr_cls_min = -1;
+    if (satzilla_feat.pnr_cls_max == numeric_limits<double>::min()) satzilla_feat.pnr_cls_max = -1;
 }
 
 SatZillaFeatures SatZillaFeaturesCalc::extract()
@@ -363,13 +349,13 @@ SatZillaFeatures SatZillaFeaturesCalc::extract()
     fill_vars_cls();
 
     satzilla_feat.numVars = 0;
-    for ( int vv = 0; vv < (int)myVars.size(); vv++ ) {
-        if ( myVars[vv].size > 0 ) {
+    for (int vv = 0; vv < (int)myVars.size(); vv++) {
+        if (myVars[vv].size > 0) {
             satzilla_feat.numVars++;
         }
     }
     if (satzilla_feat.numVars > 0 && satzilla_feat.numClauses > 0) {
-        satzilla_feat.var_cl_ratio = (double)satzilla_feat.numVars/ (double)satzilla_feat.numClauses;
+        satzilla_feat.var_cl_ratio = (double)satzilla_feat.numVars / (double)satzilla_feat.numClauses;
     }
 
     if (satzilla_feat.numClauses > 0 && satzilla_feat.numVars > 0) {
@@ -390,17 +376,11 @@ SatZillaFeatures SatZillaFeaturesCalc::extract()
 
     double time_used = cpuTime() - start_time;
     if (solver->conf.verbosity) {
-        cout << "c [szfeat] satzilla features extracted "
-        << solver->conf.print_times(time_used)
-        << endl;
+        cout << "c [szfeat] satzilla features extracted " << solver->conf.print_times(time_used) << endl;
     }
 
     if (solver->sqlStats) {
-        solver->sqlStats->time_passed_min(
-            solver
-            , "satzilla"
-            , time_used
-        );
+        solver->sqlStats->time_passed_min(solver, "satzilla", time_used);
     }
 
     return satzilla_feat;

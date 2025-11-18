@@ -49,38 +49,32 @@ using std::cerr;
 using std::endl;
 double wallclock_time_started = 0.0;
 
-struct WrongParam {
-    WrongParam(const string& _param, const string& _msg) : param(_param) , msg(_msg) {}
-    const string& getMsg() const { return msg; }
-    const string& getParam() const { return param; }
+struct WrongParam
+{
+    WrongParam(const string &_param, const string &_msg) : param(_param), msg(_msg) {}
+    const string &getMsg() const { return msg; }
+    const string &getParam() const { return param; }
     string param;
     string msg;
 };
 
-Main::Main(int _argc, char** _argv) :
-    argc(_argc)
-    , argv(_argv)
-    , fileNamePresent (false)
-{
-}
+Main::Main(int _argc, char **_argv) : argc(_argc), argv(_argv), fileNamePresent(false) {}
 
-void Main::readInAFile(SATSolver* solver2, const string& filename) {
+void Main::readInAFile(SATSolver *solver2, const string &filename)
+{
     std::unique_ptr<FieldGen> fg = std::make_unique<FGenDouble>();
     solver2->add_sql_tag("filename", filename);
     if (conf.verbosity) cout << "c Reading file '" << filename << "'" << endl;
-    #ifndef USE_ZLIB
-    FILE * in = fopen(filename.c_str(), "rb");
-    DimacsParser<StreamBuffer<FILE*, FN>, SATSolver> parser(solver2, &debugLib, conf.verbosity, fg);
-    #else
+#ifndef USE_ZLIB
+    FILE *in = fopen(filename.c_str(), "rb");
+    DimacsParser<StreamBuffer<FILE *, FN>, SATSolver> parser(solver2, &debugLib, conf.verbosity, fg);
+#else
     gzFile in = gzopen(filename.c_str(), "rb");
     DimacsParser<StreamBuffer<gzFile, GZ>, SATSolver> parser(solver2, &debugLib, conf.verbosity, fg);
-    #endif
+#endif
 
     if (in == nullptr) {
-        std::cerr
-        << "ERROR! Could not open file '"
-        << filename
-        << "' for reading: " << strerror(errno) << endl;
+        std::cerr << "ERROR! Could not open file '" << filename << "' for reading: " << strerror(errno) << endl;
 
         std::exit(1);
     }
@@ -90,42 +84,42 @@ void Main::readInAFile(SATSolver* solver2, const string& filename) {
         exit(-1);
     }
 
-    #ifndef USE_ZLIB
-        fclose(in);
-    #else
-        gzclose(in);
-    #endif
+#ifndef USE_ZLIB
+    fclose(in);
+#else
+    gzclose(in);
+#endif
 }
 
-void Main::readInStandardInput(SATSolver* solver2)
+void Main::readInStandardInput(SATSolver *solver2)
 {
     if (conf.verbosity) cout << "c Reading from standard input... Use '-h' or '--help' for help." << endl;
     std::unique_ptr<FieldGen> fg = std::make_unique<FGenDouble>();
 
-    #ifndef USE_ZLIB
-    FILE * in = stdin;
-    #else
+#ifndef USE_ZLIB
+    FILE *in = stdin;
+#else
     gzFile in = gzdopen(0, "rb"); //opens stdin, which is 0
-    #endif
+#endif
 
     if (in == nullptr) {
         std::cerr << "ERROR! Could not open standard input for reading" << endl;
         std::exit(1);
     }
 
-    #ifndef USE_ZLIB
-    DimacsParser<StreamBuffer<FILE*, FN>, SATSolver> parser(solver2, &debugLib, conf.verbosity, fg);
-    #else
+#ifndef USE_ZLIB
+    DimacsParser<StreamBuffer<FILE *, FN>, SATSolver> parser(solver2, &debugLib, conf.verbosity, fg);
+#else
     DimacsParser<StreamBuffer<gzFile, GZ>, SATSolver> parser(solver2, &debugLib, conf.verbosity, fg);
-    #endif
+#endif
 
     if (!parser.parse_DIMACS(in, false)) exit(-1);
-    #ifdef USE_ZLIB
-        gzclose(in);
-    #endif
+#ifdef USE_ZLIB
+    gzclose(in);
+#endif
 }
 
-void Main::parseInAllFiles(SATSolver* solver2)
+void Main::parseInAllFiles(SATSolver *solver2)
 {
     const double my_timeTotal = cpuTimeTotal();
     const double my_time = cpuTime();
@@ -137,52 +131,40 @@ void Main::parseInAllFiles(SATSolver* solver2)
 
     if (conf.verbosity) {
         if (num_threads > 1) {
-            cout
-            << "c Sum parsing time among all threads (wall time will differ): "
-            << std::fixed << std::setprecision(2)
-            << (cpuTimeTotal() - my_timeTotal)
-            << " s" << endl;
+            cout << "c Sum parsing time among all threads (wall time will differ): " << std::fixed
+                 << std::setprecision(2) << (cpuTimeTotal() - my_timeTotal) << " s" << endl;
         } else {
-            cout
-            << "c Parsing time: "
-            << std::fixed << std::setprecision(2)
-            << (cpuTime() - my_time)
-            << " s" << endl;
+            cout << "c Parsing time: " << std::fixed << std::setprecision(2) << (cpuTime() - my_time) << " s" << endl;
         }
     }
 }
 
-void Main::printResultFunc(
-    std::ostream* os
-    , const bool toFile
-    , const lbool ret
-) {
+void Main::printResultFunc(std::ostream *os, const bool toFile, const lbool ret)
+{
     if (ret == l_True) {
-        if(toFile) {
+        if (toFile) {
             *os << "SAT" << endl;
-        }
-        else if (!printResult) *os << "s SATISFIABLE" << endl;
-        else                   *os << "s SATISFIABLE" << endl;
-     } else if (ret == l_False) {
-        if(toFile) {
+        } else if (!printResult) *os << "s SATISFIABLE" << endl;
+        else *os << "s SATISFIABLE" << endl;
+    } else if (ret == l_False) {
+        if (toFile) {
             *os << "UNSAT" << endl;
-        }
-        else if (!printResult) *os << "s UNSATISFIABLE" << endl;
-        else                   *os << "s UNSATISFIABLE" << endl;
+        } else if (!printResult) *os << "s UNSATISFIABLE" << endl;
+        else *os << "s UNSATISFIABLE" << endl;
     } else {
         *os << "s INDETERMINATE" << endl;
     }
-    if (ret == l_True && !printResult && !toFile)
-    {
+    if (ret == l_True && !printResult && !toFile) {
         cout << "c Not printing satisfying assignment. "
-        "Use the '--printsol 1' option for that" << endl;
+                "Use the '--printsol 1' option for that"
+             << endl;
     }
 
     if (ret == l_True && (printResult || toFile)) {
         if (toFile) {
             auto fun = [&](uint32_t var) {
                 if (solver->get_model()[var] != l_Undef) {
-                    *os << ((solver->get_model()[var] == l_True)? "" : "-") << var+1 << " ";
+                    *os << ((solver->get_model()[var] == l_True) ? "" : "-") << var + 1 << " ";
                 }
             };
 
@@ -205,8 +187,8 @@ void Main::printResultFunc(
                 num_undef = print_model(solver, os, &solver->get_sampl_vars());
             }
             if (num_undef && !toFile && conf.verbosity) {
-                cout << "c NOTE: " << num_undef << " variables are UNDEF. Sampling vars set:"
-                    << solver->get_sampl_vars_set() << endl;
+                cout << "c NOTE: " << num_undef
+                     << " variables are UNDEF. Sampling vars set:" << solver->get_sampl_vars_set() << endl;
             }
         }
     }
@@ -987,8 +969,7 @@ void Main::add_supported_options() {
 string remove_last_comma_if_exists(std::string s)
 {
     std::string s2 = s;
-    if (s[s.length()-1] == ',')
-        s2.resize(s2.length()-1);
+    if (s[s.length() - 1] == ',') s2.resize(s2.length() - 1);
     return s2;
 }
 
@@ -997,29 +978,27 @@ void Main::check_options_correctness()
     try {
         program.parse_args(argc, argv);
         if (program.is_used("--help")) {
-            cout
-            << "A universal, fast SAT solver with XOR and Gaussian Elimination support. " << endl
-            << "Input "
-            #ifndef USE_ZLIB
-            << "must be plain"
-            #else
-            << "can be either plain or gzipped"
-            #endif
-            << " DIMACS with XOR extension" << endl << endl;
+            cout << "A universal, fast SAT solver with XOR and Gaussian Elimination support. " << endl
+                 << "Input "
+#ifndef USE_ZLIB
+                 << "must be plain"
+#else
+                 << "can be either plain or gzipped"
+#endif
+                 << " DIMACS with XOR extension" << endl
+                 << endl;
 
-            cout
-            << "cryptominisat5 [options] inputfile [frat-file]" << endl << endl;
+            cout << "cryptominisat5 [options] inputfile [frat-file]" << endl << endl;
 
             cout << program << endl;
             cout << "Normal run schedules:" << endl;
-            cout << "  Default schedule: "
-            << remove_last_comma_if_exists(conf.simplify_schedule_nonstartup) << endl<< endl;
-            cout << "  Schedule at startup: "
-            << remove_last_comma_if_exists(conf.simplify_schedule_startup) << endl << endl;
+            cout << "  Default schedule: " << remove_last_comma_if_exists(conf.simplify_schedule_nonstartup) << endl
+                 << endl;
+            cout << "  Schedule at startup: " << remove_last_comma_if_exists(conf.simplify_schedule_startup) << endl
+                 << endl;
             std::exit(0);
         }
-    }
-    catch (const std::exception& err) {
+    } catch (const std::exception &err) {
         std::cerr << err.what() << std::endl;
         std::cerr << program;
         exit(-1);
@@ -1029,14 +1008,10 @@ void Main::check_options_correctness()
 void Main::parse_restart_type()
 {
     string type = program.get<string>("restart");
-    if (type == "geom")
-        conf.restartType = Restart::geom;
-    else if (type == "luby")
-        conf.restartType = Restart::luby;
-    else if (type == "glue")
-        conf.restartType = Restart::glue;
-    else if (type == "auto")
-        conf.restartType = Restart::automatic;
+    if (type == "geom") conf.restartType = Restart::geom;
+    else if (type == "luby") conf.restartType = Restart::luby;
+    else if (type == "glue") conf.restartType = Restart::glue;
+    else if (type == "auto") conf.restartType = Restart::automatic;
     else throw WrongParam("restart", "unknown restart type");
 }
 
@@ -1061,10 +1036,10 @@ void Main::parse_sampling_vars()
     std::stringstream ss(str_vars);
     for (int32_t i; ss >> i;) {
         if (i <= 0) {
-           cerr << "Sampling variables must be positive (i.e. larger than 0)" << endl;
-           exit(-1);
+            cerr << "Sampling variables must be positive (i.e. larger than 0)" << endl;
+            exit(-1);
         }
-        sampl_vars.push_back(i-1);
+        sampl_vars.push_back(i - 1);
         if (ss.peek() == ',') ss.ignore();
     }
     solver->set_sampl_vars(sampl_vars);
@@ -1072,26 +1047,22 @@ void Main::parse_sampling_vars()
 
 void Main::manually_parse_some_options()
 {
-    #ifndef USE_BREAKID
+#ifndef USE_BREAKID
     if (conf.doBreakid) {
         if (conf.verbosity) cout << "c BreakID not compiled in, disabling" << endl;
         conf.doBreakid = false;
     }
-    #endif
+#endif
 
     if (conf.max_glue_cutoff_gluehistltlimited > 1000) {
         cout << "ERROR: 'Maximum supported glue size is currently 100000" << endl;
         exit(-1);
     }
 
-    if (conf.which_sls != "yalsat" &&
-        conf.which_sls != "walksat" &&
-        conf.which_sls != "ccnr_yalsat" &&
-        conf.which_sls != "ccnr")
-    {
+    if (conf.which_sls != "yalsat" && conf.which_sls != "walksat" && conf.which_sls != "ccnr_yalsat"
+        && conf.which_sls != "ccnr") {
         cout << "ERROR: you gave '" << conf.which_sls << " for SLS with the option '--slstype'."
-        << " This is incorrect, we only accept 'yalsat' and 'walksat'"
-        << endl;
+             << " This is incorrect, we only accept 'yalsat' and 'walksat'" << endl;
     }
 
 
@@ -1111,10 +1082,7 @@ void Main::manually_parse_some_options()
     }
 
     if (conf.shortTermHistorySize <= 0) {
-        cout
-        << "You MUST give a short term history size (\"--gluehist\")" << endl
-        << "  greater than 0!"
-        << endl;
+        cout << "You MUST give a short term history size (\"--gluehist\")" << endl << "  greater than 0!" << endl;
 
         std::exit(-1);
     }
@@ -1135,7 +1103,8 @@ void Main::manually_parse_some_options()
         auto files = program.get<std::vector<std::string>>("files");
         if (files.size() > 2) {
             cerr << "ERROR: you can only have at most two files as positional options:"
-                "the input file and the output FRAT file" << endl;
+                    "the input file and the output FRAT file"
+                 << endl;
             exit(-1);
         }
 
@@ -1155,19 +1124,20 @@ void Main::manually_parse_some_options()
             idrup_fname = files[1];
             handle_idrup_option();
         }
-    } catch (std::logic_error& e) {
+    } catch (std::logic_error &e) {
         fileNamePresent = false;
     }
     if (conf.verbosity >= 3) cout << "c Outputting solution to console" << endl;
 }
 
-void Main::parseCommandLine() {
+void Main::parseCommandLine()
+{
     need_clean_exit = 0;
 
     //Reconstruct the command line so we can emit it later if needed
-    for(int i = 0; i < argc; i++) {
+    for (int i = 0; i < argc; i++) {
         commandLine += string(argv[i]);
-        if (i+1 < argc) {
+        if (i + 1 < argc) {
             commandLine += " ";
         }
     }
@@ -1181,7 +1151,7 @@ void Main::parseCommandLine() {
 
     try {
         manually_parse_some_options();
-    } catch(WrongParam& wp) {
+    } catch (WrongParam &wp) {
         cerr << "ERROR: " << wp.getMsg() << endl;
         exit(-1);
     }
@@ -1196,18 +1166,17 @@ void Main::check_num_threads_sanity(const unsigned thread_num) const
     }
 
     if (thread_num > num_cores && conf.verbosity) {
-        std::cout
-        << "c WARNING: Number of threads requested is more than the number of"
-        << " cores reported by the system.\n"
-        << "c WARNING: This is not a good idea in general. It's best to set the"
-        << " number of threads to the number of real cores" << endl;
+        std::cout << "c WARNING: Number of threads requested is more than the number of"
+                  << " cores reported by the system.\n"
+                  << "c WARNING: This is not a good idea in general. It's best to set the"
+                  << " number of threads to the number of real cores" << endl;
     }
 }
 
 int Main::solve()
 {
     wallclock_time_started = real_time_sec();
-    solver = new SATSolver((void*)&conf);
+    solver = new SATSolver((void *)&conf);
     solverToInterrupt = solver;
     if (fratf) solver->set_frat(fratf);
     if (idrupf) solver->set_idrup(idrupf);
@@ -1222,10 +1191,7 @@ int Main::solve()
     //Print command line used to execute the solver: for options and inputs
     if (conf.verbosity) {
         printVersionInfo();
-        cout
-        << "c Executed with command line: "
-        << commandLine
-        << endl;
+        cout << "c Executed with command line: " << commandLine << endl;
     }
 
     solver->add_sql_tag("commandline", commandLine);
@@ -1234,24 +1200,24 @@ int Main::solve()
     solver->add_sql_tag("version", solver->get_version());
     solver->add_sql_tag("SHA-revision", solver->get_version_sha1());
     solver->add_sql_tag("env", solver->get_compilation_env());
-    #ifdef __GNUC__
+#ifdef __GNUC__
     solver->add_sql_tag("compiler", "gcc-" __VERSION__);
-    #else
+#else
     solver->add_sql_tag("compiler", "non-gcc");
-    #endif
+#endif
 
     //Parse in DIMACS (maybe gzipped) files
     //solver->log_to_file("mydump.cnf");
     parseInAllFiles(solver);
     if (!assump_filename.empty()) {
-        std::ifstream* tmp = new std::ifstream;
+        std::ifstream *tmp = new std::ifstream;
         tmp->open(assump_filename.c_str());
         std::string temp;
-        while(std::getline(*tmp, temp)) {
+        while (std::getline(*tmp, temp)) {
             //Do with temp
             int x = std::stoi(temp);
             cout << "Assume: " << x << endl;
-            Lit l = Lit(std::abs(x)-1, x < 0);
+            Lit l = Lit(std::abs(x) - 1, x < 0);
             assumps.push_back(l);
         }
 
@@ -1260,9 +1226,7 @@ int Main::solve()
 
     lbool ret = multi_solutions();
     if (ret == l_Undef && conf.verbosity) {
-        cout
-        << "c Not finished running -- signal caught or some maximum reached"
-        << endl;
+        cout << "c Not finished running -- signal caught or some maximum reached" << endl;
     }
     if (conf.verbosity) {
         solver->print_stats(wallclock_time_started);
@@ -1273,17 +1237,13 @@ int Main::solve()
         printResultFunc(resultfile, true, ret);
     }
     if (ret == l_True && max_nr_of_solutions > 1) {
-       // If ret is l_True then we must have hit the solution limit.
-       // Print final number of solutions when we hit the limit here
-       // as multi_solutions() doesn't. Don't print for a single solution.
-       if (conf.verbosity) {
-           cout
-           << "c Number of solutions found until now: "
-           << std::setw(6) << max_nr_of_solutions
-           << endl
-           << "c maxsol reached"
-           << endl;
-       }
+        // If ret is l_True then we must have hit the solution limit.
+        // Print final number of solutions when we hit the limit here
+        // as multi_solutions() doesn't. Don't print for a single solution.
+        if (conf.verbosity) {
+            cout << "c Number of solutions found until now: " << std::setw(6) << max_nr_of_solutions << endl
+                 << "c maxsol reached" << endl;
+        }
     }
 
     return correctReturnValue(ret);
@@ -1291,16 +1251,13 @@ int Main::solve()
 
 lbool Main::multi_solutions()
 {
-    if (max_nr_of_solutions == 1
-        && fratf == nullptr
-        && debugLib.empty()
-    ) {
+    if (max_nr_of_solutions == 1 && fratf == nullptr && debugLib.empty()) {
         solver->set_single_run();
     }
 
     unsigned long current_nr_of_solutions = 0;
     lbool ret = l_True;
-    while(current_nr_of_solutions < max_nr_of_solutions && ret == l_True) {
+    while (current_nr_of_solutions < max_nr_of_solutions && ret == l_True) {
         ret = solver->solve(&assumps, solver->get_sampl_vars_set());
         current_nr_of_solutions++;
 
@@ -1311,10 +1268,7 @@ lbool Main::multi_solutions()
             }
 
             if (conf.verbosity) {
-                cout
-                << "c Number of solutions found until now: "
-                << std::setw(6) << current_nr_of_solutions
-                << endl;
+                cout << "c Number of solutions found until now: " << std::setw(6) << current_nr_of_solutions << endl;
             }
 
             if (!dont_ban_solutions) ban_found_solution();
@@ -1323,21 +1277,22 @@ lbool Main::multi_solutions()
     return ret;
 }
 
-void Main::ban_found_solution() {
+void Main::ban_found_solution()
+{
     vector<Lit> lits;
     if (!solver->get_sampl_vars_set()) {
         //all of the solution
         for (uint32_t var = 0; var < solver->nVars(); var++) {
             if (solver->get_model()[var] != l_Undef) {
-                lits.push_back( Lit(var, (solver->get_model()[var] == l_True)? true : false) );
+                lits.push_back(Lit(var, (solver->get_model()[var] == l_True) ? true : false));
             }
         }
     } else {
-      for (const uint32_t var: solver->get_sampl_vars()) {
-          if (solver->get_model()[var] != l_Undef) {
-              lits.push_back( Lit(var, (solver->get_model()[var] == l_True)? true : false) );
-          }
-      }
+        for (const uint32_t var: solver->get_sampl_vars()) {
+            if (solver->get_model()[var] != l_Undef) {
+                lits.push_back(Lit(var, (solver->get_model()[var] == l_True) ? true : false));
+            }
+        }
     }
     solver->add_clause(lits);
 }
