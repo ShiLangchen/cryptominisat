@@ -39,6 +39,7 @@ THE SOFTWARE.
 #include "varupdatehelper.h"
 #include "gausswatched.h"
 #include "xor.h"
+#include "eq.h"
 
 namespace CMSat
 {
@@ -161,10 +162,14 @@ class CNF
     vector<vector<Lit>> bnn_reasons;
     vector<Lit> bnn_confl_reason;
     vector<uint32_t> bnn_reasons_empty_slots;
+
+    vector<Eq> eq_clauses;
+
     BinTriStats binTri;
     LitStats litStats;
     int32_t clauseID = 0;
     int32_t clauseXID = 0;
+    int32_t clauseEID = 0;
     int64_t restartID = 1;
     SQLStats *sqlStats = nullptr;
     bool weighted = false;

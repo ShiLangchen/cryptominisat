@@ -62,6 +62,7 @@ class SATSolver
     bool add_xor_clause(const std::vector<unsigned> &vars, bool rhs);
     bool add_xor_clause(const std::vector<Lit> &lits, bool rhs = true);
     bool add_bnn_clause(const std::vector<Lit> &lits, signed cutoff, Lit out = lit_Undef);
+    bool add_eq_clause(const std::vector<Lit> &lits, const Lit aux_lit);
     // Special. Must be between 0 and 1, inclusive. Sets the weight of the
     // literal, and the negation of it to 1.0-weight. Used ONLY when polarmode
     // is set to PolarityMode::polarmode_weighted.

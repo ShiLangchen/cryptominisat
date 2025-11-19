@@ -98,6 +98,7 @@ class Solver : public Searcher
     bool add_xor_clause_outside(const vector<uint32_t> &vars, const bool rhs);
     bool add_xor_clause_outside(const vector<Lit> &lits_out, bool rhs);
     bool add_bnn_clause_outside(const vector<Lit> &lits, const int32_t cutoff, Lit out);
+    bool add_eq_clause_outside(const vector<Lit> &lits, const Lit aux_lit);
 
     lbool solve_with_assumptions(const vector<Lit> *_assumptions = nullptr, bool only_indep_solution = false);
     lbool simplify_with_assumptions(const vector<Lit> *_assumptions = nullptr, const string *strategy = nullptr);
@@ -201,6 +202,7 @@ class Solver : public Searcher
 
     // Clauses
     bool add_xor_clause_inter(const vector<Lit> &lits, bool rhs, bool attach, int32_t xid);
+    bool add_eq_clause_inter(const vector<Lit> &lits, const Lit aux_lit);
     void new_var(const bool bva = false,
                  const uint32_t orig_outer = numeric_limits<uint32_t>::max(),
                  const bool insert_varorder = true) override;

@@ -240,6 +240,23 @@ bool Solver::add_xor_clause_inter(const vector<Lit> &lits, bool rhs, const bool 
     return okay();
 }
 
+bool Solver::add_eq_clause_inter(const vector<Lit> &lits, const Lit aux_lit)
+{
+    frat_func_start_raw();
+    VERBOSE_PRINT("add_eq_clause_inter: " << lits << " aux_lit: " << aux_lit);
+    assert(okay());
+    assert(decisionLevel() == 0);
+
+    vector<Lit> ps(lits);
+    std::sort(ps.begin(), ps.end());
+
+    const int32_t eid = ++clauseEID;
+    eq_clauses.emplace_back(ps, aux_lit, eid);
+
+    frat_func_end_raw();
+    return okay();
+}
+
 //Deals with INTERNAL variables
 bool Solver::sort_and_clean_clause(vector<Lit> &ps, const vector<Lit> &origCl, const bool red, const bool sorted)
 {
@@ -2552,6 +2569,20 @@ bool Solver::add_bnn_clause_outside(const vector<Lit> &lits, const int32_t cutof
     out = map_outer_to_inter(out);
     out = varReplacer->get_lit_replaced_with(out);
     add_bnn_clause_inter(lits2, cutoff, out);
+
+    return ok;
+}
+
+bool Solver::add_eq_clause_outside(const vector<Lit> &lits, Lit aux_lit)
+{
+    if (!ok) return false;
+    SLOW_DEBUG_DO(check_too_large_variable_number(lits));
+
+    vector<Lit> lits2(lits);
+    add_clause_helper(lits2);
+    aux_lit = map_outer_to_inter(aux_lit);
+    aux_lit = varReplacer->get_lit_replaced_with(aux_lit);
+    add_eq_clause_inter(lits2, aux_lit);
 
     return ok;
 }
