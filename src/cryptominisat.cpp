@@ -736,6 +736,25 @@ DLL_PUBLIC bool SATSolver::add_clause(const vector<Lit> &lits)
     return ret;
 }
 
+DLL_PUBLIC bool SATSolver::add_eq_clause(const vector<Lit> &lits, const Lit aux_lit)
+{
+    if (data->log) {
+        (*data->log) << "e " << lits << " " << aux_lit << " 0" << endl;
+    }
+
+    bool ret = true;
+    if (data->solvers.size() > 1) {
+        assert(0);
+    } else {
+        data->solvers[0]->new_vars(data->vars_to_add);
+        data->vars_to_add = 0;
+
+        ret = data->solvers[0]->add_eq_clause_outside(lits, aux_lit);
+        data->cls++;
+    }
+    return ret;
+}
+
 void add_xor_clause_to_log(const std::vector<unsigned> &vars, bool rhs, std::ofstream *file)
 {
     if (vars.empty()) {
