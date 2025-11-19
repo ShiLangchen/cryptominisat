@@ -70,6 +70,7 @@ THE SOFTWARE.
 #include "lucky.h"
 #include "get_clause_query.h"
 #include "community_finder.h"
+#include "anf_elimination.h"
 extern "C" {
 #include "mpicosat/mpicosat.h"
 }
@@ -77,6 +78,10 @@ extern "C" {
 
 #ifdef USE_BREAKID
 #include "cms_breakid.h"
+#endif
+
+#ifdef USE_BOSPHORUS
+#include "cms_bosphorus.h"
 #endif
 
 using namespace CMSat;
@@ -1258,6 +1263,17 @@ void Solver::check_and_upd_config_parameters()
             conf.doBreakid = false;
         }
         #endif
+
+        #ifdef USE_BOSPHORUS
+        if (conf.do_bosphorus) {
+            if (conf.verbosity) {
+                cout
+                << "c Bosphorus is not supported with FRAT, turning it off"
+                << endl;
+            }
+            conf.do_bosphorus = false;
+        }
+        #endif
     }
 
     if (conf.sampling_vars_set) {
@@ -1779,10 +1795,6 @@ lbool Solver::execute_inprocess_strategy(
             if (conf.doFindAndReplaceEqLits) {
                 varReplacer->replace_if_enough_is_found();
             }
-        } else if (token == "occ-gate-based-eqlit") {
-            if (conf.doFindAndReplaceEqLits) {
-                occsimplifier->simplify(false, "occ-gate-based-eqlit");
-            }
         } else if (token == "full-probe") {
             if (!full_probe(false)) return l_False;
         } else if (token == "card-find") {
@@ -1884,6 +1896,20 @@ lbool Solver::execute_inprocess_strategy(
                 if (!breakid->doit()) return l_False;
                 #else
                 verb_print(1,"[breakid] BreakID not compiled in, skipping");
+                #endif
+            }
+        } else if (token == "bosphorus") {
+            if (conf.do_bosphorus
+                && (solveStats.num_simplify == 0 ||
+                   (solveStats.num_simplify % conf.bosphorus_every_n == (conf.bosphorus_every_n-1)))
+            ) {
+                #ifdef USE_BOSPHORUS
+                CMSBosphorus bosph(this);
+                bosph.doit();
+                #else
+                if (conf.verbosity) {
+                    cout << "c [bosphorus] Bosphorus not compiled in, skipping" << endl;
+                }
                 #endif
             }
         } else if (token == "") {
@@ -3796,4 +3822,163 @@ void Solver::set_outer_lit_weight(const Lit lit, const float weight) {
 vector<vector<uint8_t>> Solver::many_sls(int64_t mems, uint32_t num) {
     SLS sls(this);
     return sls.run_alter(mems, num);
+}
+
+bool Solver::process_ext_on_assign(Lit p)
+{
+    if (!anf_elimination) {
+        return true;
+    }
+    
+    uint32_t v = p.var();
+    lbool val = value(v);
+    
+    const auto& subs = anf_elimination->get_substitutions();
+    if (subs.empty()) {
+        return true;
+    }
+    
+    if (conf.verbosity >= 4) {
+        cout << "c [xor-ext] process_ext_on_assign: x" << v+1 
+             << "=" << (val == l_True ? "1" : (val == l_False ? "0" : "?"))
+             << " total_subs=" << subs.size() << endl;
+    }
+    
+    anf_elimination->on_assignment(v);
+    
+    const vector<int>* related_subs = anf_elimination->get_substitutions_for_var(v);
+    if (!related_subs) {
+        return true;
+    }
+    
+    const auto& all_subs = anf_elimination->get_substitutions();
+    for (int i : *related_subs) {
+        const ExtSubstitution& sub = all_subs[i];
+        
+        if (sub.active) {
+            continue;
+        }
+        
+        uint32_t target = sub.target;
+        lbool target_val = value(target);
+        
+        if (target_val != l_Undef) {
+            continue;
+        }
+        
+        Lit to_enqueue = lit_Undef;
+        PropBy reason;
+        
+        if (val == l_True) {
+            if (sub.current_degree == 0) {
+                to_enqueue = Lit(target, false);
+                
+                if (sub.all_true_cl_offset != CL_OFFSET_MAX) {
+                    reason = PropBy(sub.all_true_cl_offset);
+                    if (conf.verbosity >= 3) {
+                        cout << "c [xor-ext] all factors=1 -> y" << target+1 << "=1" 
+                             << " reason=clause(offset=" << sub.all_true_cl_offset << ")" << endl;
+                    }
+                } else {
+                    if (conf.verbosity >= 2) {
+                        cout << "c [xor-ext] WARNING: no all_true_cl_offset, skipping propagation" << endl;
+                    }
+                    to_enqueue = lit_Undef;
+                }
+            } else if (sub.current_degree == 1) {
+                uint32_t last = var_Undef;
+                for (uint32_t f : sub.factors) {
+                    if (value(f) == l_Undef) {
+                        last = f;
+                        break;
+                    }
+                }
+                
+                if (last != var_Undef) {
+                    uint32_t old_alias = anf_elimination->get_alias(target);
+                    xor_ext_undo.push_back(ExtUndoLog(target, old_alias, sub.current_degree, decisionLevel()));
+                    
+                    anf_elimination->set_alias(target, last);
+                    
+                    if (conf.verbosity >= 3) {
+                        cout << "c [xor-ext] alias: y" << target+1 
+                             << " <- x" << last+1 << " (deferred propagation)" << endl;
+                    }
+                }
+            }
+        } else if (val == l_False) {
+            if (sub.current_degree == 0) {
+                to_enqueue = Lit(target, true);
+                
+                Lit lit_x = Lit(v, false);
+                Lit lit_y_neg = Lit(target, true);
+                
+                bool found_bin = false;
+                watch_subarray_const ws = watches[lit_x];
+                for (const Watched& w : ws) {
+                    if (w.isBin() && w.lit2() == lit_y_neg) {
+                        reason = PropBy(lit_x, w.red(), w.get_id());
+                        found_bin = true;
+                        if (conf.verbosity >= 3) {
+                            cout << "c [xor-ext] x" << v+1 << "=0 -> y" << target+1 << "=0" 
+                                 << " reason=binary(watch found, red=" << w.red() << ", id=" << w.get_id() << ")" << endl;
+                        }
+                        break;
+                    }
+                }
+                
+                if (!found_bin) {
+                    if (conf.verbosity >= 3) {
+                        cout << "c [xor-ext] WARNING: binary watch not found for x" << v+1 << "->y" << target+1 << ", skipping" << endl;
+                    }
+                    to_enqueue = lit_Undef;
+                }
+            }
+        }
+        
+        if (to_enqueue != lit_Undef) {
+            if (value(to_enqueue) == l_False) {
+                if (conf.verbosity >= 3) {
+                    cout << "c [xor-ext] CONFLICT detected!" << endl;
+                }
+                return false;
+            }
+            if (value(to_enqueue) == l_Undef && !reason.isnullptr()) {
+                enqueue<false>(to_enqueue, decisionLevel(), reason);
+            }
+        }
+    }
+    
+    return true;
+}
+
+void Solver::undo_ext_until(int level)
+{
+    if (!anf_elimination) {
+        return;
+    }
+    
+    while (!xor_ext_undo.empty() && xor_ext_undo.back().level > level) {
+        const ExtUndoLog& log = xor_ext_undo.back();
+        
+        if (log.old_alias == var_Undef) {
+            if (anf_elimination->is_alias_set(log.target)) {
+                uint32_t old = anf_elimination->get_alias(log.target);
+                anf_elimination->set_alias(log.target, var_Undef);
+            }
+        } else {
+            anf_elimination->set_alias(log.target, log.old_alias);
+        }
+        
+        auto& subs = anf_elimination->get_substitutions_mut();
+        for (auto& sub : subs) {
+            if (sub.target == log.target) {
+                sub.current_degree = log.old_degree;
+                sub.activated_level = -1;
+                break;
+            }
+        }
+        
+        xor_ext_undo.pop_back();
+    }
 }

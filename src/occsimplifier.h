@@ -240,7 +240,6 @@ private:
 
     bool startup = false;
     bool backward_sub_str();
-    bool gate_based_eqlit();
     void backward_sub();
     bool execute_simplifier_strategy(const string& strategy);
     bool remove_literal(ClOffset c, const Lit toRemoveLit, bool only_set_is_removed);
@@ -415,7 +414,6 @@ private:
         const vec<Watched>& full_set,
         vec<Watched>& output);
     bool sub_str_with_added_long_and_bin(const bool verbose = true);
-    bool sub_with_added_long_and_bin(const bool verbose = true);
     vector<Lit> tmp_bin_cl;
     vec<Watched> gates_poss;
     vec<Watched> gates_negs;

@@ -123,18 +123,17 @@ bool Solver::backbone_simpl(int64_t /*orig_max_confl*/, bool /*cmsgen*/,
             << " T: " << std::fixed << std::setprecision(2)
             << cpuTime()-ccnr_time);
 
-    vector<int> learned_units;
-    vector<int> learned_bins;
+    vector<int> ret_backbone;
+    vector<int> ret_red_cls;
+    vector<std::pair<int, int>> ret_eqlits;
     verb_print(1, "[backbone-simpl] cadiback called with -- lits: " << num_lits
             << " num cls: " << num_cls << " num vars: " << nVars());
-    vector<pair<int, int>> eqLits;
-    int res = CadiBack::doit(cnf, conf.verbosity, drop_cands, learned_units, learned_bins, eqLits);
+    int res = CadiBack::doit(cnf, conf.verbosity, drop_cands, ret_backbone, ret_red_cls, ret_eqlits);
     uint32_t num_units = trail_size();
     uint32_t num_bins_added = 0;
-    uint32_t num_eq_added = 0;
     if (res == 10) {
         vector<Lit> tmp;
-        for(const auto& l: learned_units) {
+        for(const auto& l: ret_backbone) {
             if (l == 0) continue;
             const Lit lit = Lit(abs(l)-1, l < 0);
             if (value(lit.var()) != l_Undef) continue;
@@ -144,45 +143,30 @@ bool Solver::backbone_simpl(int64_t /*orig_max_confl*/, bool /*cmsgen*/,
             add_clause_int(tmp);
             if (!okay()) goto end;
         }
+        /* bool ignore = false; */
 
-        for(const auto& p: eqLits) {
-            int l1 = p.first;
-            int l2 = p.second;
-            const Lit lit1 = Lit(abs(l1)-1, l1 < 0);
-            const Lit lit2 = Lit(abs(l2)-1, l2 < 0);
-            tmp = {~lit1, lit2};
-            auto ret = add_clause_int(tmp, true);
-            assert(ret == nullptr);
-            tmp = {lit1, ~lit2};
-            ret = add_clause_int(tmp, true);
-            assert(ret == nullptr);
-            verb_print(4, "[backbone-simpl] added eq clause: " << lit1 << " = " << lit2);
-            num_eq_added++;
-        }
-
-        tmp.clear();
-        bool ignore = false;
-        for(const auto& l: learned_bins) {
-            if (l == 0) {
-                if (ignore) {
-                    ignore = false;
-                    tmp.clear();
-                    continue;
-                }
-                assert(tmp.size() == 2);
-                auto ret = add_clause_int(tmp, true);
-                assert(ret == nullptr);
-                num_bins_added++;
-                if (!okay()) goto end;
-                ignore = false;
-                tmp.clear();
-                continue;
-            }
-            const Lit lit = Lit(abs(l)-1, l < 0);
-            if (varData[lit.var()].removed != Removed::none) {ignore = true; continue;}
-            if (value(lit.var()) != l_Undef) {ignore = true; continue;}
-            tmp.push_back(lit);
-        }
+        /* tmp.clear(); */
+        /* for(const auto& l: learned_bins) { */
+        /*     if (l == 0) { */
+        /*         if (ignore) { */
+        /*             ignore = false; */
+        /*             tmp.clear(); */
+        /*             continue; */
+        /*         } */
+        /*         assert(tmp.size() == 2); */
+        /*         auto ret = add_clause_int(tmp, true); */
+        /*         assert(ret == nullptr); */
+        /*         num_bins_added++; */
+        /*         if (!okay()) goto end; */
+        /*         ignore = false; */
+        /*         tmp.clear(); */
+        /*         continue; */
+        /*     } */
+        /*     const Lit lit = Lit(abs(l)-1, l < 0); */
+        /*     if (varData[lit.var()].removed != Removed::none) {ignore = true; continue;} */
+        /*     if (value(lit.var()) != l_Undef) {ignore = true; continue;} */
+        /*     tmp.push_back(lit); */
+        /* } */
         backbone_done = true;
     } else {
         ok = false;
@@ -190,7 +174,6 @@ bool Solver::backbone_simpl(int64_t /*orig_max_confl*/, bool /*cmsgen*/,
 end:
     verb_print(1, "[backbone-simpl] res: " << res
             <<  " num units added: " << trail_size() - num_units
-            <<  " num eq added: " << num_eq_added
             <<  " num bins: " << num_bins_added
             << " T: " << std::fixed << std::setprecision(2)
             << cpuTime() - my_time);

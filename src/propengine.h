@@ -221,6 +221,7 @@ public:
                  const PropBy from = PropBy(), const bool do_unit_frat = true);
     template<bool inprocess> void enqueue(const Lit p);
     void enqueue_light(const Lit p);
+    bool process_ext_on_assign_helper(const Lit p, bool inprocess);
     void new_decision_level();
     vector<Lit>* get_xor_reason(const PropBy& reason, int32_t& ID);
 
@@ -563,6 +564,14 @@ void PropEngine::enqueue(const Lit p, const uint32_t level, const PropBy from, b
 
     const bool sign = p.sign();
     assigns[v] = boolToLBool(!sign);
+    
+    if (!inprocess) {
+        if (!process_ext_on_assign_helper(p, inprocess)) {
+            ok = false;
+            return;
+        }
+    }
+    
     varData[v].reason = from;
     varData[v].level = level;
     varData[v].sublevel = trail.size();

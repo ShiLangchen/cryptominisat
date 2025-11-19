@@ -31,6 +31,7 @@ THE SOFTWARE.
 
 #include "constants.h"
 #include "solver.h"
+#include "anf_elimination.h"
 #include "clauseallocator.h"
 #include "clause.h"
 #include "time_mem.h"
@@ -1138,4 +1139,12 @@ vector<Lit>* PropEngine::get_xor_reason(const PropBy& reason, int32_t& ID) {
         frat_func_end();
 
     }
+}
+
+bool PropEngine::process_ext_on_assign_helper(const Lit p, bool inprocess)
+{
+    if (inprocess || !solver->anf_elimination) {
+        return true;
+    }
+    return solver->process_ext_on_assign(p);
 }

@@ -28,6 +28,7 @@ THE SOFTWARE.
 #include "solvertypesmini.h"
 #include "time_mem.h"
 #include "solver.h"
+#include "anf_elimination.h"
 #include <iomanip>
 #include "varreplacer.h"
 #include "clausecleaner.h"
@@ -3154,6 +3155,11 @@ void Searcher::cancelUntil(uint32_t blevel)
         for (uint32_t i = 0; i < gmatrices.size(); i++)
             if (gmatrices[i] && !gqueuedata[i].disabled)
                 gmatrices[i]->canceling();
+        
+        if (solver->anf_elimination) {
+            solver->undo_ext_until(blevel);
+            solver->anf_elimination->backtrack(blevel);
+        }
 
         uint32_t i = trail_lim[blevel];
         uint32_t j = i;

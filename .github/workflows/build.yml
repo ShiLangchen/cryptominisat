@@ -1,6 +1,8 @@
 name: build
 
 on:
+  push:
+    branches: [ "*" ]
   pull_request:
     branches: [ "*" ]
 
@@ -12,9 +14,11 @@ jobs:
       fail-fast: false
 
       matrix:
-        os: [ubuntu-latest, macos-14, ubuntu-24.04-arm, macos-15-intel]
+        os: [ubuntu-latest, macos-14, ubuntu-24.04-arm, macos-13]
         build_type: [Release]
         staticcompile: [ON, OFF]
+        c_compiler: [gcc]
+        cpp_compiler: [g++]
 
     steps:
     - name: Install dependencies for Linux
@@ -27,7 +31,7 @@ jobs:
         wget https://ftp.gnu.org/gnu/gmp/gmp-6.3.0.tar.xz
         tar xf gmp-6.3.0.tar.xz
         cd gmp-6.3.0
-        ./configure --enable-static -enable-cxx --enable-shared --with-pic
+        ./configure --enable-static -enable-cxx --enable-shared
         make -j8
         sudo make install
         cd ..
@@ -58,7 +62,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         repository: meelgroup/cadical
-        ref: add_dynamic_lib
+        ref: mate-only-libraries-1.8.0
         path: cadical
     - name: Build Cadical
       run: |
@@ -91,6 +95,8 @@ jobs:
         mkdir -p build && cd build
         cmake \
         -DENABLE_TESTING=OFF \
+        -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }} \
+        -DCMAKE_C_COMPILER=${{ matrix.c_compiler }} \
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
         -DIPASIR=ON \
         -DSTATICCOMPILE=${{ matrix.staticcompile }} \
@@ -108,7 +114,6 @@ jobs:
         path: |
           project/build/cryptominisat5
           project/build/lib/*
-          project/build/include/*
 
     - name: Upload Artifact - Linux arm
       if: contains(matrix.os, 'ubuntu') && matrix.staticcompile == 'ON' && contains(matrix.os, 'arm')
@@ -118,7 +123,6 @@ jobs:
         path: |
           project/build/cryptominisat5
           project/build/lib/*
-          project/build/include/*
 
     - name: Upload Artifact - Mac ARM64
       if: matrix.os == 'macos-14' && matrix.staticcompile == 'ON'
@@ -128,14 +132,12 @@ jobs:
         path: |
           project/build/cryptominisat5
           project/build/lib/*
-          project/build/include/*
 
     - name: Upload Artifact - Mac x86_64
-      if: matrix.os == 'macos-15-intel' && matrix.staticcompile == 'ON'
+      if: matrix.os == 'macos-13' && matrix.staticcompile == 'ON'
       uses: actions/upload-artifact@v4
       with:
         name: cryptominisat5-mac-x86_64
         path: |
           project/build/cryptominisat5
           project/build/lib/*
-          project/build/include/*

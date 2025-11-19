@@ -1939,7 +1939,7 @@ void OccSimplifier::clean_sampl_get_empties(vector<uint32_t>& sampl_vars, vector
     const double my_time = cpuTime();
 
     // Clean up sampl_vars from replaced and set variables
-    map<uint32_t, uint32_t> sampl_var_pairs; //inter -> outer
+    map<uint32_t, uint32_t> sampl_var_pairs;
     for(const uint32_t& v: sampl_vars) {
         uint32_t v2 = solver->varReplacer->get_var_replaced_with_outer(v);
         v2 = solver->map_outer_to_inter(v2);
@@ -1958,13 +1958,14 @@ void OccSimplifier::clean_sampl_get_empties(vector<uint32_t>& sampl_vars, vector
     for(auto& p: sampl_var_pairs) {
         const Lit l = Lit(p.first, false);
         uint32_t irred_and_red = solver->watches[l].size() + solver->watches[~l].size();
-        if (solver->value(l) == l_Undef &&
+        if (solver->value(p.first) == l_Undef &&
                 (irred_and_red == 0 || (solver->zero_irred_cls(l) && solver->zero_irred_cls(~l)))) {
             assert(p.first < solver->nVars());
             empty_occ++;
             empty_vars.push_back(p.second);
             verb_print(5, "[w-debug] empty_occ: " << p.second+1 << " int var: " << p.first+1);
             elim_var_by_str(l.var(), {});
+            assert(solver->watches[l].empty() && solver->watches[~l].empty());
         } else {
             sampl_vars.push_back(p.second);
         }
@@ -2145,9 +2146,7 @@ bool OccSimplifier::cl_rem_with_or_gates()
         }
     }
 
-    /* if (!sub_str_with_added_long_and_bin(true)) goto end; */
-    added_long_cl.clear();
-    added_irred_bin.clear();
+    if (!sub_str_with_added_long_and_bin(true)) goto end;
 
     end:
     solver->clean_occur_from_removed_clauses_only_smudged();
@@ -2172,98 +2171,6 @@ bool OccSimplifier::cl_rem_with_or_gates()
 
     assert(solver->okay());
     assert(solver->prop_at_head());
-    return solver->okay();
-}
-
-bool OccSimplifier::gate_based_eqlit() {
-    assert(solver->okay());
-    assert(solver->prop_at_head());
-    assert(added_irred_bin.empty());
-    assert(added_long_cl.empty());
-
-    double my_time = cpuTime();
-    gateFinder = new GateFinder(this, solver);
-    gateFinder->find_all();
-    vector<OrGate> gates = gateFinder->get_gates();
-    gateFinder->cleanup();
-    delete gateFinder;
-    gateFinder = nullptr;
-
-    auto old_limit_to_decrease = limit_to_decrease;
-    limit_to_decrease = &gate_based_litrem_time_limit;
-
-    // Fill occ list
-    for(auto& g: gates) std::sort(g.lits.begin(), g.lits.end());
-    map<Lit, vector<uint32_t>> lit_to_gates; //lit -> gate num
-    for(uint32_t i = 0; i < gates.size(); i++) {
-        const auto& g = gates[i];
-        const Lit l = g.lits[0];
-        if (lit_to_gates.count(l) == 0)
-            lit_to_gates[l] = vector<uint32_t>();
-        lit_to_gates[l].push_back(i);
-    }
-
-    vector<Lit> finalLits;
-    auto myadd = [&](Lit l, Lit l2) {
-        finalLits.clear();
-        finalLits.push_back(l);
-        finalLits.push_back(l2);
-        auto newCl = solver->add_clause_int(
-            finalLits //Literals in new clause
-            , false //Is the new clause redundant?
-            , nullptr //orig stats
-            , false //Should clause be attached if long?
-            , &finalLits //Return final set of literals here
-        );
-        assert(newCl == nullptr);
-
-        if (finalLits.size() == 2) {
-            n_occurs[finalLits[0].toInt()]++;
-            n_occurs[finalLits[1].toInt()]++;
-            added_irred_bin.push_back(std::make_pair(finalLits[0], finalLits[1]));
-        }
-    };
-
-    // Check if any equvalent
-    uint32_t eq = 0;
-    for(uint32_t i = 0; i < gates.size(); i++) {
-        const auto& g = gates[i];
-        Lit l = g.lits[0];
-        const auto it = lit_to_gates.find(l);
-        if (it == lit_to_gates.end()) continue;
-        for(uint32_t i2 = 0; i2 < it->second.size(); i2++) {
-            const auto& g2 = gates[(it->second)[i2]];
-            if (g2.lits == g.lits) {
-                // rhs must be equivalent
-                if (g2.rhs == g.rhs) continue;
-                myadd(g.rhs, ~g2.rhs);
-                myadd(~g.rhs, g2.rhs);
-                eq++;
-            }
-        }
-    }
-
-    /* if (!sub_str_with_added_long_and_bin(true)) goto end; */
-    added_long_cl.clear();
-    added_irred_bin.clear();
-
-    solver->clean_occur_from_removed_clauses_only_smudged();
-    free_clauses_to_free();
-
-    if (solver->okay()) {
-        SLOW_DEBUG_DO(check_n_occur());
-        SLOW_DEBUG_DO(check_clauses_lits_ordered());
-    }
-
-    const double time_used = cpuTime() - my_time;
-    verb_print(1, "[occ-gate-based-eqlit]" << " eq: " << eq
-        << solver->conf.print_times(time_used, false));
-    assert(limit_to_decrease == &gate_based_litrem_time_limit);
-    limit_to_decrease = old_limit_to_decrease;
-
-    if (solver->sqlStats)
-        solver->sqlStats->time_passed_min( solver , "occ-gate-based-eqlit" , time_used);
-
     return solver->okay();
 }
 
@@ -2384,9 +2291,7 @@ bool OccSimplifier::lit_rem_with_or_gates() {
         }
         for(auto const& l: gate.lits) seen[l.toInt()] = 0;
     }
-    /* if (!sub_str_with_added_long_and_bin(true)) goto end; */
-    added_long_cl.clear();
-    added_irred_bin.clear();
+    if (!sub_str_with_added_long_and_bin(true)) goto end;
 
     end:
     solver->clean_occur_from_removed_clauses_only_smudged();
@@ -2486,9 +2391,6 @@ bool OccSimplifier::execute_simplifier_strategy(const string& strategy)
         } else if (token == "occ-clean-implicit") {
             //BUG TODO
             //solver->clauseCleaner->clean_implicit_clauses();
-        } else if (token == "occ-gate-based-eqlit") {
-            if (solver->conf.doFindAndReplaceEqLits)
-                gate_based_eqlit();
         } else if (token == "occ-bve-empty") {
             if (solver->conf.do_empty_varelim) eliminate_empty_resolvent_vars();
         } else if (token == "occ-bve") {
@@ -4317,7 +4219,7 @@ bool OccSimplifier::generate_resolvents(
             bool tautological = resolve_clauses(*it, *it2, lit);
             if (tautological) continue;
             if (solver->satisfied(dummy)) continue;
-            if (weaken_time_limit > 0 && check_taut_weaken_dummy(lit.var())) continue;
+//             if (weaken_time_limit > 0 && check_taut_weaken_dummy(lit.var())) continue;
 
             #ifdef VERBOSE_DEBUG_VARELIM
             cout << "Adding new clause due to varelim: " << dummy << endl;

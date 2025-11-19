@@ -17,13 +17,13 @@ mkdir "${buildDir}"
 
 # Build Cadical
 git clone \
-  --branch add_dynamic_lib \
+  --branch mate-only-libraries-1.8.0 \
   --depth 1 \
   https://github.com/meelgroup/cadical \
   "${buildDir}/cadical"
 ( cd "${buildDir}/cadical"
 ./configure -static
-make -j `nproc`
+make -j `nproc` cadical
 )
 
 # Build Cadiback

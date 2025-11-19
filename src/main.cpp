@@ -38,6 +38,7 @@ THE SOFTWARE.
 #include "main.h"
 #include "time_mem.h"
 #include "dimacsparser.h"
+#include "anfparser.h"
 #include "cryptominisat.h"
 #include "signalcode.h"
 #include "argparse.hpp"
@@ -48,6 +49,14 @@ using std::cout;
 using std::cerr;
 using std::endl;
 double wallclock_time_started = 0.0;
+
+static bool is_anf_file(const char* filename)
+{
+    if (!filename) return false;
+    const char* ext = strrchr(filename, '.');
+    if (!ext) return false;
+    return (strcmp(ext, ".anf") == 0 || strcmp(ext, ".ANF") == 0);
+}
 
 struct WrongParam {
     WrongParam(const string& _param, const string& _msg) : param(_param) , msg(_msg) {}
@@ -65,15 +74,15 @@ Main::Main(int _argc, char** _argv) :
 }
 
 void Main::readInAFile(SATSolver* solver2, const string& filename) {
-    std::unique_ptr<FieldGen> fg = std::make_unique<FGenDouble>();
     solver2->add_sql_tag("filename", filename);
     if (conf.verbosity) cout << "c Reading file '" << filename << "'" << endl;
+    
+    bool is_anf = is_anf_file(filename.c_str());
+    
     #ifndef USE_ZLIB
     FILE * in = fopen(filename.c_str(), "rb");
-    DimacsParser<StreamBuffer<FILE*, FN>, SATSolver> parser(solver2, &debugLib, conf.verbosity, fg);
     #else
     gzFile in = gzopen(filename.c_str(), "rb");
-    DimacsParser<StreamBuffer<gzFile, GZ>, SATSolver> parser(solver2, &debugLib, conf.verbosity, fg);
     #endif
 
     if (in == nullptr) {
@@ -85,9 +94,34 @@ void Main::readInAFile(SATSolver* solver2, const string& filename) {
         std::exit(1);
     }
 
-    bool strict_header = false;
-    if (!parser.parse_DIMACS(in, strict_header)) {
-        exit(-1);
+    if (is_anf) {
+        if (conf.verbosity) {
+            cout << "c Using direct ANF parser for file: " << filename << "\n";
+        }
+        
+        #ifndef USE_ZLIB
+        ANFParser<StreamBuffer<FILE*, FN>, SATSolver> anf_parser(solver2, conf.verbosity);
+        if (!anf_parser.parse_ANF(in)) {
+            exit(-1);
+        }
+        #else
+        ANFParser<StreamBuffer<gzFile, GZ>, SATSolver> anf_parser(solver2, conf.verbosity);
+        if (!anf_parser.parse_ANF(in)) {
+            exit(-1);
+        }
+        #endif
+    } else {
+        std::unique_ptr<FieldGen> fg = std::make_unique<FGenDouble>();
+        #ifndef USE_ZLIB
+        DimacsParser<StreamBuffer<FILE*, FN>, SATSolver> parser(solver2, &debugLib, conf.verbosity, fg);
+        #else
+        DimacsParser<StreamBuffer<gzFile, GZ>, SATSolver> parser(solver2, &debugLib, conf.verbosity, fg);
+        #endif
+
+        bool strict_header = false;
+        if (!parser.parse_DIMACS(in, strict_header)) {
+            exit(-1);
+        }
     }
 
     #ifndef USE_ZLIB
@@ -814,7 +848,7 @@ void Main::add_supported_options() {
         .action([&](const auto& a) {conf.print_all_restarts = std::atoi(a.c_str());})
         .default_value(conf.print_all_restarts)
         .help("Print a line for every restart");
-    program.add_argument("--printsol","-s")
+    program.add_argument("--printsol,s")
         .action([&](const auto& a) {printResult = std::atoi(a.c_str());})
         .default_value(printResult)
         .help("Print assignment if solution is SAT");
@@ -946,6 +980,18 @@ void Main::add_supported_options() {
         .action([&](const auto& a) {assump_filename = a;})
         .default_value(assump_filename)
         .help("Assumptions file");
+
+#ifdef USE_BOSPHORUS
+    po::options_description bosph_options("Gauss options");
+     program.add_argument("--bosph")
+        .action([&](const auto& a) {conf.do_bosphorus = std::atoi(a.c_str());})
+        .default_value(conf.do_bosphorus)
+        .help("Execute bosphorus");
+     program.add_argument("--bospheveryn")
+        .action([&](const auto& a) {conf.bosphorus_every_n = std::atoi(a.c_str());})
+        .default_value(conf.bosphorus_every_n)
+        .help("Execute bosphorus only every Nth iteration -- starting at Nth iter.");
+#endif
 
 /*     po::options_description gaussOptions("Gauss options"); */
      program.add_argument("--maxmatrixrows")

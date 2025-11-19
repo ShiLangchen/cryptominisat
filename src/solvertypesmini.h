@@ -158,7 +158,7 @@ public:
 
     constexpr uint8_t getValue() const { return value; }
 
-    friend lbool toLbool(uint8_t   v);
+    friend lbool toLbool(uint32_t   v);
     constexpr friend uint32_t   toInt  (lbool l);
 };
 
@@ -166,7 +166,7 @@ constexpr lbool l_True = lbool((uint8_t)0);
 constexpr lbool l_False = lbool((uint8_t)1);
 constexpr lbool l_Undef = lbool((uint8_t)2);
 
-inline lbool toLbool(uint8_t v)
+inline lbool toLbool(uint32_t v)
 {
     lbool l;
     l.value = v;
@@ -497,7 +497,7 @@ public:
         }
         at++;
         skip_whitespace(str, at);
-        if (at < str.size() && str[at] != '\n') {
+        if (str[at] != '\n') {
 
             std::cerr << "PARSE ERROR! expected end of line at the end of the weight."
                 << "At line " << line_no
@@ -522,69 +522,69 @@ public:
     virtual bool weighted() const = 0;
 };
 
-class FDouble final : public Field {
+class FDouble : public Field {
 public:
     double val;
     FDouble(const double _val) : val(_val) {}
     FDouble(const FDouble& other) : val(other.val) {}
 
-    Field& operator=(const Field& other) final {
+    Field& operator=(const Field& other) override {
         const auto& od = static_cast<const FDouble&>(other);
         val = od.val;
         return *this;
     }
 
-    Field& operator+=(const Field& other) final {
+    Field& operator+=(const Field& other) override {
         const auto& od = static_cast<const FDouble&>(other);
         val += od.val;
         return *this;
     }
 
-    std::unique_ptr<Field> add(const Field& other) final {
+    std::unique_ptr<Field> add(const Field& other) override {
         const auto& od = static_cast<const FDouble&>(other);
         return std::make_unique<FDouble>(val + od.val);
     }
 
-    Field& operator-=(const Field& other) final {
+    Field& operator-=(const Field& other) override {
         const auto& od = static_cast<const FDouble&>(other);
         val -= od.val;
         return *this;
     }
 
-    Field& operator*=(const Field& other) final {
+    Field& operator*=(const Field& other) override {
         const auto& od = static_cast<const FDouble&>(other);
         val *= od.val;
         return *this;
     }
 
-    Field& operator/=(const Field& other) final {
+    Field& operator/=(const Field& other) override {
         const auto& od = static_cast<const FDouble&>(other);
         if (od.val == 0) throw std::runtime_error("Division by zero");
         val /= od.val;
         return *this;
     }
 
-    bool operator==(const Field& other) const final {
+    bool operator==(const Field& other) const override {
         const auto& od = static_cast<const FDouble&>(other);
         return od.val == val;
     }
 
-    std::ostream& display(std::ostream& os) const final {
+    std::ostream& display(std::ostream& os) const override {
         os << val;
         return os;
     }
 
-    std::unique_ptr<Field> dup() const final {
+    std::unique_ptr<Field> dup() const override {
         return std::make_unique<FDouble>(val);
     }
 
-    bool is_zero() const final { return val == 0; }
-    bool is_one() const final { return val == 1; }
-    void set_zero() final { val = 0; }
-    void set_one() final { val = 1; }
-    uint64_t bytes_used() const final { return sizeof(FDouble); }
+    bool is_zero() const override { return val == 0; }
+    bool is_one() const override { return val == 1; }
+    void set_zero() override { val = 0; }
+    void set_one() override { val = 1; }
+    uint64_t bytes_used() const override { return sizeof(FDouble); }
 
-    bool parse(const std::string& str, const uint32_t line_no) final {
+    bool parse(const std::string& str, const uint32_t line_no) override {
         mpz_class head;
         mpz_class mult;
         uint32_t at = 0;
@@ -610,28 +610,28 @@ public:
     }
 };
 
-class FGenDouble final : public FieldGen {
+class FGenDouble : public FieldGen {
 public:
-    ~FGenDouble() final = default;
-    std::unique_ptr<Field> zero() const final {
+    ~FGenDouble() override = default;
+    std::unique_ptr<Field> zero() const override {
         return std::make_unique<FDouble>(0);
     }
 
-    std::unique_ptr<Field> one() const final {
+    std::unique_ptr<Field> one() const override {
         return std::make_unique<FDouble>(1.0);
     }
 
-    std::unique_ptr<FieldGen> dup() const final {
+    std::unique_ptr<FieldGen> dup() const override {
         return std::make_unique<FGenDouble>();
     }
 
-    bool larger_than(const Field& a, const Field& b) const final {
+    bool larger_than(const Field& a, const Field& b) const override {
         const auto& ad = static_cast<const FDouble&>(a);
         const auto& bd = static_cast<const FDouble&>(b);
         return ad.val > bd.val;
     }
 
-    bool weighted() const final { return true; }
+    bool weighted() const override { return true; }
 };
 
 }

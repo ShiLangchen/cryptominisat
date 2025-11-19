@@ -74,6 +74,7 @@ class ReduceDB;
 class InTree;
 class BreakID;
 class GetClauseQuery;
+class ANFElimination;
 
 struct SolveStats
 {
@@ -199,6 +200,7 @@ class Solver : public Searcher
         StrImplWImpl* dist_impl_with_impl = nullptr;
         CardFinder*            card_finder = nullptr;
         GetClauseQuery*        get_clause_query = nullptr;
+        ANFElimination*        anf_elimination = nullptr;
 
         SearchStats sumSearchStats;
         PropStats sumPropStats;
@@ -364,6 +366,9 @@ class Solver : public Searcher
         bool backbone_simpl_old(int64_t orig_max_confl, bool cmsgen, bool& finished);
         bool removed_var_ext(uint32_t var) const;
         vector<vector<uint8_t>> many_sls(int64_t mems, uint32_t num);
+        
+        bool process_ext_on_assign(Lit p);
+        void undo_ext_until(int level);
 
     private:
         friend class ClauseDumper;
@@ -486,6 +491,17 @@ class Solver : public Searcher
         /////////////////////
         // Data
         size_t zeroLevAssignsByCNF = 0;
+        
+        struct ExtUndoLog {
+            uint32_t target;
+            uint32_t old_alias;
+            uint32_t old_degree;
+            int level;
+            
+            ExtUndoLog(uint32_t t, uint32_t a, uint32_t d, int l)
+                : target(t), old_alias(a), old_degree(d), level(l) {}
+        };
+        vector<ExtUndoLog> xor_ext_undo;
 
         /////////////////////
         // Clauses

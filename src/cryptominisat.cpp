@@ -604,15 +604,6 @@ DLL_PUBLIC void SATSolver::set_simplify(const bool simp)
         s.conf.do_simplify_problem = simp;
     }
 }
-
-DLL_PUBLIC void SATSolver::set_gates(const bool gates)
-{
-    for (auto & solver : data->solvers) {
-        Solver& s = *solver;
-        s.conf.doGateFind = gates;
-    }
-}
-
 DLL_PUBLIC void SATSolver::set_picosat_gate_limitK(const uint32_t lim)
 {
     for (auto & solver : data->solvers) {
@@ -1436,6 +1427,7 @@ void DLL_PUBLIC SATSolver::set_up_for_scalmc()
         conf.bva_every_n = 1;
         conf.do_simplify_problem = true;
         conf.diff_declev_for_chrono = -1;
+        conf.do_bosphorus = false;
         /* conf.polarity_mode = CMSat::PolarityMode::polarmode_saved; */
         solver->setConf(conf);
     }
@@ -1462,6 +1454,7 @@ void DLL_PUBLIC SATSolver::set_up_for_arjun()
         conf.polarity_mode = CMSat::PolarityMode::polarmode_best;
         conf.branch_strategy_setup = "vsids1";
         conf.diff_declev_for_chrono = -1;
+        conf.do_bosphorus = false;
 
         //Distill
         conf.distill_sort = 4;
