@@ -247,6 +247,9 @@ class SATSolver
     std::vector<uint32_t> get_lit_incidence();
     std::vector<uint32_t> get_var_incidence_also_red();
     std::vector<double> get_vsids_scores();
+    void set_vsids_scores(const std::vector<double> &new_scores);
+    void rebuild_order_heap();
+    void set_real_var_nb(size_t real_var_nb);
 
     lbool find_fast_backw(FastBackwData fast_backw);
     void remove_and_clean_all();

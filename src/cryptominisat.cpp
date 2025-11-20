@@ -1595,6 +1595,31 @@ DLL_PUBLIC void SATSolver::reset_vsids()
     }
 }
 
+DLL_PUBLIC void SATSolver::set_vsids_scores(const vector<double> &vsids_scores)
+{
+    // just set the solvers[0]
+    data->solvers[0]->set_vsids_scores(vsids_scores);
+}
+
+DLL_PUBLIC void SATSolver::rebuild_order_heap()
+{
+    data->solvers[0]->rebuildOrderHeap();
+}
+
+DLL_PUBLIC void SATSolver::set_real_var_nb(size_t real_var_nb)
+{
+    for (size_t i = 0; i < data->solvers.size(); ++i) {
+        Solver &s = *data->solvers[i];
+        s.set_real_var_nb(real_var_nb);
+    }
+}
+
+DLL_PUBLIC vector<double> SATSolver::get_vsids_scores()
+{
+    // just get the solvers[0]
+    return data->solvers[0]->get_vsids_scores();
+}
+
 DLL_PUBLIC void SATSolver::set_scc(int val)
 {
     for (size_t i = 0; i < data->solvers.size(); ++i) {

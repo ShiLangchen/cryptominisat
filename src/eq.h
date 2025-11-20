@@ -18,7 +18,7 @@ class Eq
     {
     }
     const std::vector<Lit> &get_lits() const { return lits; }
-    const Lit get_aux_lit() const { return aux_lit; }
-    const int32_t get_eid() const { return eid; }
+    const Lit &get_aux_lit() const { return aux_lit; }
+    int32_t get_eid() const { return eid; }
 };
 } // namespace CMSat

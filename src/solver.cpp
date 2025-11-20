@@ -2587,6 +2587,11 @@ bool Solver::add_eq_clause_outside(const vector<Lit> &lits, Lit aux_lit)
     return ok;
 }
 
+void Solver::set_real_var_nb(size_t real_var_nb)
+{
+    this->real_var_nb = real_var_nb;
+}
+
 void Solver::check_too_large_variable_number(const vector<Lit> &lits) const
 {
     for (const Lit lit: lits) {
@@ -3016,6 +3021,17 @@ vector<double> Solver::get_vsids_scores() const
     }
 
     return scores_outer;
+}
+
+void Solver::set_vsids_scores(const vector<double> &scores_outer)
+{
+    vector<double> scores_inter(var_act_vsids);
+    for (uint32_t i = 0; i < scores_inter.size(); i++) {
+        uint32_t outer = map_inter_to_outer(i);
+        scores_inter[i] = scores_outer[outer];
+    }
+
+    var_act_vsids = scores_inter;
 }
 
 bool Solver::implied_by(const std::vector<Lit> &lits, std::vector<Lit> &out_implied)

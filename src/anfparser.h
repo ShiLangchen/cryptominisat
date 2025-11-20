@@ -51,6 +51,8 @@ template<class C, class S> class AnfParser
 
     bool check_var(const uint32_t var);
 
+    void init_vsids();
+
     S *solver;
     unsigned verbosity;
 
@@ -69,6 +71,9 @@ template<class C, class S> class AnfParser
     vector<vector<Lit>> poly;
     std::set<vector<Lit>> monos;
     std::vector<vector<Lit>> monos_vec;
+
+    size_t real_var_nb;
+    size_t aux_var_nb;
 
     size_t norm_clauses_added = 0;
     size_t xor_clauses_added = 0;
@@ -184,6 +189,8 @@ ARRANGE_IMPLICATIONS:
     }
     assert(std::is_sorted(monos_vec.begin(), monos_vec.end()));
 
+    real_var_nb = solver->nVars();
+    aux_var_nb = monos_vec.size();
     auto auxiliary_var_start = solver->nVars();
     solver->new_vars(monos_vec.size());
 
@@ -433,6 +440,18 @@ template<class C, class S> bool AnfParser<C, S>::parse_ANF_main(C &in)
     return true;
 }
 
+template<class C, class S> void AnfParser<C, S>::init_vsids()
+{
+    size_t var_nb = solver->nVars();
+    assert(var_nb == real_var_nb + aux_var_nb);
+
+    vector<double> init_vsids_act(var_nb);
+    std::fill(init_vsids_act.begin(), init_vsids_act.begin() + real_var_nb, 10000000);
+    solver->set_vsids_scores(init_vsids_act);
+
+    //rebuild the heap for solvers[0]
+    solver->rebuild_order_heap();
+}
 
 template<class C, class S>
 template<class T>
@@ -447,10 +466,13 @@ bool AnfParser<C, S>::parse_ANF(T input_stream, const bool _strict_header, uint3
     // add eq clauses (including those cnf clauses)
     if (!scan_instance(in1)) return false;
     if (!parse_ANF_main(in2)) return false;
+    init_vsids();
+    solver->set_real_var_nb(real_var_nb);
 
     if (verbosity) {
         cout << "c -- clauses added: " << norm_clauses_added << endl
              << "c -- xor clauses added: " << xor_clauses_added << endl
+             << "c -- eq clauses added: " << eq_clauses_added << endl
              << "c -- vars added " << (solver->nVars() - origNumVars) << endl;
     }
 

@@ -23,6 +23,7 @@ THE SOFTWARE.
 #pragma once
 
 #include "constants.h"
+#include <cstddef>
 #include <vector>
 #include <iostream>
 #include <array>
@@ -99,6 +100,7 @@ class Solver : public Searcher
     bool add_xor_clause_outside(const vector<Lit> &lits_out, bool rhs);
     bool add_bnn_clause_outside(const vector<Lit> &lits, const int32_t cutoff, Lit out);
     bool add_eq_clause_outside(const vector<Lit> &lits, const Lit aux_lit);
+    void set_real_var_nb(size_t real_var_nb);
 
     lbool solve_with_assumptions(const vector<Lit> *_assumptions = nullptr, bool only_indep_solution = false);
     lbool simplify_with_assumptions(const vector<Lit> *_assumptions = nullptr, const string *strategy = nullptr);
@@ -119,6 +121,8 @@ class Solver : public Searcher
     const vector<lbool> &get_model() const;
     const vector<Lit> &get_final_conflict() const;
     vector<double> get_vsids_scores() const;
+    void set_vsids_scores(const vector<double> &vsids_scores);
+
     vector<Lit> implied_by_tmp_lits;
     bool implied_by(const std::vector<Lit> &lits, std::vector<Lit> &out_implied);
 

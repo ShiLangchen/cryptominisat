@@ -218,6 +218,7 @@ class PropEngine : public CNF
     /////////////////////
     vector<double> var_act_vsids;
     double var_decay = 0.95;
+    double real_var_better = 1.2;
     struct VarOrderLt
     { ///Order variables according to their activities
         const vector<double> &activities;

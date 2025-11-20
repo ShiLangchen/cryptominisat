@@ -204,6 +204,7 @@ class Searcher : public HyperEngine
   protected:
     Solver *solver;
     lbool search();
+    size_t real_var_nb;
 
     // Distill
     uint64_t next_cls_distill = 0;
@@ -567,7 +568,12 @@ inline bool Searcher::pick_polarity(const uint32_t var)
 template<bool inprocess> inline void Searcher::vsids_bump_var_act(const uint32_t var)
 {
     if (inprocess) return;
-    var_act_vsids[var] += var_inc_vsids;
+    auto add = var_inc_vsids;
+    auto out_var = map_inter_to_outer(var);
+    if (out_var < real_var_nb) {
+        add *= real_var_better;
+    }
+    var_act_vsids[var] += add;
     max_vsids_act = std::max(max_vsids_act, var_act_vsids[var]);
 
 #ifdef SLOW_DEBUG
