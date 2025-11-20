@@ -105,7 +105,7 @@ void Main::readInAANFFile(SATSolver *solver2, const string &filename)
     }
 
     bool strict_header = false;
-    if (!parser.parse_ANF(in, strict_header)) {
+    if (!parser.parse_ANF(filename, strict_header)) {
         exit(-1);
     }
     gzclose(in);
