@@ -2587,9 +2587,9 @@ bool Solver::add_eq_clause_outside(const vector<Lit> &lits, Lit aux_lit)
     return ok;
 }
 
-void Solver::set_real_var_nb(size_t real_var_nb)
+void Solver::set_real_var_nb(size_t real_var)
 {
-    this->real_var_nb = real_var_nb;
+    this->real_var_nb = real_var;
 }
 
 void Solver::check_too_large_variable_number(const vector<Lit> &lits) const
