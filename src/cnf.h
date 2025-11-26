@@ -27,6 +27,7 @@ THE SOFTWARE.
 #include <gmpxx.h>
 
 #include "constants.h"
+#include "eqwatch.h"
 #include "solvertypesmini.h"
 #include "vardata.h"
 #include "propby.h"
@@ -91,6 +92,8 @@ class CNF
 
     watch_array watches;
     vec<vec<GaussWatched>> gwatches;
+    vec<vec<EqWatched>> eqwatches;
+
     uint32_t num_sls_called = 0;
     vector<VarData> varData;
     branch branch_strategy = branch::vsids;
@@ -280,11 +283,27 @@ class CNF
     void add_chain();
     vector<int32_t> chain; ///< For resolution chains
 
+    void set_real_var_num(const uint32_t rvn) { real_var_num = rvn; }
+    uint32_t get_real_var_num() const { return real_var_num; }
+
+    bool is_real_var(const uint32_t inner_var) const
+    {
+        auto out_var = map_inter_to_outer(inner_var);
+        return out_var < (uint32_t)real_var_num;
+    }
+
+    bool is_aux_var(const uint32_t inner_var) const
+    {
+        auto out_var = map_inter_to_outer(inner_var);
+        return out_var >= (uint32_t)real_var_num;
+    }
+
   protected:
     virtual void new_var(const bool bva, const uint32_t orig_outer, const bool insert_varorder = true);
     virtual void new_vars(const size_t n);
     void test_reflectivity_of_renumbering() const;
     vector<lbool> assigns;
+    uint32_t real_var_num;
 
     vector<uint32_t> outer_to_interMain;
     vector<uint32_t> inter_to_outerMain;

@@ -1933,3 +1933,17 @@ DLL_PUBLIC bool SATSolver::get_opt_sampl_vars_set() const
     Solver &s = *data->solvers[0];
     return s.conf.opt_sampling_vars_set;
 }
+
+DLL_PUBLIC void SATSolver::set_real_var_num(uint32_t rvn)
+{
+    for (size_t i = 0; i < data->solvers.size(); ++i) {
+        Solver &s = *data->solvers[i];
+        s.set_real_var_num(rvn);
+    }
+}
+
+DLL_PUBLIC uint32_t SATSolver::get_real_var_num() const
+{
+    Solver &s = *data->solvers[0];
+    return s.get_real_var_num();
+}

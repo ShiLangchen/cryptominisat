@@ -186,6 +186,8 @@ ARRANGE_IMPLICATIONS:
     assert(std::is_sorted(monos_vec.begin(), monos_vec.end()));
 
     auto auxiliary_var_start = solver->nVars();
+    solver->set_real_var_num(auxiliary_var_start);
+
     solver->new_vars(monos_vec.size());
 
     assert(solver->nVars() == auxiliary_var_start + monos_vec.size());
