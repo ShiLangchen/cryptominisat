@@ -23,7 +23,9 @@ THE SOFTWARE.
 #pragma once
 
 // #define VERBOSE_DEBUG
+#include <cstdint>
 #include <cstdio>
+#include <optional>
 #include <string.h>
 #include <stack>
 #include <set>
@@ -278,6 +280,7 @@ class PropEngine : public CNF
     lbool bnn_prop(const uint32_t bnn_idx, uint32_t level, Lit l, BNNPropType prop_t);
     void attachClause(const Clause &c, const bool checkAttach = true);
     void attach_xor_clause(uint32_t at);
+    void attach_eq_clause(uint32_t at);
 
     void detach_bin_clause(Lit lit1,
                            Lit lit2,
@@ -344,6 +347,7 @@ class PropEngine : public CNF
     void sql_dump_vardata_picktime(uint32_t v, PropBy from);
 
     PropBy gauss_jordan_elim(const Lit p, const uint32_t currLevel);
+    void eq_elim(const Lit p);
 };
 
 inline void PropEngine::new_decision_level()

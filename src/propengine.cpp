@@ -21,6 +21,7 @@ THE SOFTWARE.
 ***********************************************/
 
 #include "propengine.h"
+#include <cassert>
 #include <cmath>
 #include <string.h>
 #include <algorithm>
@@ -30,9 +31,12 @@ THE SOFTWARE.
 #include <algorithm>
 
 #include "constants.h"
+#include "eq.h"
+#include "eqwatch.h"
 #include "solver.h"
 #include "clauseallocator.h"
 #include "clause.h"
+#include "solvertypesmini.h"
 #include "time_mem.h"
 #include "varupdatehelper.h"
 #include "watchalgos.h"
@@ -123,6 +127,21 @@ void PropEngine::attach_xor_clause(uint32_t at)
     gwatches[x[1]].push(w);
     x.watched[0] = 0;
     x.watched[1] = 1;
+}
+
+void PropEngine::attach_eq_clause(uint32_t at)
+{
+    Eq &e = eq_clauses[at];
+    const auto &lits = e.get_lits();
+    assert(lits.size() > 2);
+
+    assert(value(lits[0]) == l_Undef);
+    assert(value(e.get_aux_lit()) == l_Undef);
+
+    eq_watches[lits[0].var()].push(EqWatched(at));
+    eq_watches[lits[1].var()].push(EqWatched(at));
+    e.watches[0] = 0;
+    e.watches[1] = 1;
 }
 
 /**
@@ -277,6 +296,60 @@ PropBy PropEngine::gauss_jordan_elim(const Lit p, const uint32_t currLevel)
         }
     }
     return PropBy();
+}
+
+void PropEngine::eq_elim(const Lit p)
+{
+    VERBOSE_PRINT("PropEngine::eq_elim called, declev: " << decisionLevel() << " lit to prop: " << p);
+    vec<EqWatched> &ws = eq_watches[p.toInt()];
+    EqWatched *i = ws.begin();
+    EqWatched *j = i;
+    const EqWatched *end = ws.end();
+    const uint32_t pv = p.var();
+
+    for (; i != end; i++) {
+        auto at = i->eid;
+        auto &eq = eq_clauses[at];
+        bool which;
+        if (pv == eq[eq.watches[0]].var()) which = 0;
+        else {
+            which = 1;
+            if (eq[eq.watches[1]].var() != pv) {
+                cout << "ERROR. Going through pv: " << pv + 1 << endl;
+            }
+            assert(eq[eq.watches[1]].var() == pv);
+        }
+
+        uint32_t unknown = 0;
+        uint32_t unknown_at = 0;
+        uint32_t true_num = 0;
+        for (uint32_t i2 = 0; i2 < eq.size(); i2++) {
+            if (solver->value(eq[i2]) == l_Undef) {
+                unknown++;
+                unknown_at = i2;
+                if (i2 != eq.watches[!which]) {
+                    // it's not the other watch. So we can update current
+                    // watch to this
+                    eq_watches[eq[i2].var()].push(EqWatched(at));
+                    eq.watches[which] = i2;
+                    goto next;
+                }
+            } else {
+                true_num += solver->value(eq[i2]) == l_True;
+            }
+        }
+        assert(unknown < 2);
+        if (unknown == 1) {
+            assert(unknown_at == eq.watches[!which]);
+            if (true_num == eq.size() - 1 && solver->value(eq.get_aux_lit()) == l_Undef) {
+                // TODO: aux == eq[unknown_at], do some substitute
+            }
+            *j++ = *i;
+            goto next;
+        }
+        // no unknowns left, ignore
+    next:;
+    }
 }
 
 lbool PropEngine::bnn_prop(const uint32_t bnn_idx, uint32_t level, Lit /*l*/, BNNPropType prop_t)

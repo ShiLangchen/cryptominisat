@@ -250,8 +250,9 @@ bool Solver::add_eq_clause_inter(const vector<Lit> &lits, const Lit aux_lit)
     vector<Lit> ps(lits);
     std::sort(ps.begin(), ps.end());
 
-    const int32_t eid = ++clauseEID;
+    const int32_t eid = clauseEID++;
     eq_clauses.emplace_back(ps, aux_lit, eid);
+    attach_eq_clause(eq_clauses.size() - 1);
 
     frat_func_end_raw();
     return okay();
