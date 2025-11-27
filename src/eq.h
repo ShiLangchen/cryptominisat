@@ -20,7 +20,7 @@ class Eq
     const std::vector<Lit> &get_lits() const { return lits; }
     const Lit get_aux_lit() const { return aux_lit; }
     int32_t get_eid() const { return eid; }
-    uint32_t watches[2] = {0, 1};
+    uint32_t watched[2] = {0, 1};
 
     const Lit &operator[](const uint32_t at) const { return lits[at]; }
     Lit &operator[](const uint32_t at) { return lits[at]; }

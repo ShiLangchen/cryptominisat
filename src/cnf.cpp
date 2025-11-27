@@ -155,7 +155,7 @@ void CNF::save_on_var_memory()
     watches.resize(nVars() * 2);
     watches.consolidate();
     gwatches.resize(nVars());
-    eq_watches.resize(nVars());
+    eq_watches.resize(nVars() * 2);
 
     for (auto &l: longRedCls) {
         l.shrink_to_fit();

@@ -135,13 +135,13 @@ void PropEngine::attach_eq_clause(uint32_t at)
     const auto &lits = e.get_lits();
     assert(lits.size() > 2);
 
-    assert(value(lits[0]) == l_Undef);
-    assert(value(e.get_aux_lit()) == l_Undef);
+    assert(value(e[0]) == l_Undef);
+    assert(value(e[1]) == l_Undef);
 
-    eq_watches[lits[0].var()].push(EqWatched(at));
-    eq_watches[lits[1].var()].push(EqWatched(at));
-    e.watches[0] = 0;
-    e.watches[1] = 1;
+    eq_watches[e[0].toInt()].push(EqWatched(at));
+    eq_watches[e[1].toInt()].push(EqWatched(at));
+    e.watched[0] = 0;
+    e.watched[1] = 1;
 }
 
 /**
@@ -305,49 +305,44 @@ void PropEngine::eq_elim(const Lit p)
     EqWatched *i = ws.begin();
     EqWatched *j = i;
     const EqWatched *end = ws.end();
-    const uint32_t pv = p.var();
 
     for (; i != end; i++) {
         auto at = i->eid;
         auto &eq = eq_clauses[at];
+
         bool which;
-        if (pv == eq[eq.watches[0]].var()) which = 0;
-        else {
+        if (eq[eq.watched[0]] == p) {
+            which = 0;
+        } else {
             which = 1;
-            if (eq[eq.watches[1]].var() != pv) {
-                cout << "ERROR. Going through pv: " << pv + 1 << endl;
-            }
-            assert(eq[eq.watches[1]].var() == pv);
+            assert(eq[eq.watched[1]] == p);
         }
 
-        uint32_t unknown = 0;
-        uint32_t unknown_at = 0;
-        uint32_t true_num = 0;
-        for (uint32_t i2 = 0; i2 < eq.size(); i2++) {
-            if (solver->value(eq[i2]) == l_Undef) {
-                unknown++;
-                unknown_at = i2;
-                if (i2 != eq.watches[!which]) {
-                    // it's not the other watch. So we can update current
-                    // watch to this
-                    eq_watches[eq[i2].var()].push(EqWatched(at));
-                    eq.watches[which] = i2;
-                    goto next;
-                }
-            } else {
-                true_num += solver->value(eq[i2]) == l_True;
-            }
-        }
-        assert(unknown < 2);
-        if (unknown == 1) {
-            assert(unknown_at == eq.watches[!which]);
-            if (true_num == eq.size() - 1 && solver->value(eq.get_aux_lit()) == l_Undef) {
-                // TODO: aux == eq[unknown_at], do some substitute
-            }
+        Lit the_other_watched = eq[eq.watched[!which]];
+        if (value(the_other_watched) == l_False) {
+            // no need to do some replace,
             *j++ = *i;
             goto next;
         }
-        // no unknowns left, ignore
+
+        for (uint32_t i2 = 0; i2 < eq.size(); i2++) {
+            if (i2 == eq.watched[0] || i2 == eq.watched[1]) {
+                continue;
+            }
+            const Lit &l2 = eq[i2];
+            if (value(l2) != l_True) {
+                eq.watched[which] = i2;
+                eq_watches[l2.toInt()].push(EqWatched(at));
+                goto next;
+            }
+        }
+
+        // now, all the literals except the_other_watched are TRUE
+        // if the_other_watched and aux_lit are both UNDEF, they are eq.
+        if (value(the_other_watched) == l_Undef && value(eq.get_aux_lit()) == l_Undef) {
+            // TODO: the_other_watched lit == aux_lit
+        }
+
     next:;
     }
 }
