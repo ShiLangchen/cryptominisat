@@ -335,6 +335,7 @@ class PropEngine : public CNF
     template<bool bin_only = true> PropBy propagate_light();
     template<bool inprocess> PropResult prop_normal_helper(Clause &c, ClOffset offset, Watched *&j, const Lit p);
     template<bool inprocess> PropResult handle_normal_prop_fail(Clause &c, ClOffset offset, PropBy &confl);
+    void eq_elim(const Lit p);
 
   private:
     Solver *solver;
@@ -347,7 +348,6 @@ class PropEngine : public CNF
     void sql_dump_vardata_picktime(uint32_t v, PropBy from);
 
     PropBy gauss_jordan_elim(const Lit p, const uint32_t currLevel);
-    void eq_elim(const Lit p);
 };
 
 inline void PropEngine::new_decision_level()

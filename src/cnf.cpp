@@ -128,6 +128,7 @@ void CNF::swapVars(const uint32_t which, const int off_by)
 void CNF::enlarge_nonminimial_datastructs(size_t n)
 {
     assigns.insert(assigns.end(), n, l_Undef);
+    alias.insert(alias.end(), 2 * n, std::nullopt);
     unit_cl_IDs.insert(unit_cl_IDs.end(), n, 0);
     unit_cl_XIDs.insert(unit_cl_XIDs.end(), n, 0);
     for (uint32_t i = 0; i < n; i++) {
@@ -140,7 +141,7 @@ void CNF::enlarge_minimal_datastructs(size_t n)
 {
     watches.insert(2 * n);
     gwatches.insert(n);
-    eq_watches.insert(n);
+    eq_watches.insert(2 * n);
     seen.insert(seen.end(), 2 * n, 0);
     seen2.insert(seen2.end(), 2 * n, 0);
     permDiff.insert(permDiff.end(), 2 * n, 0);
@@ -229,6 +230,8 @@ void CNF::update_vars(const vector<uint32_t> &outer_to_inter,
 {
     updateArray(varData, inter_to_outer);
     updateArray(assigns, inter_to_outer);
+    updateArray(alias, inter_to_outer);
+
     updateArray(unit_cl_IDs, inter_to_outer);
     updateArray(unit_cl_XIDs, inter_to_outer);
 

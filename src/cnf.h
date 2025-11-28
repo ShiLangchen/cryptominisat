@@ -304,6 +304,8 @@ class CNF
     void test_reflectivity_of_renumbering() const;
     vector<lbool> assigns;
     uint32_t real_var_num;
+    // alias
+    std::vector<std::optional<Lit>> alias;
 
     vector<uint32_t> outer_to_interMain;
     vector<uint32_t> inter_to_outerMain;

@@ -23,6 +23,7 @@ THE SOFTWARE.
 #include "propengine.h"
 #include <cassert>
 #include <cmath>
+#include <optional>
 #include <string.h>
 #include <algorithm>
 #include <limits.h>
@@ -133,7 +134,7 @@ void PropEngine::attach_eq_clause(uint32_t at)
 {
     Eq &e = eq_clauses[at];
     const auto &lits = e.get_lits();
-    assert(lits.size() > 2);
+    assert(lits.size() >= 2);
 
     assert(value(e[0]) == l_Undef);
     assert(value(e[1]) == l_Undef);
@@ -301,6 +302,45 @@ PropBy PropEngine::gauss_jordan_elim(const Lit p, const uint32_t currLevel)
 void PropEngine::eq_elim(const Lit p)
 {
     VERBOSE_PRINT("PropEngine::eq_elim called, declev: " << decisionLevel() << " lit to prop: " << p);
+
+    if (value(p) == l_Undef) {
+        vec<EqWatched> &ws1 = eq_watches[p.toInt()];
+        const EqWatched *end1 = ws1.end();
+        for (EqWatched *i = ws1.begin(); i != end1; i++) {
+            auto at = i->eid;
+            auto &eq = eq_clauses[at];
+            const Lit aux_lit = eq.get_aux_lit();
+
+            if (p.var() == alias[aux_lit.toInt()]->var()) {
+                // no need to restore
+            } else {
+                // restore
+                alias[aux_lit.toInt()] = std::nullopt;
+            }
+        }
+
+        vec<EqWatched> &ws2 = eq_watches[(~p).toInt()];
+        const EqWatched *end2 = ws2.end();
+        for (EqWatched *i = ws2.begin(); i != end2; i++) {
+            auto at = i->eid;
+            auto &eq = eq_clauses[at];
+            const Lit aux_lit = eq.get_aux_lit();
+
+            if (p.var() == alias[aux_lit.toInt()]->var()) {
+                // no need to restore
+            } else {
+                // restore
+                alias[aux_lit.toInt()] = std::nullopt;
+            }
+        }
+        return;
+    }
+
+    if (is_aux_var(p.var())) {
+        alias[p.toInt()] = std::nullopt;
+        return;
+    }
+
     vec<EqWatched> &ws = eq_watches[p.toInt()];
     EqWatched *i = ws.begin();
     EqWatched *j = i;
@@ -340,8 +380,12 @@ void PropEngine::eq_elim(const Lit p)
         // now, all the literals except the_other_watched are TRUE
         // if the_other_watched and aux_lit are both UNDEF, they are eq.
         if (value(the_other_watched) == l_Undef && value(eq.get_aux_lit()) == l_Undef) {
+            alias[eq.get_aux_lit().toInt()] = the_other_watched;
             // TODO: the_other_watched lit == aux_lit
+        } else {
+            alias[eq.get_aux_lit().toInt()] = std::nullopt;
         }
+        *j++ = *i;
 
     next:;
     }
@@ -734,6 +778,8 @@ template<bool inprocess, bool red_also, bool distill_use> PropBy PropEngine::pro
         varData[p.var()].propagated = true;
         watch_subarray ws = watches[~p];
         uint32_t currLevel = trail[qhead].lev;
+
+        eq_elim(p);
 
         Watched *i = ws.begin();
         Watched *j = i;
