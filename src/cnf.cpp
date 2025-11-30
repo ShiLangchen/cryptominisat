@@ -141,7 +141,7 @@ void CNF::enlarge_minimal_datastructs(size_t n)
 {
     watches.insert(2 * n);
     gwatches.insert(n);
-    eq_watches.insert(2 * n);
+    eq_watches.insert(n);
     seen.insert(seen.end(), 2 * n, 0);
     seen2.insert(seen2.end(), 2 * n, 0);
     permDiff.insert(permDiff.end(), 2 * n, 0);
@@ -156,7 +156,7 @@ void CNF::save_on_var_memory()
     watches.resize(nVars() * 2);
     watches.consolidate();
     gwatches.resize(nVars());
-    eq_watches.resize(nVars() * 2);
+    eq_watches.resize(nVars());
 
     for (auto &l: longRedCls) {
         l.shrink_to_fit();
