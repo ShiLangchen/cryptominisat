@@ -394,7 +394,7 @@ void PropEngine::eq_elim(const Lit p)
             const Lit &l2 = eq[i2];
             if (value(l2) != l_True) {
                 eq.watched[which] = i2;
-                eq_watches[l2.toInt()].push(EqWatched(at));
+                eq_watches[l2.var()].push(EqWatched(at));
                 goto next;
             }
         }
