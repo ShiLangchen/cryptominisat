@@ -145,7 +145,7 @@ void PropEngine::attach_eq_clause(uint32_t at)
     e.watched[0] = 0;
     e.watched[1] = 1;
 
-    aux_to_eid[e.get_aux_lit()] = e.get_eid();
+    aux_to_eid[e.get_aux_lit().var()] = e.get_eid();
 }
 
 /**
@@ -335,8 +335,8 @@ void PropEngine::eq_elim(const Lit p)
                 }
             }
         } else {
-            auto &eq = eq_clauses[aux_to_eid[p]];
-            assert(eq.get_eid() == aux_to_eid[p]);
+            auto &eq = eq_clauses[aux_to_eid[pv]];
+            assert(eq.get_eid() == aux_to_eid[pv]);
             if (value(eq[eq.watched[0]]) == l_Undef && value(eq[eq.watched[1]]) == l_Undef) {
                 alias[eq.get_aux_lit().toInt()] = std::nullopt;
             } else if (value(eq[eq.watched[0]]) == l_Undef && value(eq[eq.watched[1]]) == l_True) {
