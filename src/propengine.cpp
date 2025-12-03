@@ -316,6 +316,7 @@ void PropEngine::eq_elim(const Lit p)
                 const auto at = i->eid;
                 auto &eq = eq_clauses[at];
                 const Lit aux_lit = eq.get_aux_lit();
+                const int aux_lit_int = aux_lit.toInt();
 
                 bool which;
                 if (eq[eq.watched[0]].var() == pv) {
@@ -327,31 +328,34 @@ void PropEngine::eq_elim(const Lit p)
 
                 const Lit other = eq[eq.watched[!which]];
                 if (value(other) == l_Undef) {
-                    alias[eq.get_aux_lit().toInt()] = std::nullopt;
+                    alias[aux_lit_int] = std::nullopt;
                 } else { // value(other) != l_Undef
-                    if (value(eq.get_aux_lit()) == l_Undef && value(other) == l_True) {
-                        alias[eq.get_aux_lit().toInt()] = eq[eq.watched[which]];
+                    if (value(aux_lit) == l_Undef && value(other) == l_True) {
+                        alias[aux_lit_int] = eq[eq.watched[which]];
                     }
                 }
             }
         } else {
             auto &eq = eq_clauses[aux_to_eid[pv]];
             assert(eq.get_eid() == aux_to_eid[pv]);
+            const int aux_lit_int = eq.get_aux_lit().toInt();
             if (value(eq[eq.watched[0]]) == l_Undef && value(eq[eq.watched[1]]) == l_Undef) {
-                alias[eq.get_aux_lit().toInt()] = std::nullopt;
+                alias[aux_lit_int] = std::nullopt;
             } else if (value(eq[eq.watched[0]]) == l_Undef && value(eq[eq.watched[1]]) == l_True) {
-                alias[eq.get_aux_lit().toInt()] = eq[eq.watched[0]];
+                alias[aux_lit_int] = eq[eq.watched[0]];
             } else if (value(eq[eq.watched[1]]) == l_Undef && value(eq[eq.watched[0]]) == l_True) {
-                alias[eq.get_aux_lit().toInt()] = eq[eq.watched[1]];
+                alias[aux_lit_int] = eq[eq.watched[1]];
             } else {
-                assert(alias[eq.get_aux_lit().toInt()] == std::nullopt);
+                assert(alias[aux_lit_int] == std::nullopt);
             }
         }
         return;
     }
 
     if (is_aux_var(pv)) {
-        alias[p.toInt()] = std::nullopt;
+        const auto &eq = eq_clauses[aux_to_eid[pv]];
+        const int aux_lit_int = eq.get_aux_lit().toInt();
+        alias[aux_lit_int] = std::nullopt;
         return;
     }
 
@@ -372,17 +376,19 @@ void PropEngine::eq_elim(const Lit p)
             assert(eq[eq.watched[1]].var() == pv);
         }
 
-        Lit the_other_watched = eq[eq.watched[!which]];
+        const Lit the_other_watched = eq[eq.watched[!which]];
+        const Lit aux_lit = eq.get_aux_lit();
+        const int aux_lit_int = aux_lit.toInt();
 
         if (value(eq[eq.watched[which]]) == l_False) {
-            alias[eq.get_aux_lit().toInt()] = std::nullopt;
+            alias[aux_lit_int] = std::nullopt;
             *j++ = *i;
             goto next;
         }
 
         if (value(the_other_watched) == l_False) {
             // no need to do some replace,
-            assert(alias[eq.get_aux_lit().toInt()] == std::nullopt);
+            assert(alias[aux_lit_int] == std::nullopt);
             *j++ = *i;
             goto next;
         }
@@ -401,11 +407,10 @@ void PropEngine::eq_elim(const Lit p)
 
         // now, all the literals except the_other_watched are TRUE
         // if the_other_watched and aux_lit are both UNDEF, they are eq.
-        if (value(the_other_watched) == l_Undef && value(eq.get_aux_lit()) == l_Undef) {
-            alias[eq.get_aux_lit().toInt()] = the_other_watched;
-            // TODO: the_other_watched lit == aux_lit
+        if (value(the_other_watched) == l_Undef && value(aux_lit) == l_Undef) {
+            alias[aux_lit_int] = the_other_watched;
         } else {
-            alias[eq.get_aux_lit().toInt()] = std::nullopt;
+            alias[aux_lit_int] = std::nullopt;
         }
         *j++ = *i;
 
