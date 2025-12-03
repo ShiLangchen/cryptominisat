@@ -28,7 +28,8 @@ THE SOFTWARE.
 
 #include "clause.h"
 
-namespace CMSat {
+namespace CMSat
+{
 using std::vector;
 
 /**
@@ -36,159 +37,133 @@ using std::vector;
 
 Used in OccSimplifier to put into a set all clauses that need to be treated
 */
-class CSet {
-    vector<uint32_t>       where;  ///<Map clause ID to position in 'which'.
-    vector<ClOffset>   which;  ///< List of clauses (for fast iteration). May contain 'Clause_nullptr'.
-    vector<uint32_t>       free;   ///<List of positions holding 'Clause_nullptr'.
+class CSet
+{
+    vector<uint32_t> where; ///<Map clause ID to position in 'which'.
+    vector<ClOffset> which; ///< List of clauses (for fast iteration). May contain 'Clause_nullptr'.
+    vector<uint32_t> free; ///<List of positions holding 'Clause_nullptr'.
 
-    public:
-        //ClauseSimp& operator [] (uint32_t index) { return which[index]; }
-        void reserve(uint32_t size) {
-            where.reserve(size);
-            which.reserve(size);
-        }
-        //uint32_t size(void) const { return which.size(); }
-        ///@brief Number of elements in the set
-        uint32_t nElems(void) const { return which.size() - free.size(); }
+  public:
+    //ClauseSimp& operator [] (uint32_t index) { return which[index]; }
+    void reserve(uint32_t size)
+    {
+        where.reserve(size);
+        which.reserve(size);
+    }
+    //uint32_t size(void) const { return which.size(); }
+    ///@brief Number of elements in the set
+    uint32_t nElems(void) const { return which.size() - free.size(); }
 
-        /**
+    /**
         @brief Add a clause to the set
         */
-        bool add(const ClOffset offs) {
-            //Don't check for special value
-            assert(offs != numeric_limits< uint32_t >::max());
+    bool add(const ClOffset offs)
+    {
+        //Don't check for special value
+        assert(offs != numeric_limits<uint32_t>::max());
 
-            if (where.size() < offs+1)
-                where.resize(offs+1, numeric_limits<uint32_t>::max());
+        if (where.size() < offs + 1) where.resize(offs + 1, numeric_limits<uint32_t>::max());
 
-            if (where[offs] != numeric_limits<uint32_t>::max()) {
-                return false;
-            }
-            if (free.size() > 0){
-                where[offs] = free.back();
-                which[free.back()] = offs;
-                free.pop_back();
-            }else{
-                where[offs] = which.size();
-                which.push_back(offs);
-            }
-            return true;
+        if (where[offs] != numeric_limits<uint32_t>::max()) {
+            return false;
         }
-
-        bool alreadyIn(const ClOffset offs) const
-        {
-            //Don't check for special value
-            assert(offs != numeric_limits< uint32_t >::max());
-
-            if (where.size() < offs+1)
-                return false;
-
-            return where[offs] != numeric_limits<uint32_t>::max();
+        if (free.size() > 0) {
+            where[offs] = free.back();
+            which[free.back()] = offs;
+            free.pop_back();
+        } else {
+            where[offs] = which.size();
+            which.push_back(offs);
         }
+        return true;
+    }
 
-        /**
+    bool alreadyIn(const ClOffset offs) const
+    {
+        //Don't check for special value
+        assert(offs != numeric_limits<uint32_t>::max());
+
+        if (where.size() < offs + 1) return false;
+
+        return where[offs] != numeric_limits<uint32_t>::max();
+    }
+
+    /**
         @brief Fully clear the set
         */
-        void clear(void) {
-            where.clear();
-            which.clear();
-            free.clear();
-        }
+    void clear(void)
+    {
+        where.clear();
+        which.clear();
+        free.clear();
+    }
 
-        /**
+    /**
         @brief A normal iterator to iterate through the set
 
         No other way exists of iterating correctly.
         */
-        class iterator
+    class iterator
+    {
+      public:
+        explicit iterator(vector<ClOffset>::iterator _it) : it(_it) {}
+
+        iterator &operator++()
         {
-            public:
-                explicit iterator(vector<ClOffset>::iterator _it) :
-                it(_it)
-                {}
+            ++it;
+            return *this;
+        }
 
-                iterator& operator++()
-                {
-                    ++it;
-                    return *this;
-                }
+        bool operator!=(const iterator &iter) const { return (it != iter.it); }
 
-                bool operator!=(const iterator& iter) const
-                {
-                    return (it != iter.it);
-                }
+        ClOffset &operator*() { return *it; }
 
-                ClOffset& operator*() {
-                    return *it;
-                }
+        vector<ClOffset>::iterator &operator->() { return it; }
 
-                vector<ClOffset>::iterator& operator->() {
-                    return it;
-                }
-            private:
-                vector<ClOffset>::iterator it;
-        };
+      private:
+        vector<ClOffset>::iterator it;
+    };
 
-        /**
+    /**
         @brief A constant iterator to iterate through the set
 
         No other way exists of iterating correctly.
         */
-        class const_iterator
+    class const_iterator
+    {
+      public:
+        explicit const_iterator(vector<ClOffset>::const_iterator _it) : it(_it) {}
+
+        const_iterator &operator++()
         {
-            public:
-                explicit const_iterator(vector<ClOffset>::const_iterator _it) :
-                it(_it)
-                {}
+            ++it;
 
-                const_iterator& operator++()
-                {
-                    ++it;
-
-                    return *this;
-                }
-
-                bool operator!=(const const_iterator& iter) const
-                {
-                    return (it != iter.it);
-                }
-
-                const ClOffset& operator*() {
-                    return *it;
-                }
-
-                vector<ClOffset>::const_iterator& operator->() {
-                    return it;
-                }
-            private:
-                vector<ClOffset>::const_iterator it;
-        };
-
-        ///@brief Get starting iterator
-        iterator begin()
-        {
-            return iterator(which.begin());
+            return *this;
         }
 
-        ///@brief Get ending iterator
-        iterator end()
-        {
-            return iterator(which.begin() + which.size());
-        }
+        bool operator!=(const const_iterator &iter) const { return (it != iter.it); }
 
-        ///@brief Get starting iterator (constant version)
-        const_iterator begin() const
-        {
-            return const_iterator(which.begin());
-        }
+        const ClOffset &operator*() { return *it; }
 
-        ///@brief Get ending iterator (constant version)
-        const_iterator end() const
-        {
-            return const_iterator(which.begin() + which.size());
-        }
+        vector<ClOffset>::const_iterator &operator->() { return it; }
+
+      private:
+        vector<ClOffset>::const_iterator it;
+    };
+
+    ///@brief Get starting iterator
+    iterator begin() { return iterator(which.begin()); }
+
+    ///@brief Get ending iterator
+    iterator end() { return iterator(which.begin() + which.size()); }
+
+    ///@brief Get starting iterator (constant version)
+    const_iterator begin() const { return const_iterator(which.begin()); }
+
+    ///@brief Get ending iterator (constant version)
+    const_iterator end() const { return const_iterator(which.begin() + which.size()); }
 };
 
-} //end namespace
+} // namespace CMSat
 
 #endif //CSET_H

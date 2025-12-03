@@ -53,19 +53,19 @@ ls_solver::ls_solver(const bool aspiration)
 bool ls_solver::make_space()
 {
     if (0 == _num_vars || 0 == _num_clauses) return false;
-    _vars.resize(_num_vars+1);
-    _clauses.resize(_num_clauses+1);
-    _solution.resize(_num_vars+1);
-    _best_solution.resize(_num_vars+1);
-    _index_in_unsat_clauses.resize(_num_clauses+1);
-    _index_in_unsat_vars.resize(_num_vars+1);
+    _vars.resize(_num_vars + 1);
+    _clauses.resize(_num_clauses + 1);
+    _solution.resize(_num_vars + 1);
+    _best_solution.resize(_num_vars + 1);
+    _index_in_unsat_clauses.resize(_num_clauses + 1);
+    _index_in_unsat_vars.resize(_num_vars + 1);
 
     return true;
 }
 
 void ls_solver::build_neighborhood()
 {
-    vector<bool> neighbor_flag(_num_vars+1);
+    vector<bool> neighbor_flag(_num_vars + 1);
     for (uint32_t j = 0; j < neighbor_flag.size(); ++j) {
         neighbor_flag[j] = 0;
     }
@@ -88,17 +88,16 @@ void ls_solver::build_neighborhood()
 
 /****************local search**********************************/
 //bool  *return value modified
-bool ls_solver::local_search(
-    const vector<bool> *init_solution
-    , long long int _mems_limit
-    , const char* prefix
-    , int64_t _max_steps
-) {
+bool ls_solver::local_search(const vector<bool> *init_solution,
+                             long long int _mems_limit,
+                             const char *prefix,
+                             int64_t _max_steps)
+{
     bool result = false;
     _random_gen.seed(_random_seed);
     _best_found_cost = _num_clauses;
     _conflict_ct.clear();
-    _conflict_ct.resize(_num_vars+1,0);
+    _conflict_ct.resize(_num_vars + 1, 0);
 
     for (int t = 0; t < _max_tries; t++) {
         initialize(init_solution);
@@ -110,7 +109,7 @@ bool ls_solver::local_search(
         for (_step = 0; _step < _max_steps; _step++) {
             int flipv = pick_var();
             flip(flipv);
-            for(int var_idx:_unsat_vars) ++_conflict_ct[var_idx];
+            for (int var_idx: _unsat_vars) ++_conflict_ct[var_idx];
             if (_mems > _mems_limit) {
                 return result;
             }
@@ -119,17 +118,12 @@ bool ls_solver::local_search(
             if ((int)_unsat_clauses.size() < _best_found_cost) {
                 _best_found_cost = _unsat_clauses.size();
                 assert(_best_solution.size() == _solution.size());
-                std::copy(_solution.begin(), _solution.end(),
-                          _best_solution.begin());
+                std::copy(_solution.begin(), _solution.end(), _best_solution.begin());
             }
 
-            if (_verbosity &&
-                (_best_found_cost == 0 || (_step & 0x3ffff) == 0x3ffff)
-            ) {
-                cout << prefix << "[ccnr] tries: "
-                << t << " steps: " << _step
-                << " best found: " << _best_found_cost
-                << endl;
+            if (_verbosity && (_best_found_cost == 0 || (_step & 0x3ffff) == 0x3ffff)) {
+                cout << prefix << "[ccnr] tries: " << t << " steps: " << _step << " best found: " << _best_found_cost
+                     << endl;
             }
 
 
@@ -154,10 +148,8 @@ void ls_solver::clear_prev_data()
     _unsat_clauses.clear();
     _ccd_vars.clear();
     _unsat_vars.clear();
-    for (int &item: _index_in_unsat_clauses)
-        item = 0;
-    for (int &item: _index_in_unsat_vars)
-        item = 0;
+    for (int &item: _index_in_unsat_clauses) item = 0;
+    for (int &item: _index_in_unsat_vars) item = 0;
 }
 
 void ls_solver::initialize(const vector<bool> *init_solution)
@@ -169,11 +161,10 @@ void ls_solver::initialize(const vector<bool> *init_solution)
             _solution[v] = (_random_gen.next(2) == 0 ? 0 : 1);
         }
     } else {
-        if ((int)init_solution->size() != _num_vars+1) {
-            cout
-            << "ERROR: the init solution's size"
-            " is not equal to the number of variables."
-            << endl;
+        if ((int)init_solution->size() != _num_vars + 1) {
+            cout << "ERROR: the init solution's size"
+                    " is not equal to the number of variables."
+                 << endl;
             exit(-1);
         }
         for (int v = 1; v <= _num_vars; v++) {
@@ -253,14 +244,14 @@ int ls_solver::pick_var()
     //First, try to get the var with the highest score from _ccd_vars if any
     //----------------------------------------
     int best_var = 0;
-    _mems += _ccd_vars.size()/8;
+    _mems += _ccd_vars.size() / 8;
     if (_ccd_vars.size() > 0) {
         best_var = _ccd_vars[0];
         for (int v: _ccd_vars) {
             if (_vars[v].score > _vars[best_var].score) {
                 best_var = v;
-            } else if (_vars[v].score == _vars[best_var].score &&
-                       _vars[v].last_flip_step < _vars[best_var].last_flip_step) {
+            } else if (_vars[v].score == _vars[best_var].score
+                       && _vars[v].last_flip_step < _vars[best_var].last_flip_step) {
                 best_var = v;
             }
         }
@@ -281,14 +272,12 @@ int ls_solver::pick_var()
         }
         for (++i; i < _unsat_vars.size(); ++i) {
             int v = _unsat_vars[i];
-            if (_vars[v].score > _vars[best_var].score)
-                best_var = v;
-            else if (_vars[v].score == _vars[best_var].score &&
-                     _vars[v].last_flip_step < _vars[best_var].last_flip_step)
+            if (_vars[v].score > _vars[best_var].score) best_var = v;
+            else if (_vars[v].score == _vars[best_var].score
+                     && _vars[v].last_flip_step < _vars[best_var].last_flip_step)
                 best_var = v;
         }
-        if (best_var != 0)
-            return best_var;
+        if (best_var != 0) return best_var;
     }
     //=========================================c
 
@@ -303,8 +292,8 @@ int ls_solver::pick_var()
         int v = cp->literals[k].var_num;
         if (_vars[v].score > _vars[best_var].score) {
             best_var = v;
-        } else if (_vars[v].score == _vars[best_var].score &&
-                   _vars[v].last_flip_step < _vars[best_var].last_flip_step) {
+        } else if (_vars[v].score == _vars[best_var].score
+                   && _vars[v].last_flip_step < _vars[best_var].last_flip_step) {
             best_var = v;
         }
     }
@@ -360,7 +349,7 @@ void ls_solver::update_cc_after_flip(int flipv)
     int last_item;
     variable *vp = &(_vars[flipv]);
     vp->cc_value = 0;
-    _mems += _ccd_vars.size()/4;
+    _mems += _ccd_vars.size() / 4;
     for (int index = _ccd_vars.size() - 1; index >= 0; index--) {
         int v = _ccd_vars[index];
         if (_vars[v].score <= 0) {
@@ -375,7 +364,7 @@ void ls_solver::update_cc_after_flip(int flipv)
     }
 
     //update all flipv's neighbor's cc to be 1
-    _mems += vp->neighbor_var_nums.size()/4;
+    _mems += vp->neighbor_var_nums.size() / 4;
     for (int v: vp->neighbor_var_nums) {
         _vars[v].cc_value = 1;
         if (_vars[v].score > 0 && !(_vars[v].is_in_ccd_vars)) {
@@ -458,8 +447,7 @@ void ls_solver::smooth_clause_weights()
     for (int c = 0; c < _num_clauses; ++c) {
         clause *cp = &(_clauses[c]);
         cp->weight = cp->weight * _swt_p + scale_avg;
-        if (cp->weight < 1)
-            cp->weight = 1;
+        if (cp->weight < 1) cp->weight = 1;
         _delta_total_clause_weight += cp->weight;
         if (_delta_total_clause_weight >= _num_clauses) {
             _avg_clause_weight += 1;
@@ -477,7 +465,7 @@ void ls_solver::smooth_clause_weights()
     //reset ccd_vars
     _ccd_vars.clear();
     for (int v = 1; v <= _num_vars; v++) {
-        variable* vp = &(_vars[v]);
+        variable *vp = &(_vars[v]);
         if (vp->score > 0 && 1 == vp->cc_value) {
             _ccd_vars.push_back(v);
             vp->is_in_ccd_vars = 1;
@@ -490,16 +478,13 @@ void ls_solver::smooth_clause_weights()
 /*****print solution*****************/
 void ls_solver::print_solution(bool need_verify)
 {
-    if (0 == get_cost())
-        cout << "s SATISFIABLE" << endl;
-    else
-        cout << "s UNKNOWN" << endl;
+    if (0 == get_cost()) cout << "s SATISFIABLE" << endl;
+    else cout << "s UNKNOWN" << endl;
 
     bool sat_flag = false;
     cout << "c UP numbers: " << up_times << " times" << endl;
     cout << "c flip numbers: " << flip_numbers << " times" << endl;
-    cout << "c UP avg flip number: "
-        << (double)(flip_numbers + 0.0) / up_times << " s" << endl;
+    cout << "c UP avg flip number: " << (double)(flip_numbers + 0.0) / up_times << " s" << endl;
     if (need_verify) {
         for (int c = 0; c < _num_clauses; c++) {
             sat_flag = false;
@@ -520,8 +505,7 @@ void ls_solver::print_solution(bool need_verify)
         cout << "v";
         for (int v = 1; v <= _num_vars; v++) {
             cout << ' ';
-            if (_solution[v] == 0)
-                cout << '-';
+            if (_solution[v] == 0) cout << '-';
             cout << v;
         }
         cout << endl;

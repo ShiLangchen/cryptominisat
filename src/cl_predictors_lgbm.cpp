@@ -37,27 +37,27 @@ using namespace CMSat;
 
 ClPredictorsLGBM::ClPredictorsLGBM()
 {
-//     safe_xgboost(XGBoosterCreate(0, 0, &(handles[predict_type::short_pred])))
-//     safe_xgboost(XGBoosterCreate(0, 0, &(handles[predict_type::long_pred])))
-//     safe_xgboost(XGBoosterCreate(0, 0, &(handles[predict_type::forever_pred])))
-//
-//     for(int i = 0; i < 3; i++) {
-//         safe_xgboost(XGBoosterSetParam(handles[i], "nthread", "1"))
-//         //safe_xgboost(XGBoosterSetParam(handles[i], "verbosity", "3"))
-//     }
+    //     safe_xgboost(XGBoosterCreate(0, 0, &(handles[predict_type::short_pred])))
+    //     safe_xgboost(XGBoosterCreate(0, 0, &(handles[predict_type::long_pred])))
+    //     safe_xgboost(XGBoosterCreate(0, 0, &(handles[predict_type::forever_pred])))
+    //
+    //     for(int i = 0; i < 3; i++) {
+    //         safe_xgboost(XGBoosterSetParam(handles[i], "nthread", "1"))
+    //         //safe_xgboost(XGBoosterSetParam(handles[i], "verbosity", "3"))
+    //     }
 }
 
 ClPredictorsLGBM::~ClPredictorsLGBM()
 {
-    for(uint32_t i = 0; i < 3; i++) {
+    for (uint32_t i = 0; i < 3; i++) {
         LGBM_BoosterFree(handle[i]);
     }
 }
 
-int ClPredictorsLGBM::load_models(const std::string& short_fname,
-                               const std::string& long_fname,
-                               const std::string& forever_fname,
-                               const std::string& best_feats_fname)
+int ClPredictorsLGBM::load_models(const std::string &short_fname,
+                                  const std::string &long_fname,
+                                  const std::string &forever_fname,
+                                  const std::string &best_feats_fname)
 {
     int ret;
 
@@ -76,36 +76,33 @@ int ClPredictorsLGBM::load_models_from_buffers()
 {
     assert(false);
     exit(-1);
-//     safe_xgboost(XGBoosterLoadModelFromBuffer(
-//         handles[predict_type::short_pred], predictor_short_json, predictor_short_json_len));
-//     safe_xgboost(XGBoosterLoadModelFromBuffer(
-//         handles[predict_type::long_pred], predictor_long_json, predictor_long_json_len));
-//     safe_xgboost(XGBoosterLoadModelFromBuffer(
-//         handles[predict_type::forever_pred], predictor_forever_json, predictor_forever_json_len))
+    //     safe_xgboost(XGBoosterLoadModelFromBuffer(
+    //         handles[predict_type::short_pred], predictor_short_json, predictor_short_json_len));
+    //     safe_xgboost(XGBoosterLoadModelFromBuffer(
+    //         handles[predict_type::long_pred], predictor_long_json, predictor_long_json_len));
+    //     safe_xgboost(XGBoosterLoadModelFromBuffer(
+    //         handles[predict_type::forever_pred], predictor_forever_json, predictor_forever_json_len))
     return 1;
 }
 
-void ClPredictorsLGBM::predict_all(
-    float* const data,
-    const uint32_t num)
+void ClPredictorsLGBM::predict_all(float *const data, const uint32_t num)
 {
-    for(uint32_t i = 0; i < 3; i ++) {
+    for (uint32_t i = 0; i < 3; i++) {
         out_result[i].resize(num);
         int64_t out_len;
 
-        auto ret = LGBM_BoosterPredictForMat(
-            handle[i],
-            data,
-            C_API_DTYPE_FLOAT32, //type of "data"
-            num, //num rows
-            PRED_COLS, //num features
-            1, //row major
-            C_API_PREDICT_NORMAL, // what should be predicted: normal, raw score, etc.
-            0, //start iteration
-            -1,
-            "n_jobs=1", //other parameters for prediction (const char*)
-            &out_len, //length of output
-            out_result[i].data());
+        auto ret = LGBM_BoosterPredictForMat(handle[i],
+                                             data,
+                                             C_API_DTYPE_FLOAT32, //type of "data"
+                                             num, //num rows
+                                             PRED_COLS, //num features
+                                             1, //row major
+                                             C_API_PREDICT_NORMAL, // what should be predicted: normal, raw score, etc.
+                                             0, //start iteration
+                                             -1,
+                                             "n_jobs=1", //other parameters for prediction (const char*)
+                                             &out_len, //length of output
+                                             out_result[i].data());
         assert(ret == 0);
         assert(out_len == num);
     }
@@ -143,10 +140,10 @@ void ClPredictorsLGBM::predict_all(
     }
 }*/
 
-void ClPredictorsLGBM::get_prediction_at(ClauseStatsExtra& extdata, const uint32_t at)
+void ClPredictorsLGBM::get_prediction_at(ClauseStatsExtra &extdata, const uint32_t at)
 {
-    extdata.pred_short_use   = out_result[0][at];
-    extdata.pred_long_use    = out_result[1][at];
+    extdata.pred_short_use = out_result[0][at];
+    extdata.pred_long_use = out_result[1][at];
     extdata.pred_forever_use = out_result[2][at];
 }
 

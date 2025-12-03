@@ -33,28 +33,30 @@ using std::pair;
 using std::make_pair;
 using std::vector;
 
-namespace CMSat  {
+namespace CMSat
+{
 
 class Solver;
 
 class OracleLS;
 
-class CCNROraclePre {
-public:
-   CCNROraclePre (Solver* solver);
-   ~CCNROraclePre();
+class CCNROraclePre
+{
+  public:
+    CCNROraclePre(Solver *solver);
+    ~CCNROraclePre();
 
-   void init(const vector<vector<sspp::Lit>>& cls, uint32_t _num_vars, vector<int8_t>* _assump_map);
-   void adjust_assumps(const vector<int>& assumps_changed);
-   bool run(int64_t mems_limit = 30LL*1000LL);
-   void reinit();
-   const vector<int8_t>& get_sol() const;
+    void init(const vector<vector<sspp::Lit>> &cls, uint32_t _num_vars, vector<int8_t> *_assump_map);
+    void adjust_assumps(const vector<int> &assumps_changed);
+    bool run(int64_t mems_limit = 30LL * 1000LL);
+    void reinit();
+    const vector<int8_t> &get_sol() const;
 
-private:
-    OracleLS* ls = nullptr;
+  private:
+    OracleLS *ls = nullptr;
 
-    void add_this_clause(const vector<sspp::Lit>& cl, int cl_num);
+    void add_this_clause(const vector<sspp::Lit> &cl, int cl_num);
     vector<int> yals_lits;
 };
 
-}
+} // namespace CMSat

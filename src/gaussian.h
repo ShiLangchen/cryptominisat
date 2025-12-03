@@ -46,7 +46,8 @@ using std::string;
 using std::pair;
 using std::vector;
 
-namespace CMSat {
+namespace CMSat
+{
 
 class Solver;
 
@@ -58,37 +59,25 @@ struct XorReason
     vector<Lit> reason;
 };
 
-class EGaussian {
+class EGaussian
+{
   public:
-      EGaussian(
-        Solver* solver,
-        const uint32_t matrix_no,
-        const vector<Xor>& xorclauses
-    );
+    EGaussian(Solver *solver, const uint32_t matrix_no, const vector<Xor> &xorclauses);
     ~EGaussian();
     bool is_initialized() const;
 
     ///returns FALSE in case of conflict
-    bool  find_truths(
-        GaussWatched*& i,
-        GaussWatched*& j,
-        const uint32_t var,
-        const uint32_t row_n,
-        GaussQData& gqd
-    );
+    bool find_truths(GaussWatched *&i, GaussWatched *&j, const uint32_t var, const uint32_t row_n, GaussQData &gqd);
 
-    vector<Lit>* get_reason(const uint32_t row, int32_t& out_id);
+    vector<Lit> *get_reason(const uint32_t row, int32_t &out_id);
 
     // when basic variable is touched , eliminate one col
-    void eliminate_col(
-        uint32_t p,
-        GaussQData& gqd
-    );
+    void eliminate_col(uint32_t p, GaussQData &gqd);
     void canceling();
-    bool full_init(bool& created);
+    bool full_init(bool &created);
     void update_cols_vals_set(bool force = false);
     void print_matrix_stats(uint32_t verbosity);
-    bool must_disable(GaussQData& gqd);
+    bool must_disable(GaussQData &gqd);
     void check_invariants();
     void update_matrix_no(uint32_t n);
     void check_watchlist_sanity();
@@ -100,25 +89,24 @@ class EGaussian {
     vector<Xor> xorclauses;
 
   private:
-    Solver* solver;   // orignal sat solver
+    Solver *solver; // orignal sat solver
 
     //Cleanup
     void clear_gwatches(const uint32_t var);
     void delete_gauss_watch_this_matrix();
-    void delete_gausswatch(const uint32_t  row_n);
+    void delete_gausswatch(const uint32_t row_n);
 
     //Invariant checks, debug
     void check_no_prop_or_unsat_rows();
     void check_tracked_cols_only_one_set();
     bool check_row_satisfied(const uint32_t row);
     void print_gwatches(const uint32_t var) const;
-    void check_row_not_in_watch(
-        const uint32_t v, const uint32_t row_num) const;
+    void check_row_not_in_watch(const uint32_t v, const uint32_t row_num) const;
 
     //Reason generation
     vector<XorReason> xor_reasons;
     vector<Lit> tmp_clause;
-    uint32_t get_max_level(const GaussQData& gqd, const uint32_t row_n);
+    uint32_t get_max_level(const GaussQData &gqd, const uint32_t row_n);
 
     //Initialisation
     void eliminate();
@@ -128,8 +116,7 @@ class EGaussian {
     double get_density();
 
     //Helper functions
-    void prop_lit(
-        const GaussQData& gqd, const uint32_t row_i, const Lit ret_lit_prop);
+    void prop_lit(const GaussQData &gqd, const uint32_t row_i, const Lit ret_lit_prop);
 
     void xor_in_bdd(const uint32_t a, const uint32_t b);
     Xor xor_reason_create(const uint32_t row_n);
@@ -179,7 +166,7 @@ class EGaussian {
 
     PackedMatrix mat;
     vector<vector<char>> reason_mat;
-    vector<uint32_t>  var_to_col; ///var->col mapping. Index with VAR
+    vector<uint32_t> var_to_col; ///var->col mapping. Index with VAR
     vector<uint32_t> col_to_var; ///col->var mapping. Index with COL
     uint32_t num_rows = 0;
     uint32_t num_cols = 0;
@@ -195,7 +182,7 @@ class EGaussian {
     vector<pair<int32_t, Lit>> del_unit_cls;
 
     //Data to free (with delete[] x)
-    vector<int64_t*> tofree;
+    vector<int64_t *> tofree;
 
 
     ///////////////
@@ -205,7 +192,8 @@ class EGaussian {
     void check_cols_unset_vals();
 };
 
-inline void EGaussian::canceling() {
+inline void EGaussian::canceling()
+{
     cancelled_since_val_update = true;
 
     //TODO this is an overstatement, coudl be improved
@@ -214,19 +202,28 @@ inline void EGaussian::canceling() {
 
 inline double EGaussian::get_density()
 {
-    if (num_rows*num_cols == 0) {
+    if (num_rows * num_cols == 0) {
         return 0;
     }
 
     uint32_t pop = 0;
-    for (const auto& row: mat) {
+    for (const auto &row: mat) {
         pop += row.popcnt();
     }
-    return (double)pop/(double)(num_rows*num_cols);
+    return (double)pop / (double)(num_rows * num_cols);
 }
 
-inline void EGaussian::update_matrix_no(uint32_t n) { matrix_no = n; }
-inline uint32_t EGaussian::get_matrix_no() { return matrix_no; }
-inline bool EGaussian::is_initialized() const { return initialized; }
-
+inline void EGaussian::update_matrix_no(uint32_t n)
+{
+    matrix_no = n;
 }
+inline uint32_t EGaussian::get_matrix_no()
+{
+    return matrix_no;
+}
+inline bool EGaussian::is_initialized() const
+{
+    return initialized;
+}
+
+} // namespace CMSat

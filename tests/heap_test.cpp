@@ -30,10 +30,7 @@ using CMSat::Heap;
 
 struct Comp
 {
-    bool operator()(uint32_t a, uint32_t b) const
-    {
-        return a < b;
-    }
+    bool operator()(uint32_t a, uint32_t b) const { return a < b; }
 };
 
 TEST(heap_minim, simple)
@@ -43,7 +40,7 @@ TEST(heap_minim, simple)
     heap.insert(1);
     heap.insert(2);
     heap.insert(3);
-    EXPECT_EQ( heap.heap_property(), true);
+    EXPECT_EQ(heap.heap_property(), true);
 }
 
 TEST(heap_minim, empty)
@@ -54,7 +51,7 @@ TEST(heap_minim, empty)
     heap.insert(2);
     EXPECT_EQ(heap.removeMin(), 1);
     EXPECT_EQ(heap.removeMin(), 2);
-    EXPECT_EQ( heap.heap_property(), true);
+    EXPECT_EQ(heap.heap_property(), true);
 }
 
 TEST(heap_minim, empty2)
@@ -67,18 +64,18 @@ TEST(heap_minim, empty2)
     EXPECT_EQ(heap.removeMin(), 1);
     EXPECT_EQ(heap.removeMin(), 2);
     EXPECT_EQ(heap.removeMin(), 3);
-    EXPECT_EQ( heap.heap_property(), true);
+    EXPECT_EQ(heap.heap_property(), true);
 }
 
 TEST(heap_minim, empty_lots)
 {
     Comp cmp;
     Heap<Comp> heap(cmp);
-    for(size_t i = 0; i < 100; i++) {
-        heap.insert(99-i);
-        EXPECT_EQ( heap.heap_property(), true);
+    for (size_t i = 0; i < 100; i++) {
+        heap.insert(99 - i);
+        EXPECT_EQ(heap.heap_property(), true);
     }
-    for(int i = 0; i < 100; i++) {
+    for (int i = 0; i < 100; i++) {
         EXPECT_EQ(heap.removeMin(), i);
         EXPECT_EQ(heap.heap_property(), true);
     }
@@ -94,7 +91,8 @@ TEST(heap_minim, inserted_inside)
     EXPECT_EQ(heap.inHeap(20), true);
 }
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+int main(int argc, char **argv)
+{
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

@@ -33,7 +33,8 @@ using namespace CMSat;
 using std::vector;
 
 
-struct lucky : public ::testing::Test {
+struct lucky : public ::testing::Test
+{
     lucky()
     {
         must_inter.store(false, std::memory_order_relaxed);
@@ -47,8 +48,8 @@ struct lucky : public ::testing::Test {
         delete l;
         delete s;
     }
-    Solver* s = NULL;
-    Lucky* l = NULL;
+    Solver *s = NULL;
+    Lucky *l = NULL;
     std::atomic<bool> must_inter;
 };
 
@@ -125,7 +126,8 @@ TEST_F(lucky, horn)
     EXPECT_EQ(l->horn_sat(true), true);
 }
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+int main(int argc, char **argv)
+{
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

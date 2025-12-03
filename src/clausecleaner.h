@@ -31,7 +31,8 @@ THE SOFTWARE.
 #include <vector>
 using std::vector;
 
-namespace CMSat {
+namespace CMSat
+{
 
 class Solver;
 
@@ -40,55 +41,48 @@ class Solver;
 */
 class ClauseCleaner
 {
-    public:
-        ClauseCleaner(Solver* solver);
+  public:
+    ClauseCleaner(Solver *solver);
 
-        void clean_implicit_clauses();
-        bool remove_and_clean_all();
-        bool clean_all_xor_clauses();
-        bool clean_xor_clauses(vector<Xor>& xors, const bool attached);
-        bool clean_clause(Clause& c);
-        bool full_clean(Clause& cl);
+    void clean_implicit_clauses();
+    bool remove_and_clean_all();
+    bool clean_all_xor_clauses();
+    bool clean_xor_clauses(vector<Xor> &xors, const bool attached);
+    bool clean_clause(Clause &c);
+    bool full_clean(Clause &cl);
 
-    private:
-        bool clean_one_xor(Xor& x, const uint32_t at, const bool attached);
+  private:
+    bool clean_one_xor(Xor &x, const uint32_t at, const bool attached);
 
-        //Implicit cleaning
-        struct ImplicitData
-        {
-            uint64_t remNonLBin = 0;
-            uint64_t remLBin = 0;
+    //Implicit cleaning
+    struct ImplicitData
+    {
+        uint64_t remNonLBin = 0;
+        uint64_t remLBin = 0;
 
-            //We can only attach these in delayed mode, otherwise we would
-            //need to manipulate the watchlist we are going through
-            vector<BinaryClause> toAttach;
+        //We can only attach these in delayed mode, otherwise we would
+        //need to manipulate the watchlist we are going through
+        vector<BinaryClause> toAttach;
 
-            void update_solver_stats(Solver* solver);
-        };
-        ImplicitData impl_data;
-        void clean_implicit_watchlist(
-            watch_subarray& watch_list
-            , const Lit lit
-        );
-        void clean_binary_implicit(
-           const Watched* ws
-            , Watched*& j
-            , const Lit lit
-        );
+        void update_solver_stats(Solver *solver);
+    };
+    ImplicitData impl_data;
+    void clean_implicit_watchlist(watch_subarray &watch_list, const Lit lit);
+    void clean_binary_implicit(const Watched *ws, Watched *&j, const Lit lit);
 
-        void clean_clauses_pre();
-        void clean_clauses_post();
-        void clean_clauses_inter(vector<ClOffset>& cs);
-        bool clean_bnn(BNN& bnn, uint32_t bnn_idx);
-        void clean_bnns_inter(vector<BNN*>& bnns);
-        void clean_bnns_post();
+    void clean_clauses_pre();
+    void clean_clauses_post();
+    void clean_clauses_inter(vector<ClOffset> &cs);
+    bool clean_bnn(BNN &bnn, uint32_t bnn_idx);
+    void clean_bnns_inter(vector<BNN *> &bnns);
+    void clean_bnns_post();
 
-        bool satisfied(const Watched& watched, Lit lit);
-        vector<ClOffset> delayed_free;
+    bool satisfied(const Watched &watched, Lit lit);
+    vector<ClOffset> delayed_free;
 
-        Solver* solver;
+    Solver *solver;
 };
 
-} //end namespace
+} // namespace CMSat
 
 #endif //CLAUSECLEANER_H

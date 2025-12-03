@@ -34,18 +34,13 @@ IN THE SOFTWARE.
 
 using std::vector;
 using namespace CMSat;
-struct MySolver {
-    ~MySolver()
-    {
-        delete solver;
-    }
+struct MySolver
+{
+    ~MySolver() { delete solver; }
 
-    MySolver()
-    {
-        solver = new SATSolver;
-    }
+    MySolver() { solver = new SATSolver; }
 
-    SATSolver* solver;
+    SATSolver *solver;
     vector<Lit> clause;
     vector<Lit> assumptions;
     vector<Lit> last_conflict;
@@ -54,18 +49,17 @@ struct MySolver {
 
 extern "C" {
 
-  DLL_PUBLIC void  ipasir_trace_proof (void * solver, FILE *f)
-  {
-
-    MySolver* s = (MySolver*)solver;
+DLL_PUBLIC void ipasir_trace_proof(void *solver, FILE *f)
+{
+    MySolver *s = (MySolver *)solver;
     s->solver->set_idrup(f);
-  }
-DLL_PUBLIC const char * ipasir_signature ()
+}
+DLL_PUBLIC const char *ipasir_signature()
 {
     static char tmp[200];
     std::string tmp2 = "cryptominisat-";
     tmp2 += SATSolver::get_version();
-    memcpy(tmp, tmp2.c_str(), tmp2.length()+1);
+    memcpy(tmp, tmp2.c_str(), tmp2.length() + 1);
     return tmp;
 }
 
@@ -77,10 +71,10 @@ DLL_PUBLIC const char * ipasir_signature ()
  * Required state: N/A
  * State after: INPUT
  */
-DLL_PUBLIC void * ipasir_init ()
+DLL_PUBLIC void *ipasir_init()
 {
     MySolver *s = new MySolver;
-    return (void*)s;
+    return (void *)s;
 }
 
 /**
@@ -91,22 +85,22 @@ DLL_PUBLIC void * ipasir_init ()
  * Required state: INPUT or SAT or UNSAT
  * State after: undefined
  */
-DLL_PUBLIC void ipasir_release (void * solver)
+DLL_PUBLIC void ipasir_release(void *solver)
 {
-    MySolver* s = (MySolver*)solver;
+    MySolver *s = (MySolver *)solver;
     delete s;
 }
 
 namespace
 {
-void ensure_var_created(MySolver& s, Lit lit)
+void ensure_var_created(MySolver &s, Lit lit)
 {
     if (lit.var() >= s.solver->nVars()) {
         const uint32_t toadd = lit.var() - s.solver->nVars() + 1;
         s.solver->new_vars(toadd);
     }
 }
-}
+} // namespace
 
 /**
  * Add the given literal into the currently added clause
@@ -123,15 +117,15 @@ void ensure_var_created(MySolver& s, Lit lit)
  * negation overflow).  This applies to all the literal
  * arguments in API functions.
  */
-DLL_PUBLIC void ipasir_add (void * solver, int lit_or_zero)
+DLL_PUBLIC void ipasir_add(void *solver, int lit_or_zero)
 {
-    MySolver* s = (MySolver*)solver;
+    MySolver *s = (MySolver *)solver;
 
     if (lit_or_zero == 0) {
         s->solver->add_clause(s->clause);
         s->clause.clear();
     } else {
-        Lit lit(std::abs(lit_or_zero)-1, lit_or_zero < 0);
+        Lit lit(std::abs(lit_or_zero) - 1, lit_or_zero < 0);
         ensure_var_created(*s, lit);
         s->clause.push_back(lit);
     }
@@ -145,10 +139,10 @@ DLL_PUBLIC void ipasir_add (void * solver, int lit_or_zero)
  * Required state: INPUT or SAT or UNSAT
  * State after: INPUT
  */
-DLL_PUBLIC void ipasir_assume (void * solver, int lit)
+DLL_PUBLIC void ipasir_assume(void *solver, int lit)
 {
-    MySolver* s = (MySolver*)solver;
-    Lit lit_cms(std::abs(lit)-1, lit < 0);
+    MySolver *s = (MySolver *)solver;
+    Lit lit_cms(std::abs(lit) - 1, lit < 0);
     ensure_var_created(*s, lit_cms);
     s->assumptions.push_back(lit_cms);
 }
@@ -163,12 +157,12 @@ DLL_PUBLIC void ipasir_assume (void * solver, int lit)
  * Required state: INPUT or SAT or UNSAT
  * State after: INPUT or SAT or UNSAT
  */
-DLL_PUBLIC int ipasir_solve (void * solver)
+DLL_PUBLIC int ipasir_solve(void *solver)
 {
-    MySolver* s = (MySolver*)solver;
+    MySolver *s = (MySolver *)solver;
 
     //Cleanup last_conflict
-    for(auto x: s->last_conflict) {
+    for (auto x: s->last_conflict) {
         s->conflict_cl_map[x.toInt()] = 0;
     }
     s->last_conflict.clear();
@@ -181,9 +175,9 @@ DLL_PUBLIC int ipasir_solve (void * solver)
         return 10;
     }
     if (ret == l_False) {
-        s->conflict_cl_map.resize(s->solver->nVars()*2, 0);
+        s->conflict_cl_map.resize(s->solver->nVars() * 2, 0);
         s->last_conflict = s->solver->get_conflict();
-        for(auto x: s->last_conflict) {
+        for (auto x: s->last_conflict) {
             s->conflict_cl_map[x.toInt()] = 1;
         }
         return 20;
@@ -205,13 +199,13 @@ DLL_PUBLIC int ipasir_solve (void * solver)
  * Required state: SAT
  * State after: SAT
  */
-DLL_PUBLIC int ipasir_val (void * solver, int lit)
+DLL_PUBLIC int ipasir_val(void *solver, int lit)
 {
-    MySolver* s = (MySolver*)solver;
+    MySolver *s = (MySolver *)solver;
     assert(s->solver->okay());
 
     const int ipasirVar = std::abs(lit);
-    const uint32_t cmVar = ipasirVar-1;
+    const uint32_t cmVar = ipasirVar - 1;
     lbool val = s->solver->get_model()[cmVar];
 
     if (val == l_Undef) {
@@ -234,11 +228,11 @@ DLL_PUBLIC int ipasir_val (void * solver, int lit)
  * Required state: UNSAT
  * State after: UNSAT
  */
-DLL_PUBLIC int ipasir_failed (void * solver, int lit)
+DLL_PUBLIC int ipasir_failed(void *solver, int lit)
 {
-    MySolver* s = (MySolver*)solver;
-    const Lit tofind(std::abs(lit)-1, lit < 0);
-    return s->conflict_cl_map[(~tofind).toInt()];  //yeah, it's reveresed, it's weird
+    MySolver *s = (MySolver *)solver;
+    const Lit tofind(std::abs(lit) - 1, lit < 0);
+    return s->conflict_cl_map[(~tofind).toInt()]; //yeah, it's reveresed, it's weird
 }
 
 /**
@@ -254,22 +248,23 @@ DLL_PUBLIC int ipasir_failed (void * solver, int lit)
  * Required state: INPUT or SAT or UNSAT
  * State after: INPUT or SAT or UNSAT
  */
-DLL_PUBLIC void ipasir_set_terminate (void * /*solver*/, void * /*state*/, int (* /*terminate*/)(void * state))
+DLL_PUBLIC void ipasir_set_terminate(void * /*solver*/, void * /*state*/, int (* /*terminate*/)(void *state))
 {
     //this is complicated.
 }
 
-DLL_PUBLIC void ipasir_set_learn (void * /*solver*/, void * /*state*/, int /*max_length*/, void (* /*learn*/)(void * state, int * clause))
+DLL_PUBLIC void
+ipasir_set_learn(void * /*solver*/, void * /*state*/, int /*max_length*/, void (* /*learn*/)(void *state, int *clause))
 {
     //this is complicated
 }
 
-DLL_PUBLIC int ipasir_simplify (void * solver)
+DLL_PUBLIC int ipasir_simplify(void *solver)
 {
-    MySolver* s = (MySolver*)solver;
+    MySolver *s = (MySolver *)solver;
 
     //Cleanup last_conflict
-    for(auto x: s->last_conflict) {
+    for (auto x: s->last_conflict) {
         s->conflict_cl_map[x.toInt()] = 0;
     }
     s->last_conflict.clear();
@@ -282,9 +277,9 @@ DLL_PUBLIC int ipasir_simplify (void * solver)
         return 10;
     }
     if (ret == l_False) {
-        s->conflict_cl_map.resize(s->solver->nVars()*2, 0);
+        s->conflict_cl_map.resize(s->solver->nVars() * 2, 0);
         s->last_conflict = s->solver->get_conflict();
-        for(auto x: s->last_conflict) {
+        for (auto x: s->last_conflict) {
             s->conflict_cl_map[x.toInt()] = 1;
         }
         return 20;
@@ -295,5 +290,4 @@ DLL_PUBLIC int ipasir_simplify (void * solver)
     assert(false);
     exit(-1);
 }
-
 }

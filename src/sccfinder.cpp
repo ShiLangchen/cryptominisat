@@ -35,12 +35,9 @@ using namespace CMSat;
 using std::cout;
 using std::endl;
 
-SCCFinder::SCCFinder(Solver* _solver) :
-    globalIndex(0)
-    , solver(_solver)
-{}
+SCCFinder::SCCFinder(Solver *_solver) : globalIndex(0), solver(_solver) {}
 
-bool SCCFinder::performSCC(uint64_t* bogoprops_given)
+bool SCCFinder::performSCC(uint64_t *bogoprops_given)
 {
     assert(binxors.empty());
     runStats.clear();
@@ -50,17 +47,17 @@ bool SCCFinder::performSCC(uint64_t* bogoprops_given)
 
     globalIndex = 0;
     index.clear();
-    index.resize(solver->nVars()*2, numeric_limits<uint32_t>::max());
+    index.resize(solver->nVars() * 2, numeric_limits<uint32_t>::max());
     lowlink.clear();
-    lowlink.resize(solver->nVars()*2, numeric_limits<uint32_t>::max());
+    lowlink.resize(solver->nVars() * 2, numeric_limits<uint32_t>::max());
     stackIndicator.clear();
-    stackIndicator.resize(solver->nVars()*2, false);
+    stackIndicator.resize(solver->nVars() * 2, false);
     assert(stack.empty());
 
     depth = 0;
-    for (uint32_t vertex = 0; vertex < solver->nVars()*2; vertex++) {
+    for (uint32_t vertex = 0; vertex < solver->nVars() * 2; vertex++) {
         //Start a DFS at each node we haven't visited yet
-        const uint32_t v = vertex>>1;
+        const uint32_t v = vertex >> 1;
         if (solver->value(v) != l_Undef) {
             continue;
         }
@@ -76,10 +73,8 @@ bool SCCFinder::performSCC(uint64_t* bogoprops_given)
     runStats.cpu_time = cpuTime() - my_time;
     runStats.foundXorsNew = binxors.size();
     if (solver->conf.verbosity) {
-        if (solver->conf.verbosity >= 3)
-            runStats.print();
-        else
-            runStats.print_short(solver);
+        if (solver->conf.verbosity >= 3) runStats.print();
+        else runStats.print_short(solver);
     }
     globalStats += runStats;
 
@@ -107,7 +102,7 @@ void SCCFinder::tarjan(const uint32_t vertex)
     }
 
     runStats.bogoprops += 1;
-    index[vertex] = globalIndex;  // Set the depth index for v
+    index[vertex] = globalIndex; // Set the depth index for v
     lowlink[vertex] = globalIndex;
     globalIndex++;
     stack.push(vertex); // Push v on the stack
@@ -115,11 +110,10 @@ void SCCFinder::tarjan(const uint32_t vertex)
 
     //Go through the watch
     watch_subarray_const ws = solver->watches[~vertLit];
-    runStats.bogoprops += ws.size()/4;
-    for (const Watched& w: ws) {
+    runStats.bogoprops += ws.size() / 4;
+    for (const Watched &w: ws) {
         //Only binary clauses matter
-        if (!w.isBin())
-            continue;
+        if (!w.isBin()) continue;
 
         const Lit lit = w.lit2();
         if (solver->value(lit) != l_Undef) {
@@ -149,54 +143,41 @@ void SCCFinder::tarjan(const uint32_t vertex)
 void SCCFinder::add_bin_xor_in_tmp()
 {
     for (uint32_t i = 1; i < tmp.size(); i++) {
-        bool rhs = Lit::toLit(tmp[0]).sign()
-            ^ Lit::toLit(tmp[i]).sign();
+        bool rhs = Lit::toLit(tmp[0]).sign() ^ Lit::toLit(tmp[i]).sign();
 
         BinaryXor binxor(Lit::toLit(tmp[0]).var(), Lit::toLit(tmp[i]).var(), rhs);
         binxors.insert(binxor);
 
         //Both are UNDEF, so this is a proper binary XOR
-        if (solver->value(binxor.vars[0]) == l_Undef
-            && solver->value(binxor.vars[1]) == l_Undef
-        ) {
+        if (solver->value(binxor.vars[0]) == l_Undef && solver->value(binxor.vars[1]) == l_Undef) {
             runStats.foundXors++;
-            #ifdef VERBOSE_DEBUG
-            cout << "SCC says: "
-            << binxor.vars[0] +1
-            << " XOR "
-            << binxor.vars[1] +1
-            << " = " << binxor.rhs
-            << endl;
-            #endif
+#ifdef VERBOSE_DEBUG
+            cout << "SCC says: " << binxor.vars[0] + 1 << " XOR " << binxor.vars[1] + 1 << " = " << binxor.rhs << endl;
+#endif
         }
     }
 }
 
-void SCCFinder::Stats::print_short(const Solver* solver) const
+void SCCFinder::Stats::print_short(const Solver *solver) const
 {
     assert(solver);
-    verb_print(1, "[scc]"
-    << " new: " << foundXorsNew
-    << " BP " << bogoprops/(1000*1000) << "M"
-    << solver->conf.print_times(cpu_time));
+    verb_print(1,
+               "[scc]" << " new: " << foundXorsNew << " BP " << bogoprops / (1000 * 1000) << "M"
+                       << solver->conf.print_times(cpu_time));
 
     if (solver && solver->sqlStats) {
-        solver->sqlStats->time_passed_min(
-            solver
-            , "scc"
-            , cpu_time
-        );
+        solver->sqlStats->time_passed_min(solver, "scc", cpu_time);
     }
 }
 
 size_t SCCFinder::mem_used() const
 {
     size_t mem = 0;
-    mem += index.capacity()*sizeof(uint32_t);
-    mem += lowlink.capacity()*sizeof(uint32_t);
-    mem += stack.size()*sizeof(uint32_t); //TODO under-estimates
-    mem += stackIndicator.capacity()*sizeof(char);
-    mem += tmp.capacity()*sizeof(uint32_t);
+    mem += index.capacity() * sizeof(uint32_t);
+    mem += lowlink.capacity() * sizeof(uint32_t);
+    mem += stack.size() * sizeof(uint32_t); //TODO under-estimates
+    mem += stackIndicator.capacity() * sizeof(char);
+    mem += tmp.capacity() * sizeof(uint32_t);
 
     return mem;
 }

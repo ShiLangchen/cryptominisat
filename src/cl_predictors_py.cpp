@@ -25,10 +25,10 @@ THE SOFTWARE.
 #include "solver.h"
 #include <cmath>
 
-static wchar_t* charToWChar(const char* text)
+static wchar_t *charToWChar(const char *text)
 {
     const size_t size = strlen(text) + 1;
-    wchar_t* wText = new wchar_t[size];
+    wchar_t *wText = new wchar_t[size];
     mbstowcs(wText, text, size);
     return wText;
 }
@@ -45,23 +45,22 @@ extern unsigned int predictor_forever_json_len;
 
 using namespace CMSat;
 
-int ClPredictorsPy::set_up_input(
-    const CMSat::Clause* const cl,
-    const uint64_t sumConflicts,
-    const double   act_ranking_rel,
-    const double   uip1_ranking_rel,
-    const double   prop_ranking_rel,
-    const double   sum_uip1_per_time_ranking,
-    const double   sum_props_per_time_ranking,
-    const double   sum_uip1_per_time_ranking_rel,
-    const double   sum_props_per_time_ranking_rel,
-    const ReduceCommonData& commdata,
-    const Solver* solver,
-    float* at)
+int ClPredictorsPy::set_up_input(const CMSat::Clause *const cl,
+                                 const uint64_t sumConflicts,
+                                 const double act_ranking_rel,
+                                 const double uip1_ranking_rel,
+                                 const double prop_ranking_rel,
+                                 const double sum_uip1_per_time_ranking,
+                                 const double sum_props_per_time_ranking,
+                                 const double sum_uip1_per_time_ranking_rel,
+                                 const double sum_props_per_time_ranking_rel,
+                                 const ReduceCommonData &commdata,
+                                 const Solver *solver,
+                                 float *at)
 {
     int x = 0;
 
-    const ClauseStatsExtra& extra_stats = solver->red_stats_extra[cl->stats.extra_pos];
+    const ClauseStatsExtra &extra_stats = solver->red_stats_extra[cl->stats.extra_pos];
     uint32_t last_touched_any_diff = sumConflicts - (uint64_t)cl->stats.last_touched_any;
     double time_inside_solver = sumConflicts - (uint64_t)extra_stats.introduced_at_conflict;
 
@@ -96,7 +95,7 @@ int ClPredictorsPy::set_up_input(
 
     //Ternary resolvents lack glue and antecedent data
     if (cl->stats.is_ternary_resolvent) {
-        for(int i = 0; i < 14; i++) {
+        for (int i = 0; i < 14; i++) {
             at[x++] = missing_val;
         }
     } else {
@@ -123,7 +122,7 @@ int ClPredictorsPy::set_up_input(
 
 ClPredictorsPy::ClPredictorsPy()
 {
-    for(uint32_t i=0; i < 3; i++) {
+    for (uint32_t i = 0; i < 3; i++) {
         ret_data[i] = nullptr;
     }
 }
@@ -132,7 +131,7 @@ ClPredictorsPy::~ClPredictorsPy()
 {
     //Free if we didn't already
     if (ret_data[0]) {
-        for(uint32_t i=0; i < 3; i++) {
+        for (uint32_t i = 0; i < 3; i++) {
             assert(ret_data[i]);
             Py_DECREF(ret_data[i]);
         }
@@ -142,10 +141,10 @@ ClPredictorsPy::~ClPredictorsPy()
     Py_Finalize();
 }
 
-int ClPredictorsPy::load_models(const std::string& short_fname,
-                                const std::string& long_fname,
-                                const std::string& forever_fname,
-                                const std::string& best_feats_fname)
+int ClPredictorsPy::load_models(const std::string &short_fname,
+                                const std::string &long_fname,
+                                const std::string &forever_fname,
+                                const std::string &best_feats_fname)
 {
     Py_Initialize();
     import_array();
@@ -155,7 +154,7 @@ int ClPredictorsPy::load_models(const std::string& short_fname,
     std::wstring pypath2(Py_GetPath());
     //std::wcout << L"path: " << pypath2 << std::endl;
 
-    PyObject* pName = PyUnicode_FromString("ml_module");
+    PyObject *pName = PyUnicode_FromString("ml_module");
     pModule = PyImport_Import(pName);
     Py_DECREF(pName);
     if (pModule == nullptr) {
@@ -172,7 +171,7 @@ int ClPredictorsPy::load_models(const std::string& short_fname,
     PyObject *set_up_features = PyDict_GetItemString(pDict, "set_up_features");
     pArgs = PyTuple_New(1);
     PyTuple_SetItem(pArgs, 0, PyUnicode_FromString(best_feats_fname.c_str()));
-    PyObject* ret = PyObject_CallObject(set_up_features, pArgs);
+    PyObject *ret = PyObject_CallObject(set_up_features, pArgs);
     if (ret == nullptr) {
         PyErr_Print();
         cout << "ERROR: Failed to set up features!" << endl;
@@ -184,7 +183,7 @@ int ClPredictorsPy::load_models(const std::string& short_fname,
 
 
     //Load models
-    PyObject* load_models = PyDict_GetItemString(pDict, "load_models");
+    PyObject *load_models = PyDict_GetItemString(pDict, "load_models");
     pArgs = PyTuple_New(3);
     PyTuple_SetItem(pArgs, 0, PyUnicode_FromString(short_fname.c_str()));
     PyTuple_SetItem(pArgs, 1, PyUnicode_FromString(long_fname.c_str()));
@@ -210,9 +209,7 @@ int ClPredictorsPy::load_models_from_buffers()
     return 1;
 }
 
-void ClPredictorsPy::predict_all(
-    float* const data,
-    const uint32_t num)
+void ClPredictorsPy::predict_all(float *const data, const uint32_t num)
 {
     if (num == 0) {
         return;
@@ -230,9 +227,9 @@ void ClPredictorsPy::predict_all(
     PyTuple_SetItem(pArgs, 0, pArray);
 
     // Call the function with the arguments
-    PyObject* pResult = PyObject_CallObject(pFunc, pArgs);
+    PyObject *pResult = PyObject_CallObject(pFunc, pArgs);
     Py_DECREF(pArgs);
-    if(pResult == nullptr) {
+    if (pResult == nullptr) {
         PyErr_Print();
         cout << "Calling the add method failed" << endl;
         exit(-1);
@@ -246,14 +243,14 @@ void ClPredictorsPy::predict_all(
     // See: https://numpy.org/devdocs/user/c-info.beyond-basics.html#basic-iteration
     uint32_t num_elems = PyList_Size(pResult);
     assert(num_elems == 3);
-    for(uint32_t i = 0; i < 3; i++) {
+    for (uint32_t i = 0; i < 3; i++) {
         pRet[i] = PyList_GetItem(pResult, i);
         ret_data[i] = (PyArrayObject *)PyArray_ContiguousFromObject(pRet[i], NPY_DOUBLE, 1, 1);
 
         //NOTE: PyArray_DATA has no effect on the reference count of the array it is applied to
         //      see: https://stackoverflow.com/questions/37919094/decrefing-after-a-call-to-pyarray-data
         //      So no decrefing needed for this one
-        out_result[i] = (double*)PyArray_DATA(ret_data[i]);
+        out_result[i] = (double *)PyArray_DATA(ret_data[i]);
         assert(PyArray_SIZE(ret_data[i]) == num);
         //Py_DECREF(pRet[i]);
     }
@@ -262,10 +259,10 @@ void ClPredictorsPy::predict_all(
     Py_DECREF(pResult);
 }
 
-void ClPredictorsPy::get_prediction_at(ClauseStatsExtra& extdata, const uint32_t at)
+void ClPredictorsPy::get_prediction_at(ClauseStatsExtra &extdata, const uint32_t at)
 {
-    extdata.pred_short_use   = out_result[0][at];
-    extdata.pred_long_use    = out_result[1][at];
+    extdata.pred_short_use = out_result[0][at];
+    extdata.pred_long_use = out_result[1][at];
     extdata.pred_forever_use = out_result[2][at];
 }
 
@@ -273,10 +270,10 @@ void CMSat::ClPredictorsPy::finish_all_predict()
 {
     //Free previous result
     if (ret_data[0] != nullptr) {
-        for(uint32_t i=0; i < 3; i++) {
-//             assert(pRet[i]);
-//             Py_DECREF(pRet[i]);
-//             pRet[i] = nullptr;
+        for (uint32_t i = 0; i < 3; i++) {
+            //             assert(pRet[i]);
+            //             Py_DECREF(pRet[i]);
+            //             pRet[i] = nullptr;
 
             assert(ret_data[i]);
             Py_DECREF(ret_data[i]);
@@ -284,5 +281,3 @@ void CMSat::ClPredictorsPy::finish_all_predict()
         }
     }
 }
-
-

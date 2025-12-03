@@ -30,16 +30,12 @@ using std::set;
 using namespace CMSat;
 #include "test_helper.h"
 
-namespace CMSat {
-struct SearcherTest : public ::testing::Test {
-    SearcherTest()
-    {
-        must_inter.store(false, std::memory_order_relaxed);
-    }
-    ~SearcherTest()
-    {
-        delete s;
-    }
+namespace CMSat
+{
+struct SearcherTest : public ::testing::Test
+{
+    SearcherTest() { must_inter.store(false, std::memory_order_relaxed); }
+    ~SearcherTest() { delete s; }
 
     void set_var_polar(uint32_t var, bool polarity)
     {
@@ -50,8 +46,8 @@ struct SearcherTest : public ::testing::Test {
     }
 
     SolverConf conf;
-    Solver* s = NULL;
-    Searcher* ss = NULL;
+    Solver *s = NULL;
+    Searcher *ss = NULL;
     std::vector<uint32_t> vars;
     std::atomic<bool> must_inter;
 };
@@ -63,13 +59,12 @@ TEST_F(SearcherTest, pickpolar_rnd)
     conf.polarity_mode = PolarityMode::polarmode_rnd;
     s = new Solver(&conf, &must_inter);
     s->new_vars(30);
-    ss = (Searcher*)s;
+    ss = (Searcher *)s;
 
     s->add_clause_outside(str_to_cl(" 1,  2"));
 
     uint32_t num = 0;
-    for(uint32_t i = 0 ; i < 1000000; i++)
-        num += (unsigned)ss->pick_polarity(0);
+    for (uint32_t i = 0; i < 1000000; i++) num += (unsigned)ss->pick_polarity(0);
 
     //Not far off from avg
     ASSERT_GT(num, 400000U);
@@ -81,12 +76,11 @@ TEST_F(SearcherTest, pickpolar_pos)
     conf.polarity_mode = PolarityMode::polarmode_pos;
     s = new Solver(&conf, &must_inter);
     s->new_vars(30);
-    ss = (Searcher*)s;
+    ss = (Searcher *)s;
     s->add_clause_outside(str_to_cl(" 1,  2"));
 
     uint32_t num = 0;
-    for(uint32_t i = 0 ; i < 100000; i++)
-        num += (unsigned)ss->pick_polarity(0);
+    for (uint32_t i = 0; i < 100000; i++) num += (unsigned)ss->pick_polarity(0);
 
     ASSERT_EQ(num, 100000U);
 }
@@ -96,19 +90,19 @@ TEST_F(SearcherTest, pickpolar_neg)
     conf.polarity_mode = PolarityMode::polarmode_neg;
     s = new Solver(&conf, &must_inter);
     s->new_vars(30);
-    ss = (Searcher*)s;
+    ss = (Searcher *)s;
     s->add_clause_outside(str_to_cl(" 1,  2"));
 
     uint32_t num = 0;
-    for(uint32_t i = 0 ; i < 100000; i++)
-        num += (unsigned)ss->pick_polarity(0);
+    for (uint32_t i = 0; i < 100000; i++) num += (unsigned)ss->pick_polarity(0);
 
     ASSERT_EQ(num, 0U);
 }
 
-}
+} // namespace CMSat
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+int main(int argc, char **argv)
+{
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

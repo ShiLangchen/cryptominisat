@@ -31,7 +31,8 @@ THE SOFTWARE.
 using namespace CMSat;
 #include "test_helper.h"
 
-struct clause_allocator : public ::testing::Test {
+struct clause_allocator : public ::testing::Test
+{
     clause_allocator()
     {
         must_inter.store(false, std::memory_order_relaxed);
@@ -40,11 +41,8 @@ struct clause_allocator : public ::testing::Test {
         s = new Solver(&conf, &must_inter);
         s->new_vars(50000);
     }
-    ~clause_allocator()
-    {
-        delete s;
-    }
-    Solver* s = NULL;
+    ~clause_allocator() { delete s; }
+    Solver *s = NULL;
     std::atomic<bool> must_inter;
 };
 
@@ -54,19 +52,19 @@ TEST_F(clause_allocator, add_1)
     srand(0);
     double t = cpuTime();
 
-    uint64_t num = 10ULL*1000ULL*1000ULL;
-    for(size_t i = 0; i < num; i++) {
-        int size = 100 + rand()%10;
-        int start = rand() % 50000/size;
+    uint64_t num = 10ULL * 1000ULL * 1000ULL;
+    for (size_t i = 0; i < num; i++) {
+        int size = 100 + rand() % 10;
+        int start = rand() % 50000 / size;
         cl.resize(size);
-        for(int i2 = 0; i2 < size; i2++) {
+        for (int i2 = 0; i2 < size; i2++) {
             int sign = rand() % 2;
             cl[i2] = Lit(start, sign);
-            start += rand() % (50000/size);
+            start += rand() % (50000 / size);
         }
         s->add_clause_outside(cl);
-        if (i % (300ULL*1000ULL) == 0) {
-            cout << "Added " << i/(3000LL*1000ULL) << "M" << " T:" << (cpuTime()-t) << endl;
+        if (i % (300ULL * 1000ULL) == 0) {
+            cout << "Added " << i / (3000LL * 1000ULL) << "M" << " T:" << (cpuTime() - t) << endl;
             s->cl_alloc.consolidate(s, true);
         }
     }
@@ -75,7 +73,8 @@ TEST_F(clause_allocator, add_1)
     EXPECT_EQ(ret, l_True);
 }
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+int main(int argc, char **argv)
+{
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

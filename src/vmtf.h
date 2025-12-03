@@ -30,38 +30,42 @@ THE SOFTWARE.
 using std::vector;
 using std::numeric_limits;
 
-namespace CMSat {
+namespace CMSat
+{
 
 // variable indices
-struct Link {
+struct Link
+{
     uint32_t prev = numeric_limits<uint32_t>::max(); ///< VARIABLE NUMBER
     uint32_t next = numeric_limits<uint32_t>::max(); ///< VARIABLE NUMBER
 };
 
-struct Queue {
-
+struct Queue
+{
     // We use integers instead of variable pointers.  This is more compact and
     // also avoids issues due to moving the variable table during 'resize'.
 
-    uint32_t first;  ///< VARIABLE NUMBER. anchor (head/tail) for doubly linked list.
-    uint32_t last;   ///< VARIABLE NUMBER. anchor (head/tail) for doubly linked list.
-    uint32_t unassigned;     ///< VARIABLE NUMBER. All variables after this one are assigned
-    uint64_t vmtf_bumped;     ///< Last unassigned variable's btab value
+    uint32_t first; ///< VARIABLE NUMBER. anchor (head/tail) for doubly linked list.
+    uint32_t last; ///< VARIABLE NUMBER. anchor (head/tail) for doubly linked list.
+    uint32_t unassigned; ///< VARIABLE NUMBER. All variables after this one are assigned
+    uint64_t vmtf_bumped; ///< Last unassigned variable's btab value
 
-    Queue () :
-        first (numeric_limits<uint32_t>::max()),
-        last (numeric_limits<uint32_t>::max()),
-        unassigned (numeric_limits<uint32_t>::max()),
-        vmtf_bumped (0)
-    {}
+    Queue()
+        : first(numeric_limits<uint32_t>::max())
+        , last(numeric_limits<uint32_t>::max())
+        , unassigned(numeric_limits<uint32_t>::max())
+        , vmtf_bumped(0)
+    {
+    }
 
     // We explicitly provide the mapping of integer indices to vmtf_links to the
     // following two (inlined) functions.  They are just ordinary doubly
     // linked list 'dequeue' and 'enqueue' operations.
 
     // Removes from the list
-    void dequeue (vector<Link>& vmtf_links, const uint32_t var) {
-        auto& l = vmtf_links[var];
+    void dequeue(vector<Link> &vmtf_links, const uint32_t var)
+    {
+        auto &l = vmtf_links[var];
 
         if (l.prev != numeric_limits<uint32_t>::max()) {
             // Not the first one in the list
@@ -79,8 +83,9 @@ struct Queue {
     }
 
     // Puts varible at the head of the list
-    void enqueue (vector<Link>& vmtf_links, const uint32_t var) {
-        auto& l = vmtf_links[var];
+    void enqueue(vector<Link> &vmtf_links, const uint32_t var)
+    {
+        auto &l = vmtf_links[var];
         l.prev = last;
         if (l.prev != numeric_limits<uint32_t>::max()) {
             // Not the first one in the list
@@ -93,4 +98,4 @@ struct Queue {
     }
 };
 
-} //namespace
+} // namespace CMSat

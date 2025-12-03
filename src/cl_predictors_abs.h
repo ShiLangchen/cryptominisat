@@ -35,39 +35,45 @@ THE SOFTWARE.
 
 using std::vector;
 
-namespace CMSat {
+namespace CMSat
+{
 
-enum predict_type {short_pred=0, long_pred=1, forever_pred=2};
+enum predict_type
+{
+    short_pred = 0,
+    long_pred = 1,
+    forever_pred = 2
+};
 
 class Clause;
 class Solver;
 
 struct ReduceCommonData
 {
-    double safe_div(double a, double b) {
+    double safe_div(double a, double b)
+    {
         if (b == 0) {
             assert(a == 0);
             return 0;
         }
-        return a/b;
+        return a / b;
     }
 
-    double   avg_props;
+    double avg_props;
     //double   avg_glue; CANNOT COUNT, ternary has no glue!
-    double   avg_uip;
-    double   avg_sum_uip1_used;
-    MedianCommonDataRDB  median_data;
+    double avg_uip;
+    double avg_sum_uip1_used;
+    MedianCommonDataRDB median_data;
     uint32_t all_learnt_size;
 
     ReduceCommonData() {}
-    ReduceCommonData(
-        uint32_t total_props,
-//         uint32_t total_glue,
-        uint32_t total_uip1_used,
-        uint32_t total_sum_uip1_used,
-        uint32_t size,
-        const MedianCommonDataRDB& _median_data) :
-            median_data(_median_data)
+    ReduceCommonData(uint32_t total_props,
+                     //         uint32_t total_glue,
+                     uint32_t total_uip1_used,
+                     uint32_t total_sum_uip1_used,
+                     uint32_t size,
+                     const MedianCommonDataRDB &_median_data)
+        : median_data(_median_data)
     {
         all_learnt_size = size;
         avg_props = safe_div(total_props, size);
@@ -79,41 +85,38 @@ struct ReduceCommonData
 
 class ClPredictorsAbst
 {
-public:
-    ClPredictorsAbst() {missing_val = nanf("");}
+  public:
+    ClPredictorsAbst() { missing_val = nanf(""); }
     virtual ~ClPredictorsAbst() {}
-    virtual int load_models(const std::string& short_fname,
-                     const std::string& long_fname,
-                     const std::string& forever_fname,
-                     const std::string& best_feats_fname) = 0;
+    virtual int load_models(const std::string &short_fname,
+                            const std::string &long_fname,
+                            const std::string &forever_fname,
+                            const std::string &best_feats_fname) = 0;
     virtual int load_models_from_buffers() = 0;
     vector<std::string> get_hashes() const;
 
-    virtual void predict_all(
-        float* const data,
-        const uint32_t num) = 0;
+    virtual void predict_all(float *const data, const uint32_t num) = 0;
 
-    virtual int get_step_size() {return PRED_COLS;}
+    virtual int get_step_size() { return PRED_COLS; }
 
-    virtual int set_up_input(
-        const CMSat::Clause* const cl,
-        const uint64_t sumConflicts,
-        const double   act_ranking_rel,
-        const double   uip1_ranking_rel,
-        const double   prop_ranking_rel,
-        const double   sum_uip1_per_time_ranking,
-        const double   sum_props_per_time_ranking,
-        const double   sum_uip1_per_time_ranking_rel,
-        const double   sum_props_per_time_ranking_rel,
-        const ReduceCommonData& commdata,
-        const Solver* solver,
-        float* at);
+    virtual int set_up_input(const CMSat::Clause *const cl,
+                             const uint64_t sumConflicts,
+                             const double act_ranking_rel,
+                             const double uip1_ranking_rel,
+                             const double prop_ranking_rel,
+                             const double sum_uip1_per_time_ranking,
+                             const double sum_props_per_time_ranking,
+                             const double sum_uip1_per_time_ranking_rel,
+                             const double sum_props_per_time_ranking_rel,
+                             const ReduceCommonData &commdata,
+                             const Solver *solver,
+                             float *at);
 
-    virtual void get_prediction_at(ClauseStatsExtra& extdata, const uint32_t at) = 0;
+    virtual void get_prediction_at(ClauseStatsExtra &extdata, const uint32_t at) = 0;
     virtual void finish_all_predict() = 0;
     float missing_val;
 };
 
-}
+} // namespace CMSat
 
 #endif

@@ -37,67 +37,62 @@ THE SOFTWARE.
 
 using std::vector;
 
-namespace CMSat {
+namespace CMSat
+{
 
 class Clause;
 class Solver;
 
 class ClPredictorsPy : public ClPredictorsAbst
 {
-public:
+  public:
     ClPredictorsPy();
     virtual ~ClPredictorsPy();
-    virtual int load_models(
-        const std::string& short_fname,
-        const std::string& long_fname,
-        const std::string& forever_fname,
-        const std::string& best_feats_fname) override;
+    virtual int load_models(const std::string &short_fname,
+                            const std::string &long_fname,
+                            const std::string &forever_fname,
+                            const std::string &best_feats_fname) override;
     virtual int load_models_from_buffers() override;
 
-    virtual int set_up_input(
-        const CMSat::Clause* const cl,
-        const uint64_t sumConflicts,
-        const double   act_ranking_rel,
-        const double   uip1_ranking_rel,
-        const double   prop_ranking_rel,
-        const double   sum_uip1_per_time_ranking,
-        const double   sum_props_per_time_ranking,
-        const double   sum_uip1_per_time_ranking_rel,
-        const double   sum_props_per_time_ranking_rel,
-        const ReduceCommonData& commdata,
-        const Solver* solver,
-        float* at) override;
+    virtual int set_up_input(const CMSat::Clause *const cl,
+                             const uint64_t sumConflicts,
+                             const double act_ranking_rel,
+                             const double uip1_ranking_rel,
+                             const double prop_ranking_rel,
+                             const double sum_uip1_per_time_ranking,
+                             const double sum_props_per_time_ranking,
+                             const double sum_uip1_per_time_ranking_rel,
+                             const double sum_props_per_time_ranking_rel,
+                             const ReduceCommonData &commdata,
+                             const Solver *solver,
+                             float *at) override;
 
-    virtual int get_step_size() override {return NUM_RAW_FEATS;}
+    virtual int get_step_size() override { return NUM_RAW_FEATS; }
 
-    float predict(
-        predict_type pred_type,
-        const CMSat::Clause* cl,
-        const uint64_t sumConflicts,
-        const double   act_ranking_rel,
-        const double   uip1_ranking_rel,
-        const double   prop_ranking_rel,
-        const ReduceCommonData& commdata
-    );
+    float predict(predict_type pred_type,
+                  const CMSat::Clause *cl,
+                  const uint64_t sumConflicts,
+                  const double act_ranking_rel,
+                  const double uip1_ranking_rel,
+                  const double prop_ranking_rel,
+                  const ReduceCommonData &commdata);
 
-    virtual void predict_all(
-        float* const data,
-        uint32_t const num) override;
+    virtual void predict_all(float *const data, uint32_t const num) override;
 
-    virtual void get_prediction_at(ClauseStatsExtra& extdata, const uint32_t at) override;
+    virtual void get_prediction_at(ClauseStatsExtra &extdata, const uint32_t at) override;
     virtual void finish_all_predict() override;
 
-private:
-    double* out_result[3];
+  private:
+    double *out_result[3];
     PyObject *pDict = nullptr;
     PyObject *pFunc = nullptr;
     PyObject *pRet[3];
     PyObject *pArray = nullptr;
     PyObject *pArgs = nullptr;
-    PyArrayObject* ret_data[3];
-    PyObject* pModule;
+    PyArrayObject *ret_data[3];
+    PyObject *pModule;
 };
 
-}
+} // namespace CMSat
 
 #endif

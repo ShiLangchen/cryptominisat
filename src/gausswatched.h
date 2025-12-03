@@ -32,32 +32,32 @@ THE SOFTWARE.
 #include <limits>
 #include "Vec.h"
 
-namespace CMSat {
-    struct GaussWatched{
-        GaussWatched(uint32_t r, uint32_t m):
-            row_n(r) , matrix_num(m)
-        {}
-        static GaussWatched plain_xor(uint32_t at) {
-            return GaussWatched(at, 1000);
+namespace CMSat
+{
+struct GaussWatched
+{
+    GaussWatched(uint32_t r, uint32_t m) : row_n(r), matrix_num(m) {}
+    static GaussWatched plain_xor(uint32_t at) { return GaussWatched(at, 1000); }
+
+    uint32_t row_n; // watch row
+    uint32_t matrix_num; // watch matrix
+
+    bool operator<(const GaussWatched &other) const
+    {
+        if (matrix_num < other.matrix_num) {
+            return true;
         }
 
-        uint32_t row_n;        // watch row
-        uint32_t matrix_num;   // watch matrix
-
-        bool operator<(const GaussWatched& other) const {
-            if (matrix_num < other.matrix_num) {
-                return true;
-            }
-
-            if (matrix_num > other.matrix_num) {
-                return false;
-            }
-
-            return row_n < other.row_n;
+        if (matrix_num > other.matrix_num) {
+            return false;
         }
-    };
 
-    inline void swap(vec<GaussWatched>& a, vec<GaussWatched>& b) {
-        a.swap(b);
+        return row_n < other.row_n;
     }
+};
+
+inline void swap(vec<GaussWatched> &a, vec<GaussWatched> &b)
+{
+    a.swap(b);
 }
+} // namespace CMSat

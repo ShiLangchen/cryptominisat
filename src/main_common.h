@@ -31,17 +31,16 @@ THE SOFTWARE.
 
 class MainCommon
 {
-public:
-    static uint32_t print_model(CMSat::SATSolver* solver,
-                         std::ostream* os,
-                         const std::vector<uint32_t>* only = nullptr);
+  public:
+    static uint32_t
+    print_model(CMSat::SATSolver *solver, std::ostream *os, const std::vector<uint32_t> *only = nullptr);
     void handle_frat_option();
     void handle_idrup_option();
 
     string frat_fname;
     string idrup_fname;
-    FILE* fratf = nullptr;
-    FILE* idrupf = nullptr;
+    FILE *fratf = nullptr;
+    FILE *idrupf = nullptr;
     bool zero_exit_status = false;
     CMSat::SolverConf conf;
     unsigned num_threads = 1;

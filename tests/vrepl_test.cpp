@@ -30,7 +30,8 @@ THE SOFTWARE.
 using namespace CMSat;
 #include "test_helper.h"
 
-struct varreplace : public ::testing::Test {
+struct varreplace : public ::testing::Test
+{
     varreplace()
     {
         must_inter.store(false, std::memory_order_relaxed);
@@ -40,8 +41,8 @@ struct varreplace : public ::testing::Test {
         repl = s->varReplacer;
     }
     ~varreplace() { delete s; }
-    Solver* s = NULL;
-    VarReplacer* repl = NULL;
+    Solver *s = NULL;
+    VarReplacer *repl = NULL;
     std::atomic<bool> must_inter;
 };
 
@@ -165,7 +166,8 @@ TEST_F(varreplace, replace_limit_check_above)
 }
 
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+int main(int argc, char **argv)
+{
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

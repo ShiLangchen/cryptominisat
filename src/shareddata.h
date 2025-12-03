@@ -31,57 +31,60 @@ THE SOFTWARE.
 using std::vector;
 using std::mutex;
 
-namespace CMSat {
+namespace CMSat
+{
 
 class SharedData
 {
-    public:
-        SharedData(const uint32_t _num_threads) : num_threads(_num_threads) { cur_thread_id.store(0); }
-        ~SharedData() {}
+  public:
+    SharedData(const uint32_t _num_threads) : num_threads(_num_threads) { cur_thread_id.store(0); }
+    ~SharedData() {}
 
-        struct Spec {
-            Spec() : data(new vector<Lit>) {}
-            Spec(const Spec&) = delete;
-            Spec& operator=(const Spec&) = delete;
+    struct Spec
+    {
+        Spec() : data(new vector<Lit>) {}
+        Spec(const Spec &) = delete;
+        Spec &operator=(const Spec &) = delete;
 
-            Spec(Spec&& other)
-            #ifndef _MSC_VER
-            noexcept
-            #endif
+        Spec(Spec &&other)
+#ifndef _MSC_VER
+                noexcept
+#endif
             : data(std::move(other.data))
-            {
-                other.data = nullptr;
-            }
-            ~Spec() { clear(); }
-            vector<Lit>* data = nullptr;
-            void clear() {
-                delete data;
-                data = nullptr;
-            }
-        };
-
-        vector<Spec> bins;
-        std::mutex bin_mutex;
-        vector<lbool> value;
-        std::mutex unit_mutex;
-        std::atomic<int> cur_thread_id;
-        uint32_t num_threads;
-
-        size_t calc_memory_use_bins()
         {
-            size_t mem = 0;
-            mem += value.capacity()*sizeof(lbool);
-            mem += bins.capacity()*sizeof(Spec);
-            for(size_t i = 0; i < bins.size(); i++) {
-                if (bins[i].data) {
-                    mem += bins[i].data->capacity()*sizeof(Lit);
-                    mem += sizeof(vector<Lit>);
-                }
-            }
-            return mem;
+            other.data = nullptr;
         }
+        ~Spec() { clear(); }
+        vector<Lit> *data = nullptr;
+        void clear()
+        {
+            delete data;
+            data = nullptr;
+        }
+    };
+
+    vector<Spec> bins;
+    std::mutex bin_mutex;
+    vector<lbool> value;
+    std::mutex unit_mutex;
+    std::atomic<int> cur_thread_id;
+    uint32_t num_threads;
+
+    size_t calc_memory_use_bins()
+    {
+        size_t mem = 0;
+        mem += value.capacity() * sizeof(lbool);
+        mem += bins.capacity() * sizeof(Spec);
+        for (size_t i = 0; i < bins.size(); i++) {
+            if (bins[i].data) {
+                mem += bins[i].data->capacity() * sizeof(Lit);
+                mem += sizeof(vector<Lit>);
+            }
+        }
+        return mem;
+    }
 };
 
-}
+} // namespace CMSat
 
 #endif //SHARED_DATA_H

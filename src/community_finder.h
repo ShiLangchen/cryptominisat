@@ -27,20 +27,21 @@ THE SOFTWARE.
 #include <vector>
 using std::vector;
 
-namespace CMSat {
+namespace CMSat
+{
 
 class Solver;
 
-class CommunityFinder {
-public:
-    explicit CommunityFinder(Solver* _solver);
+class CommunityFinder
+{
+  public:
+    explicit CommunityFinder(Solver *_solver);
     void compute();
 
-private:
-    Solver* solver;
-
+  private:
+    Solver *solver;
 };
 
-}
+} // namespace CMSat
 
 #endif

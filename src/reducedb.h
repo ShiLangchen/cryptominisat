@@ -25,40 +25,40 @@ THE SOFTWARE.
 
 #include "clauseallocator.h"
 #ifdef FINAL_PREDICTOR
-#include "cl_predictors_abs.h"
+    #include "cl_predictors_abs.h"
 #endif
 
-namespace CMSat {
+namespace CMSat
+{
 
 class Solver;
 class ClPredictors;
 
-struct val_and_pos {
+struct val_and_pos
+{
     float val;
     uint32_t pos;
 };
 
 class ReduceDB
 {
-public:
-    ReduceDB(Solver* solver);
+  public:
+    ReduceDB(Solver *solver);
     ~ReduceDB();
-    double get_total_time() const {
-        return total_time;
-    }
+    double get_total_time() const { return total_time; }
     void handle_lev1();
     void handle_lev2();
     void gather_normal_cl_use_stats();
-    #ifdef FINAL_PREDICTOR
+#ifdef FINAL_PREDICTOR
     void handle_predictors();
-    #endif
+#endif
     void dump_sql_cl_data(const uint32_t cur_rst_type);
     uint32_t reduceDB_called = 0;
 
-    #ifdef STATS_NEEDED
+#ifdef STATS_NEEDED
     uint64_t locked_for_data_gen_total = 0;
     uint64_t locked_for_data_gen_cls = 0;
-    #endif
+#endif
 
     struct ClauseStats
     {
@@ -72,15 +72,14 @@ public:
         uint64_t total_orig_size = 0;
         //uint64_t total_glue = 0; //Cannot calculate, ternaries have no glues!
 
-        void add_in(const Clause& cl, const uint64_t age, const uint32_t orig_size);
-        ClauseStats operator += (const ClauseStats& other);
+        void add_in(const Clause &cl, const uint64_t age, const uint32_t orig_size);
+        ClauseStats operator+=(const ClauseStats &other);
         void print(uint32_t lev);
     };
     vector<ClauseStats> cl_stats;
 
-private:
-
-    Solver* solver;
+  private:
+    Solver *solver;
     vector<ClOffset> delayed_clause_free;
     double total_time = 0.0;
 
@@ -89,18 +88,18 @@ private:
     unsigned cl_locked_solver;
 
     size_t last_reducedb_num_conflicts = 0;
-    bool red_cl_too_young(const Clause* cl) const;
-    void clear_clauses_stats(vector<ClOffset>& clauseset);
+    bool red_cl_too_young(const Clause *cl) const;
+    void clear_clauses_stats(vector<ClOffset> &clauseset);
     ClauseStats reset_clause_dats(const uint32_t lev);
 
-    bool cl_needs_removal(const Clause* cl, const ClOffset offset) const;
+    bool cl_needs_removal(const Clause *cl, const ClOffset offset) const;
     void remove_cl_from_lev2();
 
     void sort_red_cls(ClauseClean clean_type);
     void mark_top_N_clauses_lev2(const uint64_t keep_num);
 
-    #ifdef FINAL_PREDICTOR
-    ClPredictorsAbst* predictors = nullptr;
+#ifdef FINAL_PREDICTOR
+    ClPredictorsAbst *predictors = nullptr;
     uint32_t num_times_pred_called = 0;
     void update_preds_lev2();
     void pred_move_to_lev1_and_lev0();
@@ -108,14 +107,15 @@ private:
     void clean_lev1_once_in_a_while();
     void clean_lev0_once_in_a_while();
     void reset_predict_stats();
-    void update_preds(const vector<ClOffset>& offs);
+    void update_preds(const vector<ClOffset> &offs);
     ReduceCommonData commdata;
-    void dump_pred_distrib(const vector<ClOffset>& offs, uint32_t lev);
-    #endif
+    void dump_pred_distrib(const vector<ClOffset> &offs, uint32_t lev);
+#endif
 
-    const CMSat::ClauseStats& get_median_stat(const vector<ClOffset>& all_learnt) const;
-    const CMSat::ClauseStats& get_median_stat_dat(const vector<ClOffset>& all_learnt, const vector<val_and_pos>& dat) const;
-    void prepare_features(vector<ClOffset>& all_learnt);
+    const CMSat::ClauseStats &get_median_stat(const vector<ClOffset> &all_learnt) const;
+    const CMSat::ClauseStats &get_median_stat_dat(const vector<ClOffset> &all_learnt,
+                                                  const vector<val_and_pos> &dat) const;
+    void prepare_features(vector<ClOffset> &all_learnt);
     //uint64_t total_glue = 0;
     uint64_t total_props = 0;
     uint64_t total_uip1_used = 0;
@@ -140,6 +140,6 @@ private:
     uint64_t T2_deleted_age;
 };
 
-}
+} // namespace CMSat
 
 #endif //__REDUCEDB_H__

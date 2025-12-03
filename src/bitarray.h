@@ -31,41 +31,35 @@ THE SOFTWARE.
 #include <stdlib.h>
 
 
-namespace CMSat {
+namespace CMSat
+{
 
 class BitArray
 {
-public:
-    ~BitArray()
-    {
-        free(mp);
-    }
+  public:
+    ~BitArray() { free(mp); }
 
-    BitArray()
-    {}
+    BitArray() {}
 
-    BitArray(const BitArray& other)
-    {
-        *this = other;
-    }
+    BitArray(const BitArray &other) { *this = other; }
 
-    BitArray& operator=(const BitArray& b)
+    BitArray &operator=(const BitArray &b)
     {
         if (size != b.size) {
-            mp = (uint64_t*)realloc(mp, b.size*sizeof(uint64_t));
+            mp = (uint64_t *)realloc(mp, b.size * sizeof(uint64_t));
             assert(mp != nullptr);
             size = b.size;
         }
-        memcpy(mp, b.mp, size*sizeof(uint64_t));
+        memcpy(mp, b.mp, size * sizeof(uint64_t));
 
         return *this;
     }
 
     void resize(uint32_t _size, const bool fill)
     {
-        _size = _size/64 + (bool)(_size%64);
+        _size = _size / 64 + (bool)(_size % 64);
         if (size != _size) {
-            mp = (uint64_t*)realloc(mp, _size*sizeof(uint64_t));
+            mp = (uint64_t *)realloc(mp, _size * sizeof(uint64_t));
             assert(mp != nullptr);
             size = _size;
         }
@@ -75,7 +69,7 @@ public:
 
     inline bool isZero() const
     {
-        const uint64_t*  mp2 = (const uint64_t*)mp;
+        const uint64_t *mp2 = (const uint64_t *)mp;
 
         for (uint32_t i = 0; i < size; i++) {
             if (mp2[i]) return false;
@@ -86,56 +80,51 @@ public:
     inline void setZero()
     {
         if (size != 0) {
-            memset(mp, 0, size*sizeof(uint64_t));
+            memset(mp, 0, size * sizeof(uint64_t));
         }
     }
 
     inline void setOne()
     {
         if (size != 0) {
-            memset(mp, 0xff, size*sizeof(uint64_t));
+            memset(mp, 0xff, size * sizeof(uint64_t));
         }
     }
 
     inline void clearBit(const uint32_t i)
     {
-        #ifdef DEBUG_BITARRAY
-        assert(size*64 > i);
-        #endif
+#ifdef DEBUG_BITARRAY
+        assert(size * 64 > i);
+#endif
 
-        mp[i/64] &= ~((uint64_t)1 << (i%64));
+        mp[i / 64] &= ~((uint64_t)1 << (i % 64));
     }
 
     inline void setBit(const uint32_t i)
     {
-        #ifdef DEBUG_BITARRAY
-        assert(size*64 > i);
-        #endif
+#ifdef DEBUG_BITARRAY
+        assert(size * 64 > i);
+#endif
 
-        mp[i/64] |= ((uint64_t)1 << (i%64));
+        mp[i / 64] |= ((uint64_t)1 << (i % 64));
     }
 
-    inline bool operator[](const uint32_t& i) const
+    inline bool operator[](const uint32_t &i) const
     {
-        #ifdef DEBUG_BITARRAY
-        assert(size*64 > i);
-        #endif
+#ifdef DEBUG_BITARRAY
+        assert(size * 64 > i);
+#endif
 
-        return (mp[i/64] >> (i%64)) & 1;
+        return (mp[i / 64] >> (i % 64)) & 1;
     }
 
-    inline uint32_t getSize() const
-    {
-        return size*64;
-    }
+    inline uint32_t getSize() const { return size * 64; }
 
-private:
-
+  private:
     uint32_t size = 0;
-    uint64_t* mp = nullptr;
+    uint64_t *mp = nullptr;
 };
 
-} //end namespace
+} // namespace CMSat
 
 #endif //BITARRAY_H
-

@@ -32,10 +32,10 @@ using namespace CMSat;
 #include <vector>
 using std::vector;
 
-struct impliedby : public ::testing::Test {
+struct impliedby : public ::testing::Test
+{
     impliedby()
     {
-
         SolverConf conf;
         //conf.verbosity = 20;
         s = new SATSolver(&conf);
@@ -43,12 +43,9 @@ struct impliedby : public ::testing::Test {
         s->set_no_bve();
         s->new_vars(30);
     }
-    ~impliedby()
-    {
-        delete s;
-    }
+    ~impliedby() { delete s; }
 
-    SATSolver* s;
+    SATSolver *s;
     vector<Lit> lits;
     vector<Lit> out_implied_by;
 };
@@ -170,7 +167,8 @@ TEST_F(impliedby, imply_3)
     EXPECT_EQ(str_to_cl("-1, -2, -3"), out_implied_by);
 }
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+int main(int argc, char **argv)
+{
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

@@ -31,35 +31,34 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 using std::numeric_limits;
 
 #ifdef USE_ZLIB
-#include <zlib.h>
-namespace CMSat {
-struct GZ {
-    static inline int read(void* buf, size_t num, size_t count, gzFile f)
-    {
-        return gzread(f, buf, num*count);
-    }
+    #include <zlib.h>
+namespace CMSat
+{
+struct GZ
+{
+    static inline int read(void *buf, size_t num, size_t count, gzFile f) { return gzread(f, buf, num * count); }
 };
-}
+} // namespace CMSat
 #endif
 
-namespace CMSat {
+namespace CMSat
+{
 static const unsigned chunk_limit = 148576;
 
-struct FN {
-    static inline int read(void* buf, size_t num, size_t count, FILE* f)
-    {
-        return fread(buf, num, count, f);
-    }
+struct FN
+{
+    static inline int read(void *buf, size_t num, size_t count, FILE *f) { return fread(buf, num, count, f); }
 };
 
-struct CH {
-    static inline int read(void* buf, size_t num, size_t count, const char*& f)
+struct CH
+{
+    static inline int read(void *buf, size_t num, size_t count, const char *&f)
     {
-        int toread = num*count;
-        char* mybuf = (char*)buf;
+        int toread = num * count;
+        char *mybuf = (char *)buf;
 
         int read = 0;
-        while(*f != 0 && read < toread) {
+        while (*f != 0 && read < toread) {
             *mybuf = *f;
             mybuf++;
             f++;
@@ -69,48 +68,35 @@ struct CH {
     }
 };
 
-template<typename A, typename B>
-class StreamBuffer
+template<typename A, typename B> class StreamBuffer
 {
-    A  in;
-    void assureLookahead() {
+    A in;
+    void assureLookahead()
+    {
         if (pos >= size) {
-            pos  = 0;
+            pos = 0;
             size = B::read(buf.get(), 1, chunk_limit, in);
         }
     }
-    int     pos;
-    int     size;
+    int pos;
+    int size;
     std::unique_ptr<char[]> buf;
 
-    void advance()
-    {
-        operator++();
-    }
-    int value()
-    {
-        return operator*();
-    }
+    void advance() { operator++(); }
+    int value() { return operator*(); }
 
-public:
-    StreamBuffer(A i) :
-        in(i)
-        , pos(0)
-        , size(0)
-        , buf(new char[chunk_limit]())
-    {
-        assureLookahead();
-    }
+  public:
+    StreamBuffer(A i) : in(i), pos(0), size(0), buf(new char[chunk_limit]()) { assureLookahead(); }
 
-    int  operator *  () {
-        return (pos >= size) ? EOF : buf[pos];
-    }
-    void operator ++ () {
+    int operator*() { return (pos >= size) ? EOF : buf[pos]; }
+    void operator++()
+    {
         pos++;
         assureLookahead();
     }
 
-    void skipWhitespace() {
+    void skipWhitespace()
+    {
         char c = value();
         while (c == '\t' || c == '\r' || c == ' ') {
             advance();
@@ -118,16 +104,18 @@ public:
         }
     }
 
-    std::string getRemain() {
+    std::string getRemain()
+    {
         std::string str;
         for (;;) {
             if (value() == EOF || value() == '\0' || value() == '\n') return str;
-            advance();
             str.push_back(value());
+            advance();
         }
     }
 
-    void skipLine() {
+    void skipLine()
+    {
         for (;;) {
             if (value() == EOF || value() == '\0') return;
             if (value() == '\n') {
@@ -138,7 +126,8 @@ public:
         }
     }
 
-    bool skipEOL(const size_t lineNum) {
+    bool skipEOL(const size_t lineNum)
+    {
         for (;;) {
             if (value() == EOF || value() == '\0') return true;
             if (value() == '\n') {
@@ -146,17 +135,10 @@ public:
                 return true;
             }
             if (value() != '\r') {
-                std::cerr
-                << "PARSE ERROR! Unexpected char (hex: " << std::hex
-                << std::setw(2)
-                << std::setfill('0')
-                << "0x" << value()
-                << std::setfill(' ')
-                << std::dec
-                << ")"
-                << " At line " << lineNum+1
-                << " we expected an end of line character (\\n or \\r + \\n)"
-                << std::endl;
+                std::cerr << "PARSE ERROR! Unexpected char (hex: " << std::hex << std::setw(2) << std::setfill('0')
+                          << "0x" << value() << std::setfill(' ') << std::dec << ")"
+                          << " At line " << lineNum + 1 << " we expected an end of line character (\\n or \\r + \\n)"
+                          << std::endl;
                 return false;
             }
             advance();
@@ -164,8 +146,7 @@ public:
         exit(-1);
     }
 
-    template<class T=int32_t>
-    inline bool parseInt(T& ret, size_t lineNum, int* len = nullptr)
+    template<class T = int32_t> inline bool parseInt(T &ret, size_t lineNum, int *len = nullptr)
     {
         T val = 0;
         T mult = 1;
@@ -179,32 +160,27 @@ public:
 
         char c = value();
         if (c < '0' || c > '9') {
-            std::cerr
-            << "PARSE ERROR! Unexpected char (dec: '" << c << ")"
-            << " At line " << lineNum
-            << " we expected a number"
-            << std::endl;
+            std::cerr << "PARSE ERROR! Unexpected char (dec: '" << c << ")"
+                      << " At line " << lineNum << " we expected a number" << std::endl;
             return false;
         }
 
         while (c >= '0' && c <= '9') {
             if (len) (*len)++;
-            T val2 = val*10 + (c - '0');
+            T val2 = val * 10 + (c - '0');
             if (val2 < val) {
-                std::cerr << "PARSE ERROR! At line " << lineNum
-                << " the variable number is to high"
-                << std::endl;
+                std::cerr << "PARSE ERROR! At line " << lineNum << " the variable number is to high" << std::endl;
                 return false;
             }
             val = val2;
             advance();
             c = value();
         }
-        ret = mult*val;
+        ret = mult * val;
         return true;
     }
 
-    void parseString(std::string& str)
+    void parseString(std::string &str)
     {
         str.clear();
         skipWhitespace();
@@ -215,4 +191,4 @@ public:
     }
 };
 
-}
+} // namespace CMSat

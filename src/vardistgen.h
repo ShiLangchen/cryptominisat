@@ -24,23 +24,25 @@ THE SOFTWARE.
 #include <cstdint>
 
 #ifndef VARDISTGEN_H
-#define VARDISTGEN_H
+    #define VARDISTGEN_H
 
 using std::vector;
 
-namespace CMSat {
+namespace CMSat
+{
 
 class Solver;
 class Clause;
 
 struct VarData2
 {
-    struct Dat {
+    struct Dat
+    {
         uint32_t num_times_in_bin_clause = 0;
         uint32_t num_times_in_long_clause = 0;
         uint32_t satisfies_cl = 0;
         uint32_t falsifies_cl = 0;
-        uint32_t tot_num_lit_of_bin_it_appears_in =0;
+        uint32_t tot_num_lit_of_bin_it_appears_in = 0;
         uint32_t tot_num_lit_of_long_cls_it_appears_in = 0;
         double sum_var_act_of_cls;
     };
@@ -49,22 +51,22 @@ struct VarData2
     double tot_act_long_red_cls;
 };
 
-class VarDistGen {
-public:
-    VarDistGen(Solver* solver);
+class VarDistGen
+{
+  public:
+    VarDistGen(Solver *solver);
     void calc();
     #ifdef STATS_NEEDED_BRANCH
     void dump();
     #endif
 
-private:
-    double compute_tot_act_vsids(Clause* cl) const;
+  private:
+    double compute_tot_act_vsids(Clause *cl) const;
 
-    Solver* solver;
+    Solver *solver;
     vector<VarData2> data;
-
 };
 
-}
+} // namespace CMSat
 
 #endif

@@ -24,45 +24,37 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include <iostream>
 #include "Vec.h"
 
-namespace CMSat {
+namespace CMSat
+{
 
 //=================================================================================================
 // A heap implementation with support for decrease/increase key.
 
 
-template<class Comp>
-class Heap {
-    Comp     lt;       // The heap is a minimum-heap with respect to this comparator
-    vec<int> heap;     // Heap of integers
-    vec<int> indices;  // Each integers position (index) in the Heap
+template<class Comp> class Heap
+{
+    Comp lt; // The heap is a minimum-heap with respect to this comparator
+    vec<int> heap; // Heap of integers
+    vec<int> indices; // Each integers position (index) in the Heap
 
     // Index "traversal" functions
-    static inline int left  (int i)
-    {
-        return i * 2 + 1;
-    }
-    static inline int right (int i)
-    {
-        return (i + 1) * 2;
-    }
-    static inline int parent(int i)
-    {
-        return (i - 1) >> 1;
-    }
+    static inline int left(int i) { return i * 2 + 1; }
+    static inline int right(int i) { return (i + 1) * 2; }
+    static inline int parent(int i) { return (i - 1) >> 1; }
 
 
     void percolateUp(int i)
     {
-        int x  = heap[i];
-        int p  = parent(i);
+        int x = heap[i];
+        int p = parent(i);
 
         while (i != 0 && lt(x, heap[p])) {
-            heap[i]          = heap[p];
+            heap[i] = heap[p];
             indices[heap[p]] = i;
-            i                = p;
-            p                = parent(p);
+            i = p;
+            p = parent(p);
         }
-        heap   [i] = x;
+        heap[i] = x;
         indices[x] = i;
     }
 
@@ -75,57 +67,52 @@ class Heap {
             if (!lt(heap[child], x)) {
                 break;
             }
-            heap[i]          = heap[child];
+            heap[i] = heap[child];
             indices[heap[i]] = i;
-            i                = child;
+            i = child;
         }
-        heap   [i] = x;
+        heap[i] = x;
         indices[x] = i;
     }
 
 
-public:
-    Heap(const Comp& c) : lt(c) { }
+  public:
+    Heap(const Comp &c) : lt(c) {}
 
-    void print_heap() {
+    void print_heap()
+    {
         std::cout << "heap:";
-        for(auto x: heap) {
+        for (auto x: heap) {
             std::cout << x << " ";
         }
         std::cout << std::endl;
 
         std::cout << "ind:";
-        for(auto x: indices) {
+        for (auto x: indices) {
             std::cout << x << " ";
         }
         std::cout << std::endl;
     }
 
-    template<class T> void run_check(T fun) { for(auto x: heap) fun(x); }
-    uint32_t  size      ()          const
+    template<class T> void run_check(T fun)
     {
-        return heap.size();
+        for (auto x: heap) fun(x);
     }
-    bool empty     ()          const
-    {
-        return heap.size() == 0;
-    }
-    bool inHeap    (int n)     const
-    {
-        return n < (int)indices.size() && indices[n] >= 0;
-    }
-    int  operator[](int index) const
+    uint32_t size() const { return heap.size(); }
+    bool empty() const { return heap.size() == 0; }
+    bool inHeap(int n) const { return n < (int)indices.size() && indices[n] >= 0; }
+    int operator[](int index) const
     {
         assert(index < (int)heap.size());
         return heap[index];
     }
 
-    void decrease  (int n)
+    void decrease(int n)
     {
         assert(inHeap(n));
-        percolateUp  (indices[n]);
+        percolateUp(indices[n]);
     }
-    void increase  (int n)
+    void increase(int n)
     {
         assert(inHeap(n));
         percolateDown(indices[n]);
@@ -155,12 +142,12 @@ public:
     }
 
 
-    int  removeMin()
+    int removeMin()
     {
-        int x            = heap[0];
-        heap[0]          = heap.last();
+        int x = heap[0];
+        heap[0] = heap.last();
         indices[heap[0]] = 0;
-        indices[x]       = -1;
+        indices[x] = -1;
         heap.pop();
         if (heap.size() > 1) {
             percolateDown(0);
@@ -170,11 +157,10 @@ public:
 
 
     // Rebuild the heap from scratch, using the elements in 'ns':
-    template<typename T>
-    void build(const T& ns)
+    template<typename T> void build(const T &ns)
     {
         for (int i = 0; i < (int)ns.size(); i++) {
-            indices.growTo(ns[i]+1, -1);
+            indices.growTo(ns[i] + 1, -1);
         }
 
         for (int i = 0; i < (int)heap.size(); i++) {
@@ -203,27 +189,22 @@ public:
     size_t mem_used() const
     {
         size_t mem = 0;
-        mem += heap.capacity()*sizeof(uint32_t);
-        mem += indices.capacity()*sizeof(uint32_t);
+        mem += heap.capacity() * sizeof(uint32_t);
+        mem += indices.capacity() * sizeof(uint32_t);
         return mem;
     }
 
-    bool heap_property (uint32_t i) const {
+    bool heap_property(uint32_t i) const
+    {
         return i >= heap.size()
-            || ( (i == 0 || !lt(heap[i], heap[parent(i)]))
-                  && heap_property( left(i)  )
-                  && heap_property( right(i) )
-            );
+               || ((i == 0 || !lt(heap[i], heap[parent(i)])) && heap_property(left(i)) && heap_property(right(i)));
     }
 
-    bool heap_property() const {
-        return heap_property(0);
-    }
-
+    bool heap_property() const { return heap_property(0); }
 };
 
 
 //=================================================================================================
-}
+} // namespace CMSat
 
 #endif

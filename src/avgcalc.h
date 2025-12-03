@@ -31,137 +31,128 @@ THE SOFTWARE.
 
 using std::numeric_limits;
 
-namespace CMSat {
+namespace CMSat
+{
 
 #define AVGCALC_NEED_MIN_MAX
 
-template <class T, class T2 = uint64_t>
-class AvgCalc {
-    T2      sum;
-    size_t  num;
-    #if defined(STATS_NEEDED)
-    double  sumSqare;
-    #endif
-    #ifdef AVGCALC_NEED_MIN_MAX
-    T       min;
-    T       max;
-    #endif
+template<class T, class T2 = uint64_t> class AvgCalc
+{
+    T2 sum;
+    size_t num;
+#if defined(STATS_NEEDED)
+    double sumSqare;
+#endif
+#ifdef AVGCALC_NEED_MIN_MAX
+    T min;
+    T max;
+#endif
 
-public:
-    AvgCalc(void) :
-        sum(0)
+  public:
+    AvgCalc(void)
+        : sum(0)
         , num(0)
-        #if defined(STATS_NEEDED)
+#if defined(STATS_NEEDED)
         , sumSqare(0)
-        #endif
-        #ifdef AVGCALC_NEED_MIN_MAX
+#endif
+#ifdef AVGCALC_NEED_MIN_MAX
         , min(numeric_limits<T>::max())
         , max(numeric_limits<T>::min())
-        #endif
-    {}
+#endif
+    {
+    }
 
-    AvgCalc<T, T2>& operator/=(const T2 val)
+    AvgCalc<T, T2> &operator/=(const T2 val)
     {
         sum /= val;
         min /= val;
         max /= val;
-        #if defined(STATS_NEEDED)
-        sumSqare /= val*val;
-        #endif
+#if defined(STATS_NEEDED)
+        sumSqare /= val * val;
+#endif
 
         return *this;
     }
 
-    AvgCalc<T, T2>& operator+=(const AvgCalc<T, T2>& other)
+    AvgCalc<T, T2> &operator+=(const AvgCalc<T, T2> &other)
     {
         sum += other.sum;
         num += other.num;
         min = std::min(min, other.min);
         max = std::min(min, other.max);
-        #if defined(STATS_NEEDED)
+#if defined(STATS_NEEDED)
         sumSqare += other.sumSqare;
-        #endif
+#endif
 
         return *this;
     }
 
-    AvgCalc<T, T2>& operator-=(const AvgCalc<T, T2>& other)
+    AvgCalc<T, T2> &operator-=(const AvgCalc<T, T2> &other)
     {
         sum += other.sum;
         num += other.num;
         min = std::min(min, other.min);
         max = std::min(min, other.max);
-        #if defined(STATS_NEEDED)
+#if defined(STATS_NEEDED)
         sumSqare += other.sumSqare;
-        #endif
+#endif
 
         return *this;
     }
 
-    T2 get_sum() const
-    {
-        return sum;
-    }
+    T2 get_sum() const { return sum; }
 
-    void push(const T x) {
+    void push(const T x)
+    {
         sum += x;
         num++;
 
-        #if defined(STATS_NEEDED)
-        sumSqare += (double)x*(double)x;
-        #endif
-        #ifdef AVGCALC_NEED_MIN_MAX
+#if defined(STATS_NEEDED)
+        sumSqare += (double)x * (double)x;
+#endif
+#ifdef AVGCALC_NEED_MIN_MAX
         max = std::max(max, x);
         min = std::min(min, x);
-        #endif
+#endif
     }
 
-    #ifdef AVGCALC_NEED_MIN_MAX
+#ifdef AVGCALC_NEED_MIN_MAX
     T getMin() const
     {
-        if (min == numeric_limits<T>::max())
-            return 0;
+        if (min == numeric_limits<T>::max()) return 0;
 
         return min;
     }
 
     T getMax() const
     {
-        if (max == numeric_limits<T>::min())
-            return 0;
+        if (max == numeric_limits<T>::min()) return 0;
 
         return max;
     }
-    #endif
-    #if defined(STATS_NEEDED)
+#endif
+#if defined(STATS_NEEDED)
     double var() const
     {
-        if (num == 0)
-            return 0;
+        if (num == 0) return 0;
 
         const double calcAvg = avg();
-        return
-            (((double)sumSqare
-                - 2.0*calcAvg*(double)sum
-            ))/(double)num
-             + calcAvg*calcAvg;
+        return (((double)sumSqare - 2.0 * calcAvg * (double)sum)) / (double)num + calcAvg * calcAvg;
     }
-    #endif
+#endif
 
     double avg() const
     {
-        if (num == 0)
-            return 0;
+        if (num == 0) return 0;
 
-        return (double)sum/(double)num;
+        return (double)sum / (double)num;
     }
 
     std::string avgPrint(size_t prec, size_t w) const
     {
         std::stringstream ss;
         if (num > 0) {
-            ss << std::fixed << std::setprecision(prec) << std::setw(w) << std::left
-            << avg();
+            ss << std::fixed << std::setprecision(prec) << std::setw(w) << std::left << avg();
         } else {
             ss << std::setw(w) << "?";
         }
@@ -175,24 +166,21 @@ public:
         *this = tmp;
     }
 
-    void addData(const AvgCalc& other)
+    void addData(const AvgCalc &other)
     {
         sum += other.sum;
         num += other.num;
 
-        #if defined(STATS_NEEDED)
+#if defined(STATS_NEEDED)
         sumSqare += other.sumSqare;
-        #endif
-        #ifdef AVGCALC_NEED_MIN_MAX
+#endif
+#ifdef AVGCALC_NEED_MIN_MAX
         min = std::min(min, other.min);
         max = std::max(max, other.max);
-        #endif
+#endif
     }
 
-    size_t num_data_elements() const
-    {
-        return num;
-    }
+    size_t num_data_elements() const { return num; }
 };
 
-} //end namespace
+} // namespace CMSat

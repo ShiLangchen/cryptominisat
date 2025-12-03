@@ -30,7 +30,8 @@ THE SOFTWARE.
 using namespace CMSat;
 #include "test_helper.h"
 
-struct clause_clean_test : public ::testing::Test {
+struct clause_clean_test : public ::testing::Test
+{
     clause_clean_test()
     {
         must_inter.store(false, std::memory_order_relaxed);
@@ -39,12 +40,9 @@ struct clause_clean_test : public ::testing::Test {
         s->new_vars(20);
         cc = s->clauseCleaner;
     }
-    ~clause_clean_test()
-    {
-        delete s;
-    }
-    Solver* s = NULL;
-    ClauseCleaner* cc = NULL;
+    ~clause_clean_test() { delete s; }
+    Solver *s = NULL;
+    ClauseCleaner *cc = NULL;
     std::atomic<bool> must_inter;
 };
 
@@ -132,7 +130,8 @@ TEST_F(clause_clean_test, clean_mix)
     check_irred_cls_eq(s, "2, 3, 4; 2, 3");
 }
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+int main(int argc, char **argv)
+{
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

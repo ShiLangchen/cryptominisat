@@ -39,8 +39,10 @@ THE SOFTWARE.
 #include "varupdatehelper.h"
 #include "gausswatched.h"
 #include "xor.h"
+#include "eq.h"
 
-namespace CMSat {
+namespace CMSat
+{
 
 class ClauseAllocator;
 
@@ -58,19 +60,17 @@ struct LitStats
 
 class CNF
 {
-public:
+  public:
     FastBackwData fast_backw;
     void save_on_var_memory();
-    void update_watch(watch_subarray ws, const vector<uint32_t>& outer_to_inter);
-    void update_vars(
-        const vector<uint32_t>& outer_to_inter
-        , const vector<uint32_t>& inter_to_outer
-        , const vector<uint32_t>& inter_to_outer2
-    );
+    void update_watch(watch_subarray ws, const vector<uint32_t> &outer_to_inter);
+    void update_vars(const vector<uint32_t> &outer_to_inter,
+                     const vector<uint32_t> &inter_to_outer,
+                     const vector<uint32_t> &inter_to_outer2);
     size_t mem_used_renumberer() const;
     size_t mem_used() const;
 
-    CNF(const SolverConf *_conf, std::atomic<bool>* _must_interrupt_inter)
+    CNF(const SolverConf *_conf, std::atomic<bool> *_must_interrupt_inter)
     {
         if (_conf != nullptr) conf = *_conf;
         mtrand.seed(conf.origSeed);
@@ -81,10 +81,7 @@ public:
         longRedClsSizes.resize(3, 0);
     }
 
-    virtual ~CNF()
-    {
-        delete frat;
-    }
+    virtual ~CNF() { delete frat; }
 
     ClauseAllocator cl_alloc;
     SolverConf conf;
@@ -121,7 +118,7 @@ public:
     uint32_t latest_vardist_feature_calc = 0;
     uint64_t last_vardist_feature_calc_confl = 0;
 
-    unsigned  cur_max_temp_red_lev2_cls = conf.max_temp_lev2_learnt_clauses;
+    unsigned cur_max_temp_red_lev2_cls = conf.max_temp_lev2_learnt_clauses;
 
     //Note that this array can have the same internal variable more than
     //once, in case one has been replaced with the other. So if var 1 =  var 2
@@ -130,9 +127,9 @@ public:
     vector<Lit> assumptions;
 
     //frat
-    Frat* frat;
-    void add_frat(FILE* os);
-    void add_idrup(FILE* os);
+    Frat *frat;
+    void add_frat(FILE *os);
+    void add_idrup(FILE *os);
 
     //Clauses
     vector<ClOffset> longIrredCls;
@@ -142,11 +139,11 @@ public:
     level 1 = check rarely
     level 2 = check often
     **/
-    vector<vector<ClOffset> > longRedCls;
+    vector<vector<ClOffset>> longRedCls;
     vector<uint64_t> longRedClsSizes;
-    #if defined(STATS_NEEDED) || defined(FINAL_PREDICTOR)
+#if defined(STATS_NEEDED) || defined(FINAL_PREDICTOR)
     vector<ClauseStatsExtra> red_stats_extra;
-    #endif
+#endif
 
     // xorclauses -- current, attached XORs. Some XORs may be XOR'ed together
     //               however, they are never in a matrix.
@@ -154,99 +151,79 @@ public:
     //
     // NOTE: XORs that are currently in matrixes are not in xorclauses.
     vector<Xor> xorclauses;
-    void print_xors(const vector<Xor>& xors);
+    void print_xors(const vector<Xor> &xors);
 
     // variables that have been removed due to them being ONLY in XORs
     // that have beeen XOR-ed together and hence the variable is no longer
     // part of the CNF
     bool xorclauses_updated = false;
 
-    vector<BNN*> bnns;
+    vector<BNN *> bnns;
     vector<vector<Lit>> bnn_reasons;
     vector<Lit> bnn_confl_reason;
     vector<uint32_t> bnn_reasons_empty_slots;
+
+    vector<Eq> eq_clauses;
+
     BinTriStats binTri;
     LitStats litStats;
     int32_t clauseID = 0;
     int32_t clauseXID = 0;
+    int32_t clauseEID = 0;
     int64_t restartID = 1;
-    SQLStats* sqlStats = nullptr;
+    SQLStats *sqlStats = nullptr;
     bool weighted = false;
 
     //Temporaries
     vector<uint32_t> seen;
     vector<uint8_t> seen2;
     vector<uint64_t> permDiff;
-    vector<Lit>      toClear;
+    vector<Lit> toClear;
     uint64_t MYFLAG = 1;
 
-    bool okay() const {
-        assert(!(!ok && frat->enabled() && unsat_cl_ID == 0 && unsat_cl_ID != -1) &&
-               "If in UNSAT state, and we have FRAT, we MUST already know the unsat_cl_ID");
+    bool okay() const
+    {
+        assert(!(!ok && frat->enabled() && unsat_cl_ID == 0 && unsat_cl_ID != -1)
+               && "If in UNSAT state, and we have FRAT, we MUST already know the unsat_cl_ID");
         return ok;
     }
     auto level(Lit l) const { return varData[l.var()].level; }
-    lbool value (const uint32_t x) const { return assigns[x]; }
-    lbool value (const Lit p) const { return assigns[p.var()] ^ p.sign(); }
+    lbool value(const uint32_t x) const { return assigns[x]; }
+    lbool value(const Lit p) const { return assigns[p.var()] ^ p.sign(); }
     bool must_interrupt_asap() const { return must_interrupt_inter->load(std::memory_order_relaxed); }
     void set_must_interrupt_asap() { must_interrupt_inter->store(true, std::memory_order_relaxed); }
     void unset_must_interrupt_asap() { must_interrupt_inter->store(false, std::memory_order_relaxed); }
-    std::atomic<bool>* get_must_interrupt_inter_asap_ptr() { return must_interrupt_inter; }
-    const vector<BNN*>& get_bnns() const { return bnns; }
+    std::atomic<bool> *get_must_interrupt_inter_asap_ptr() { return must_interrupt_inter; }
+    const vector<BNN *> &get_bnns() const { return bnns; }
 
-    bool check_bnn_sane(BNN& bnn);
-    bool clause_locked(const Clause& c, const ClOffset offset) const;
-    bool redundant(const Watched& ws) const;
-    bool redundant_or_removed(const Watched& ws) const;
-    size_t cl_size(const Watched& ws) const;
-    string watched_to_string(Lit other_lit, const Watched& ws) const;
+    bool check_bnn_sane(BNN &bnn);
+    bool clause_locked(const Clause &c, const ClOffset offset) const;
+    bool redundant(const Watched &ws) const;
+    bool redundant_or_removed(const Watched &ws) const;
+    size_t cl_size(const Watched &ws) const;
+    string watched_to_string(Lit other_lit, const Watched &ws) const;
     string watches_to_string(const Lit lit, watch_subarray_const ws) const;
-    bool satisfied(const ClOffset& off) const;
+    bool satisfied(const ClOffset &off) const;
 
     uint64_t print_mem_used_longclauses(size_t total_mem) const;
     uint64_t mem_used_longclauses() const;
+    template<class Function> void for_each_lit(const OccurClause &cl, Function func, int64_t *limit) const;
     template<class Function>
-    void for_each_lit(
-        const OccurClause& cl
-        ,  Function func
-        , int64_t* limit
-    ) const;
-    template<class Function>
-    void for_each_lit_except_watched(
-        const OccurClause& cl
-        , Function func
-        , int64_t* limit
-    ) const;
-    uint32_t map_inter_to_outer(const uint32_t inter) const
+    void for_each_lit_except_watched(const OccurClause &cl, Function func, int64_t *limit) const;
+    uint32_t map_inter_to_outer(const uint32_t inter) const { return inter_to_outerMain[inter]; }
+    Lit map_inter_to_outer(const Lit lit) const { return Lit(inter_to_outerMain[lit.var()], lit.sign()); }
+    uint32_t map_outer_to_inter(const uint32_t outer) const { return outer_to_interMain[outer]; }
+    void map_outer_to_inter(vector<uint32_t> &outer) const
     {
-        return inter_to_outerMain[inter];
+        for (auto &v: outer) v = outer_to_interMain[v];
     }
-    Lit map_inter_to_outer(const Lit lit) const
+    void map_inter_to_outer(vector<uint32_t> &inter) const
     {
-        return Lit(inter_to_outerMain[lit.var()], lit.sign());
+        for (auto &v: inter) v = inter_to_outerMain[v];
     }
-    uint32_t map_outer_to_inter(const uint32_t outer) const
-    {
-        return outer_to_interMain[outer];
-    }
-    void map_outer_to_inter(vector<uint32_t>& outer) const
-    {
-        for(auto& v: outer) v = outer_to_interMain[v];
-    }
-    void map_inter_to_outer(vector<uint32_t>& inter) const
-    {
-        for(auto& v: inter) v = inter_to_outerMain[v];
-    }
-    Lit map_outer_to_inter(const Lit outer) const
-    {
-        return Lit(outer_to_interMain[outer.var()], outer.sign());
-    }
-    void map_inter_to_outer(vector<Lit>& lits) const
-    {
-        updateLitsMap(lits, inter_to_outerMain);
-    }
-    void renumber_outer_to_inter_lits(vector<Lit>& ps) const;
-
+    Lit map_outer_to_inter(const Lit outer) const { return Lit(outer_to_interMain[outer.var()], outer.sign()); }
+    void map_inter_to_outer(vector<Lit> &lits) const { updateLitsMap(lits, inter_to_outerMain); }
+    void renumber_outer_to_inter_lits(vector<Lit> &ps) const;
 
 
     size_t get_num_bva_vars() const { return num_bva_vars; }
@@ -264,38 +241,34 @@ public:
     bool no_marked_clauses() const;
     bool norm_clause_is_attached(const ClOffset offset) const;
     void find_all_attached() const;
-    void find_all_attached(const vector<ClOffset>& cs) const;
+    void find_all_attached(const vector<ClOffset> &cs) const;
     bool find_clause(const ClOffset offset) const;
     void check_no_idx_in_watchlist() const;
     void check_no_removed_or_freed_cl_in_watch() const;
     void check_all_xorclause_attached() const;
     void check_all_clause_attached() const;
-    void check_all_clause_attached(const vector<ClOffset>& offsets) const;
-    bool check_xor_attached(const Xor& x, const uint32_t i) const;
+    void check_all_clause_attached(const vector<ClOffset> &offsets) const;
+    bool check_xor_attached(const Xor &x, const uint32_t i) const;
     void check_wrong_attach() const;
-    int32_t clean_xor_vars_no_prop(vector<Lit>& ps, bool& rhs, int32_t xid);
-    inline void clean_xor_vars_no_prop(Xor& x);
+    int32_t clean_xor_vars_no_prop(vector<Lit> &ps, bool &rhs, int32_t xid);
+    inline void clean_xor_vars_no_prop(Xor &x);
     void check_watchlist(watch_subarray_const ws) const;
-    template<class T> bool satisfied(const T& cl) const;
-    template<typename T> bool no_duplicate_lits(const T& lits) const;
+    template<class T> bool satisfied(const T &cl) const;
+    template<typename T> bool no_duplicate_lits(const T &lits) const;
     void check_no_duplicate_lits_anywhere() const;
     void check_no_zero_ID_bins() const;
 
 #ifdef ARJUN_SERIALIZE
-    template<class T> void unserialize(T& ar);
-    template<class T> void serialize(T& ar) const;
+    template<class T> void unserialize(T &ar);
+    template<class T> void serialize(T &ar) const;
 #endif
     size_t get_num_long_cls() const;
     size_t get_num_long_irred_cls() const;
     size_t get_num_long_red_cls() const;
     void print_all_clauses() const;
     bool zero_irred_cls(const Lit lit) const;
-    template<class T> void clean_xor_no_prop(T& ps, bool& rhs);
-    uint64_t count_lits(
-        const vector<ClOffset>& clause_array
-        , const bool red
-        , const bool allow_freed
-    ) const;
+    template<class T> void clean_xor_no_prop(T &ps, bool &rhs);
+    uint64_t count_lits(const vector<ClOffset> &clause_array, const bool red, const bool allow_freed) const;
 
     /** if set to TRUE, a clause has been removed during add_clause_int
     that contained "lit, ~lit". So "lit" must be set to a value
@@ -307,11 +280,8 @@ public:
     void add_chain();
     vector<int32_t> chain; ///< For resolution chains
 
-protected:
-    virtual void new_var(
-        const bool bva,
-        const uint32_t orig_outer,
-        const bool insert_varorder = true);
+  protected:
+    virtual void new_var(const bool bva, const uint32_t orig_outer, const bool insert_varorder = true);
     virtual void new_vars(const size_t n);
     void test_reflectivity_of_renumbering() const;
     vector<lbool> assigns;
@@ -319,7 +289,7 @@ protected:
     vector<uint32_t> outer_to_interMain;
     vector<uint32_t> inter_to_outerMain;
 
-private:
+  private:
     std::atomic<bool> *must_interrupt_inter; ///<Interrupt cleanly ASAP if true
     void enlarge_minimal_datastructs(size_t n = 1);
     void enlarge_nonminimial_datastructs(size_t n = 1);
@@ -327,13 +297,9 @@ private:
     size_t num_bva_vars = 0;
 };
 
-template<class Function>
-void CNF::for_each_lit(
-    const OccurClause& cl
-    ,  Function func
-    , int64_t* limit
-) const {
-    switch(cl.ws.getType()) {
+template<class Function> void CNF::for_each_lit(const OccurClause &cl, Function func, int64_t *limit) const
+{
+    switch (cl.ws.getType()) {
         case WatchType::watch_binary_t:
             *limit -= 2;
             func(cl.lit);
@@ -341,37 +307,34 @@ void CNF::for_each_lit(
             break;
 
         case WatchType::watch_clause_t: {
-            const Clause& clause = *cl_alloc.ptr(cl.ws.get_offset());
+            const Clause &clause = *cl_alloc.ptr(cl.ws.get_offset());
             *limit -= (int64_t)clause.size();
-            for(const Lit lit: clause) {
+            for (const Lit lit: clause) {
                 func(lit);
             }
             break;
         }
 
-        case WatchType::watch_bnn_t :
-        case WatchType::watch_idx_t :
+        case WatchType::watch_bnn_t:
+        case WatchType::watch_idx_t:
             assert(false);
             break;
     }
 }
 
 template<class Function>
-void CNF::for_each_lit_except_watched(
-    const OccurClause& cl
-    , Function func
-    , int64_t* limit
-) const {
-    switch(cl.ws.getType()) {
+void CNF::for_each_lit_except_watched(const OccurClause &cl, Function func, int64_t *limit) const
+{
+    switch (cl.ws.getType()) {
         case WatchType::watch_binary_t:
             *limit -= 1;
             func(cl.ws.lit2());
             break;
 
         case WatchType::watch_clause_t: {
-            const Clause& clause = *cl_alloc.ptr(cl.ws.get_offset());
+            const Clause &clause = *cl_alloc.ptr(cl.ws.get_offset());
             *limit -= clause.size();
-            for(const Lit lit: clause) {
+            for (const Lit lit: clause) {
                 if (lit != cl.lit) {
                     func(lit);
                 }
@@ -388,50 +351,46 @@ void CNF::for_each_lit_except_watched(
 
 struct ClauseSizeSorter
 {
-    explicit ClauseSizeSorter(const ClauseAllocator& _cl_alloc) :
-        cl_alloc(_cl_alloc)
-    {}
-    bool operator () (const ClOffset x, const ClOffset y);
-    const ClauseAllocator& cl_alloc;
+    explicit ClauseSizeSorter(const ClauseAllocator &_cl_alloc) : cl_alloc(_cl_alloc) {}
+    bool operator()(const ClOffset x, const ClOffset y);
+    const ClauseAllocator &cl_alloc;
 };
 
-inline bool CNF::redundant(const Watched& ws) const
+inline bool CNF::redundant(const Watched &ws) const
 {
-    return ((ws.isBin() && ws.red())
-            || (ws.isClause() && cl_alloc.ptr(ws.get_offset())->red())
-    );
+    return ((ws.isBin() && ws.red()) || (ws.isClause() && cl_alloc.ptr(ws.get_offset())->red()));
 }
 
-inline bool CNF::redundant_or_removed(const Watched& ws) const
+inline bool CNF::redundant_or_removed(const Watched &ws) const
 {
     if (ws.isBin()) {
         return ws.red();
     }
 
-   assert(ws.isClause());
-   const Clause* cl = cl_alloc.ptr(ws.get_offset());
-   return cl->red() || cl->get_removed();
+    assert(ws.isClause());
+    const Clause *cl = cl_alloc.ptr(ws.get_offset());
+    return cl->red() || cl->get_removed();
 }
 
 inline void CNF::clean_occur_from_removed_clauses()
 {
-    for(watch_subarray w: watches) {
+    for (watch_subarray w: watches) {
         clear_one_occur_from_removed_clauses(w);
     }
 }
 
 inline void CNF::clean_occur_from_removed_clauses_only_smudged()
 {
-    for(const Lit l: watches.get_smudged_list()) {
+    for (const Lit l: watches.get_smudged_list()) {
         clear_one_occur_from_removed_clauses(watches[l]);
     }
     watches.clear_smudged();
-    SLOW_DEBUG_DO( check_no_removed_or_freed_cl_in_watch());
+    SLOW_DEBUG_DO(check_no_removed_or_freed_cl_in_watch());
 }
 
 inline void CNF::clean_occur_from_idx_types_only_smudged()
 {
-    for(const Lit lit: watches.get_smudged_list()) {
+    for (const Lit lit: watches.get_smudged_list()) {
         clean_occur_from_idx(lit);
     }
     watches.clear_smudged();
@@ -440,21 +399,20 @@ inline void CNF::clean_occur_from_idx_types_only_smudged()
 inline void CNF::clean_occur_from_idx(const Lit lit)
 {
     watch_subarray ws = watches[lit];
-    Watched* i = ws.begin();
-    Watched* j = ws.begin();
-    for(const Watched* end = ws.end(); i < end; i++) {
+    Watched *i = ws.begin();
+    Watched *j = ws.begin();
+    for (const Watched *end = ws.end(); i < end; i++) {
         if (!i->isIdx()) {
             *j++ = *i;
         }
     }
-    ws.shrink(i-j);
+    ws.shrink(i - j);
 }
 
-inline bool CNF::clause_locked(const Clause& c, const ClOffset offset) const
+inline bool CNF::clause_locked(const Clause &c, const ClOffset offset) const
 {
-    return value(c[0]) == l_True
-        && varData[c[0].var()].reason.isClause()
-        && varData[c[0].var()].reason.get_offset() == offset;
+    return value(c[0]) == l_True && varData[c[0].var()].reason.isClause()
+           && varData[c[0].var()].reason.get_offset() == offset;
 }
 
 inline void CNF::clear_one_occur_from_removed_clauses(watch_subarray w)
@@ -462,10 +420,10 @@ inline void CNF::clear_one_occur_from_removed_clauses(watch_subarray w)
     size_t i = 0;
     size_t j = 0;
     size_t end = w.size();
-    for(; i < end; i++) {
+    for (; i < end; i++) {
         const Watched ws = w[i];
-         if (ws.isBNN()) {
-            BNN* bnn = bnns[ws.get_bnn()];
+        if (ws.isBNN()) {
+            BNN *bnn = bnns[ws.get_bnn()];
             if (!bnn->isRemoved) {
                 w[j++] = w[i];
             }
@@ -478,17 +436,17 @@ inline void CNF::clear_one_occur_from_removed_clauses(watch_subarray w)
         }
 
         assert(ws.isClause());
-        Clause* cl = cl_alloc.ptr(ws.get_offset());
+        Clause *cl = cl_alloc.ptr(ws.get_offset());
         if (!cl->get_removed()) {
             w[j++] = w[i];
         }
     }
-    w.shrink(i-j);
+    w.shrink(i - j);
 }
 
-inline void CNF::renumber_outer_to_inter_lits(vector<Lit>& ps) const
+inline void CNF::renumber_outer_to_inter_lits(vector<Lit> &ps) const
 {
-    for (Lit& lit: ps) {
+    for (Lit &lit: ps) {
         const Lit origLit = lit;
 
         //Update variable numbering
@@ -496,21 +454,15 @@ inline void CNF::renumber_outer_to_inter_lits(vector<Lit>& ps) const
         lit = map_outer_to_inter(lit);
 
         if (conf.verbosity >= 52) {
-            cout
-            << "var-renumber updating lit "
-            << origLit
-            << " to lit "
-            << lit
-            << endl;
+            cout << "var-renumber updating lit " << origLit << " to lit " << lit << endl;
         }
     }
 }
 
-template<typename T>
-inline vector<Lit> unsign_lits(const T& lits)
+template<typename T> inline vector<Lit> unsign_lits(const T &lits)
 {
     vector<Lit> ret(lits.size());
-    for(size_t i = 0; i < lits.size(); i++) {
+    for (size_t i = 0; i < lits.size(); i++) {
         ret[i] = lits[i].unsign();
     }
     return ret;
@@ -518,23 +470,23 @@ inline vector<Lit> unsign_lits(const T& lits)
 
 inline void CNF::check_no_removed_or_freed_cl_in_watch() const
 {
-    for(watch_subarray_const ws: watches) {
-        for(const Watched& w: ws) {
+    for (watch_subarray_const ws: watches) {
+        for (const Watched &w: ws) {
             assert(!w.isIdx());
             if (w.isBin()) {
                 continue;
             }
             assert(w.isClause());
-            Clause& cl = *cl_alloc.ptr(w.get_offset());
+            Clause &cl = *cl_alloc.ptr(w.get_offset());
             assert(!cl.get_removed());
             assert(!cl.freed());
         }
     }
 }
 
-template<class T>
-bool CNF::satisfied(const T& cl) const {
-    for(Lit lit: cl) {
+template<class T> bool CNF::satisfied(const T &cl) const
+{
+    for (Lit lit: cl) {
         if (value(lit) == l_True) {
             return true;
         }
@@ -543,36 +495,35 @@ bool CNF::satisfied(const T& cl) const {
 }
 
 
-template<typename T>
-bool CNF::no_duplicate_lits(const T& lits) const
+template<typename T> bool CNF::no_duplicate_lits(const T &lits) const
 {
     vector<Lit> x(lits.size());
-    for(size_t i = 0; i < x.size(); i++) {
+    for (size_t i = 0; i < x.size(); i++) {
         x[i] = lits[i];
     }
     std::sort(x.begin(), x.end());
-    for(size_t i = 1; i < x.size(); i++) {
-        if (x[i-1] == x[i])
-            return false;
+    for (size_t i = 1; i < x.size(); i++) {
+        if (x[i - 1] == x[i]) return false;
     }
     return true;
 }
 
 inline void CNF::check_no_duplicate_lits_anywhere() const
 {
-    for(const ClOffset offs: longIrredCls) {
-        Clause * cl = cl_alloc.ptr(offs);
+    for (const ClOffset offs: longIrredCls) {
+        Clause *cl = cl_alloc.ptr(offs);
         assert(no_duplicate_lits((*cl)));
     }
-    for(const auto& l: longRedCls) {
-        for(const ClOffset offs: l) {
-            Clause * cl = cl_alloc.ptr(offs);
+    for (const auto &l: longRedCls) {
+        for (const ClOffset offs: l) {
+            Clause *cl = cl_alloc.ptr(offs);
             assert(no_duplicate_lits((*cl)));
         }
     }
 }
 
-template<class T> void CNF::clean_xor_no_prop(T& ps, bool& rhs) {
+template<class T> void CNF::clean_xor_no_prop(T &ps, bool &rhs)
+{
     std::sort(ps.begin(), ps.end());
     Lit p;
     uint32_t i, j;
@@ -600,17 +551,27 @@ template<class T> void CNF::clean_xor_no_prop(T& ps, bool& rhs) {
     ps.resize(ps.size() - (i - j));
 }
 
-inline bool CNF::satisfied(const ClOffset& off) const
+inline bool CNF::satisfied(const ClOffset &off) const
 {
-    Clause* cl = cl_alloc.ptr(off);
+    Clause *cl = cl_alloc.ptr(off);
     return satisfied(*cl);
 }
 
-inline size_t CNF::get_num_long_irred_cls() const { return longIrredCls.size(); }
-inline size_t CNF::get_num_long_red_cls() const { return longRedCls.size(); }
-inline size_t CNF::get_num_long_cls() const { return longIrredCls.size() + longRedCls.size(); }
+inline size_t CNF::get_num_long_irred_cls() const
+{
+    return longIrredCls.size();
+}
+inline size_t CNF::get_num_long_red_cls() const
+{
+    return longRedCls.size();
+}
+inline size_t CNF::get_num_long_cls() const
+{
+    return longIrredCls.size() + longRedCls.size();
+}
 
-inline void CNF::clean_xor_vars_no_prop(Xor& x) {
+inline void CNF::clean_xor_vars_no_prop(Xor &x)
+{
     frat_func_start_raw();
     if (x.trivial()) {
         assert(x.xid == 0);
@@ -647,14 +608,19 @@ inline void CNF::clean_xor_vars_no_prop(Xor& x) {
             x.xid = 0;
         } else {
             x.xid = ++clauseXID;
-            if (frat->enabled()) { *frat << addx << x; add_chain(); *frat << fin << findelay;}
+            if (frat->enabled()) {
+                *frat << addx << x;
+                add_chain();
+                *frat << fin << findelay;
+            }
         }
     }
     frat->forget_delay();
     frat_func_end_raw();
 }
 
-inline int32_t CNF::clean_xor_vars_no_prop(vector<Lit>& ps, bool& rhs, int32_t xid) {
+inline int32_t CNF::clean_xor_vars_no_prop(vector<Lit> &ps, bool &rhs, int32_t xid)
+{
     frat_func_start_raw();
     if (!ps.empty()) ps[0] ^= !rhs;
     *frat << deldelayx << xid << ps << fin;
@@ -696,7 +662,11 @@ inline int32_t CNF::clean_xor_vars_no_prop(vector<Lit>& ps, bool& rhs, int32_t x
         ps.resize(j);
         if (j > 0) ps[0] ^= !rhs;
         const auto xid2 = ++clauseXID;
-        if (frat->enabled()) { *frat << addx << xid2 << ps; add_chain(); *frat << fin << findelay;}
+        if (frat->enabled()) {
+            *frat << addx << xid2 << ps;
+            add_chain();
+            *frat << fin << findelay;
+        }
         if (j > 0) ps[0] ^= !rhs;
         frat_func_end_raw();
         return xid2;
@@ -707,17 +677,17 @@ inline int32_t CNF::clean_xor_vars_no_prop(vector<Lit>& ps, bool& rhs, int32_t x
 }
 
 #ifdef ARJUN_SERIALIZE
-template<class T> void CNF::unserialize(T& ar)
+template<class T> void CNF::unserialize(T &ar)
 {
     ar >> outer_to_with_bva_map;
     ar >> num_bva_vars;
 }
 
-template<class T> void CNF::serialize(T& ar) const
+template<class T> void CNF::serialize(T &ar) const
 {
     ar << outer_to_with_bva_map;
     ar << num_bva_vars;
 }
 #endif
 
-}
+} // namespace CMSat

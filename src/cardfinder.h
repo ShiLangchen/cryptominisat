@@ -37,44 +37,44 @@ THE SOFTWARE.
 using std::vector;
 using std::set;
 
-namespace CMSat {
+namespace CMSat
+{
 
 class Solver;
 
 class CardFinder
 {
-
-public:
-    CardFinder(Solver* solver);
+  public:
+    CardFinder(Solver *solver);
     void find_cards();
-    const vector<vector<Lit>>& get_cards() const;
+    const vector<vector<Lit>> &get_cards() const;
 
-private:
-    void get_vars_with_clash(const vector<Lit>& lits, vector<uint32_t>& vars) const;
+  private:
+    void get_vars_with_clash(const vector<Lit> &lits, vector<uint32_t> &vars) const;
     void find_pairwise_atmost1();
-    void deal_with_clash(vector<uint32_t>& vars);
+    void deal_with_clash(vector<uint32_t> &vars);
     bool find_connector(Lit lit1, Lit lit2) const;
-    std::string print_card(const vector<Lit>& lits) const;
-    void print_cards(const vector<vector<Lit>>& card_constraints) const;
+    std::string print_card(const vector<Lit> &lits) const;
+    void print_cards(const vector<vector<Lit>> &card_constraints) const;
     void find_two_product_atmost1();
     void clean_empty_cards();
 
     //from solver
-    Solver* solver;
-    vector<uint32_t>& seen;
-    vector<uint8_t>& seen2;
-    vector<Lit>& toClear;
+    Solver *solver;
+    vector<uint32_t> &seen;
+    vector<uint8_t> &seen2;
+    vector<Lit> &toClear;
 
     //internal data
     vector<vector<Lit>> cards;
     uint64_t total_sizes = 0;
 };
 
-inline const vector<vector<Lit>>& CardFinder::get_cards() const
+inline const vector<vector<Lit>> &CardFinder::get_cards() const
 {
     return cards;
 }
 
-} //end namespace
+} // namespace CMSat
 
 #endif //_CARDFINDER_H_

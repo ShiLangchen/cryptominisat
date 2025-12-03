@@ -25,15 +25,15 @@ THE SOFTWARE.
 #include <signal.h>
 #include <fenv.h>
 
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
-// --> HAD to be disabled due to python module
-//     #if defined(__GNUC__) && defined(__linux__)
-//     feenableexcept(FE_INVALID   |
-//                    FE_DIVBYZERO |
-//                    FE_OVERFLOW
-//     );
-//     #endif
+    // --> HAD to be disabled due to python module
+    //     #if defined(__GNUC__) && defined(__linux__)
+    //     feenableexcept(FE_INVALID   |
+    //                    FE_DIVBYZERO |
+    //                    FE_OVERFLOW
+    //     );
+    //     #endif
 
     int ret = -1;
     try {
@@ -44,10 +44,10 @@ int main(int argc, char** argv)
 
         signal(SIGINT, SIGINT_handler);
         ret = main.solve();
-    } catch (CMSat::TooManyVarsError& e) {
+    } catch (CMSat::TooManyVarsError &e) {
         std::cerr << "ERROR! Variable requested is far too large" << std::endl;
         exit(-1);
-    } catch (CMSat::TooLongClauseError& e) {
+    } catch (CMSat::TooLongClauseError &e) {
         std::cerr << "ERROR! Too long clause inserted" << std::endl;
         exit(-1);
     }

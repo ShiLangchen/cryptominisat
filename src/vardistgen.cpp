@@ -27,19 +27,17 @@ THE SOFTWARE.
 
 using namespace CMSat;
 
-VarDistGen::VarDistGen(Solver* _solver) :
-    solver(_solver)
-{}
+VarDistGen::VarDistGen(Solver *_solver) : solver(_solver) {}
 
-double VarDistGen::compute_tot_act_vsids(Clause* cl) const
+double VarDistGen::compute_tot_act_vsids(Clause *cl) const
 {
     double tot_var_acts = 0.0;
-    for(Lit l: *cl) {
+    for (Lit l: *cl) {
         tot_var_acts += solver->var_act_vsids[l.var()];
     }
     tot_var_acts += 10e-300;
     //NOTE Kuldeep wants to re-visit
-    tot_var_acts = std::log2(tot_var_acts)/std::log2(solver->max_vsids_act+10e-300);
+    tot_var_acts = std::log2(tot_var_acts) / std::log2(solver->max_vsids_act + 10e-300);
     return tot_var_acts;
 }
 
@@ -49,13 +47,13 @@ void VarDistGen::calc()
     data.clear();
     data.resize(solver->nVars());
 
-    for(auto& off: solver->longIrredCls) {
-        Clause* cl = solver->cl_alloc.ptr(off);
+    for (auto &off: solver->longIrredCls) {
+        Clause *cl = solver->cl_alloc.ptr(off);
         double tot_var_acts = compute_tot_act_vsids(cl);
 
-        for(Lit l: *cl) {
+        for (Lit l: *cl) {
             data[l.var()].irred.num_times_in_long_clause++;
-            data[l.var()].irred.tot_num_lit_of_long_cls_it_appears_in+=cl->size();
+            data[l.var()].irred.tot_num_lit_of_long_cls_it_appears_in += cl->size();
             if (solver->varData[l.var()].stable_polarity ^ !l.sign()) {
                 data[l.var()].irred.satisfies_cl++;
             } else {
@@ -65,17 +63,16 @@ void VarDistGen::calc()
         }
     }
 
-    for(auto& x: solver->longRedCls) {
-        for(auto& off: x) {
-            Clause* cl = solver->cl_alloc.ptr(off);
+    for (auto &x: solver->longRedCls) {
+        for (auto &off: x) {
+            Clause *cl = solver->cl_alloc.ptr(off);
             double tot_var_acts = compute_tot_act_vsids(cl);
-            for(Lit l: *cl) {
+            for (Lit l: *cl) {
                 data[l.var()].red.num_times_in_long_clause++;
-                data[l.var()].red.tot_num_lit_of_long_cls_it_appears_in+=cl->size();
-                if (std::log2(solver->max_cl_act+10e-300) != 0) {
+                data[l.var()].red.tot_num_lit_of_long_cls_it_appears_in += cl->size();
+                if (std::log2(solver->max_cl_act + 10e-300) != 0) {
                     data[l.var()].tot_act_long_red_cls +=
-                        std::log2((double)cl->stats.activity+10e-300)
-                            /std::log2(solver->max_cl_act+10e-300);
+                            std::log2((double)cl->stats.activity + 10e-300) / std::log2(solver->max_cl_act + 10e-300);
                 }
 
                 if (solver->varData[l.var()].stable_polarity ^ !l.sign()) {
@@ -88,13 +85,13 @@ void VarDistGen::calc()
         }
     }
 
-    for(uint32_t i = 0; i < solver->nVars()*2; i++) {
+    for (uint32_t i = 0; i < solver->nVars() * 2; i++) {
         Lit l = Lit::toLit(i);
-        for(Watched& w: solver->watches[l]) {
+        for (Watched &w: solver->watches[l]) {
             if (w.isBin() && l < w.lit2()) {
                 if (w.red()) {
                     data[l.var()].red.num_times_in_bin_clause++;
-                    data[l.var()].red.tot_num_lit_of_bin_it_appears_in+=2;
+                    data[l.var()].red.tot_num_lit_of_bin_it_appears_in += 2;
                     if (solver->varData[l.var()].stable_polarity ^ !l.sign()) {
                         data[l.var()].red.satisfies_cl++;
                     } else {
@@ -102,7 +99,7 @@ void VarDistGen::calc()
                     }
                 } else {
                     data[l.var()].irred.num_times_in_bin_clause++;
-                    data[l.var()].irred.tot_num_lit_of_bin_it_appears_in+=2;
+                    data[l.var()].irred.tot_num_lit_of_bin_it_appears_in += 2;
                     if (solver->varData[l.var()].stable_polarity ^ !l.sign()) {
                         data[l.var()].irred.satisfies_cl++;
                     } else {
@@ -117,21 +114,16 @@ void VarDistGen::calc()
     verb_print(1, "[vardistgen] generated var distribution data " << solver->conf.print_times(time_used));
 
     if (solver->sqlStats) {
-        solver->sqlStats->time_passed_min(
-            solver
-            , "var-dist-gen"
-            , time_used
-        );
+        solver->sqlStats->time_passed_min(solver, "var-dist-gen", time_used);
     }
 }
 
 #ifdef STATS_NEEDED_BRANCH
 void VarDistGen::dump()
 {
-    for(uint32_t i = 0; i < solver->nVars(); i++) {
+    for (uint32_t i = 0; i < solver->nVars(); i++) {
         uint32_t outer_var = solver->map_inter_to_outer(i);
-        solver->sqlStats->var_dist(
-            outer_var, data[i], solver);
+        solver->sqlStats->var_dist(outer_var, data[i], solver);
     }
 }
 #endif

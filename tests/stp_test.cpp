@@ -29,7 +29,7 @@ THE SOFTWARE.
 using namespace CMSat;
 #include "test_helper.h"
 
-void add_clauses_for_simp_check(SATSolver& s)
+void add_clauses_for_simp_check(SATSolver &s)
 {
     s.new_vars(4);
 
@@ -104,7 +104,7 @@ TEST(stp_test, default_polar_false)
     s.add_clause(str_to_cl("-1, -2, -3, -4"));
     lbool ret = s.solve();
     EXPECT_EQ(ret, l_True);
-    for(size_t i = 0; i < 4; i++) {
+    for (size_t i = 0; i < 4; i++) {
         EXPECT_EQ(s.get_model()[0], l_False);
     }
 }
@@ -118,12 +118,13 @@ TEST(stp_test, default_polar_true)
     s.add_clause(str_to_cl("1, 2, 3, 4"));
     lbool ret = s.solve();
     EXPECT_EQ(ret, l_True);
-    for(size_t i = 0; i < 4; i++) {
+    for (size_t i = 0; i < 4; i++) {
         EXPECT_EQ(s.get_model()[0], l_True);
     }
 }
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+int main(int argc, char **argv)
+{
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

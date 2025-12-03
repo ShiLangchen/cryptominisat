@@ -89,10 +89,11 @@ foreach (build_config ${build_types})
     endforeach()
 endforeach()
 
-PROJECT(cryptominisat5)
-
+project(cryptominisat5)
+set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 enable_language( CXX )
 enable_language( C )
 include (GNUInstallDirs)
@@ -125,11 +126,19 @@ macro(add_sanitize_option flagname)
 endmacro()
 
 include(CheckCXXCompilerFlag)
+include(CheckLinkerFlag)
 macro(add_cxx_flag_if_supported flagname)
   check_cxx_compiler_flag("${flagname}" HAVE_FLAG_${flagname})
 
   if(HAVE_FLAG_${flagname})
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${flagname}" )
+  endif()
+endmacro()
+macro(add_link_flag_if_supported flagname)
+  check_linker_flag(CXX "${flagname}" HAVE_FLAG_${flagname})
+
+  if(HAVE_FLAG_${flagname})
+    add_link_options("${flagname}")
   endif()
 endmacro()
 
@@ -274,25 +283,20 @@ if (NOT WIN32)
     if(NOT ENABLE_TESTING AND ${CMAKE_SYSTEM_NAME} MATCHES "Linux")
         add_cxx_flag_if_supported("-fvisibility=hidden")
     endif()
-    add_compile_options("-fPIC")
-    add_link_options("-fPIE")
-    #add_cxx_flag_if_supported("-mtune=native")
 
     add_cxx_flag_if_supported("-msse4.2")
     add_cxx_flag_if_supported("-mpopcnt")
-    add_cxx_flag_if_supported("-march=sandybridge")
+    add_cxx_flag_if_supported("-mpclmul")
     if(CMAKE_BUILD_TYPE STREQUAL "Release")
-        #NOTE: out-satrace19-8373595 has confirmed that O3+flto only hurts compared to O2
-        #      on gcc version 7.3.0
-        #add_cxx_flag_if_supported("-flto")
+      # add_cxx_flag_if_supported("-flto")
+      # add_c_flag_if_supported("-flto")
+      # add_link_flag_if_supported("-flto")
     else()
         add_cxx_flag_if_supported("-Wall")
         add_cxx_flag_if_supported("-Wextra")
         add_cxx_flag_if_supported("-Wunused")
         add_cxx_flag_if_supported("-Wsign-compare")
-        if (NOT CMAKE_BUILD_TYPE STREQUAL "Release")
-            add_cxx_flag_if_supported("-fno-omit-frame-pointer")
-        endif()
+        add_cxx_flag_if_supported("-fno-omit-frame-pointer")
         add_cxx_flag_if_supported("-Wtype-limits")
         add_cxx_flag_if_supported("-Wuninitialized")
         add_cxx_flag_if_supported("-Wno-deprecated")
@@ -437,6 +441,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Linux" AND NOT EMSCRIPTEN)
         )
 
         ADD_CUSTOM_COMMAND(
+            POST_BUILD
             TARGET man_cryptominisat5
             COMMAND help2man
             ARGS --version-string=${CMS_FULL_VERSION} --help-option="-h" $<TARGET_FILE:cryptominisat5-bin> -o ${CMAKE_CURRENT_BINARY_DIR}/cryptominisat5.1
@@ -478,11 +483,9 @@ find_library(cadical
     NAMES cadical
     REQUIRED)
 find_library(cadiback
-    NAMES cadiback
     PATHS ${CMAKE_CURRENT_SOURCE_DIR}/../cadiback/
+    NAMES cadiback
     REQUIRED)
-set(CADIBACK_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../cadiback/include)
-
 
 include(CheckFloatPrecision)
 check_float_precision()
@@ -495,7 +498,6 @@ endif()
 # MIT option
 # -----------------------------------------------------------------------------
 option(MIT "Build with only MIT licensed components" OFF)
-# NOTE: everything is MIT, bosphorus is now disabled
 
 # -----------------------------------------------------------------------------
 # Look for BreakID

@@ -1,432 +1,462 @@
-/******************************************
-Copyright (C) 2025 ANF Extension for CryptoMiniSat
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-***********************************************/
-
 #pragma once
 
-#include <string.h>
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include "solver.h"
 #include "streambuffer.h"
 #include "solvertypesmini.h"
-#include "anf_elimination.h"
 #include <cstdlib>
 #include <cmath>
-#include <sstream>
+#include <map>
 #include <iostream>
-#include <iomanip>
+#include <memory>
+#include <string>
 #include <vector>
-#include <fstream>
-#include <complex>
 #include <cassert>
-#include <unordered_map>
 
 using std::vector;
+using std::cerr;
 using std::cout;
 using std::endl;
+using std::map;
+using std::unique_ptr;
 
-namespace CMSat {
-
-struct ANFProductTerm {
-    vector<uint32_t> vars;
-    uint32_t aux_var;
-    vector<int32_t> binary_clause_ids;
-    ANFProductTerm() : aux_var(var_Undef) {}
-};
-
-template <class C, class S>
-class ANFParser
+namespace CMSat
 {
-    public:
-        ANFParser(S* solver, unsigned _verbosity);
-        
-        template <class T> bool parse_ANF(T input_stream);
-        
-    private:
-        bool parse_ANF_main(C& in);
-        bool parse_header(C& in);
-        bool parse_and_add_anf_equation(C& in);
-        bool parse_anf_term(C& in, ANFProductTerm& term, bool& is_constant);
-        bool match(C& in, const char* str);
-        bool check_var(const uint32_t var);
-        uint32_t introduce_product_var(const vector<uint32_t>& product_vars);
-        void add_product_cnf_clauses(uint32_t product_var, const vector<uint32_t>& vars);
-        
-        S* solver;
-        unsigned verbosity;
-        size_t lineNum;
-        
-        vector<Lit> lits;
-        vector<uint32_t> xor_vars;
-        
-        size_t anf_equations_added;
-        size_t cnf_clauses_added;
-        uint32_t next_aux_var;
-        
-        struct VectorHash {
-            size_t operator()(const vector<uint32_t>& v) const {
-                size_t seed = v.size();
-                for(auto& i : v) {
-                    seed ^= i + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-                }
-                return seed;
-            }
-        };
-        std::unordered_map<vector<uint32_t>, uint32_t, VectorHash> product_cache;
-        std::unordered_map<uint32_t, vector<int32_t>> tseitin_binary_ids;
+
+template<class C, class S> class AnfParser
+{
+  public:
+    AnfParser(S *solver, unsigned _verbosity);
+
+    template<class T> bool parse_ANF(T input_stpeam, const bool strict_header, uint32_t offset_vars = 0);
+    uint64_t max_var = numeric_limits<uint64_t>::max();
+    const std::string dimacs_spec = "https://github.com/mtrimoska/WDSat/blob/master/README.md";
+    const std::string please_read_dimacs =
+            "\nPlease read ANF specification at https://github.com/mtrimoska/WDSat/blob/master/README.md";
+
+  private:
+    bool parse_ANF_main(C &in);
+    bool read_clause(C &in);
+    bool parse_and_add_clause(C &in);
+    bool parse_and_add_xor_clause(C &in);
+    bool parse_and_add_anf_clause(C &in);
+    bool parse_header(C &in);
+
+    bool scan_instance(C &in);
+    bool scan_anf_clauses(C &in);
+    bool read_anf_clause(C &in);
+
+    bool check_var(const uint32_t var);
+
+    S *solver;
+    unsigned verbosity;
+
+    //Stat
+    size_t line_num = 1;
+
+    //check header strictly
+    bool strict_header = false;
+    bool header_found = false;
+    int num_header_vars = 0;
+    int num_header_cls = 0;
+    uint32_t offset_vars = 0;
+
+    //Reduce temp overhead
+    vector<Lit> lits;
+    vector<vector<Lit>> poly;
+    std::set<vector<Lit>> monos;
+    std::vector<vector<Lit>> monos_vec;
+
+    size_t norm_clauses_added = 0;
+    size_t xor_clauses_added = 0;
+    size_t eq_clauses_added = 0;
 };
+
 
 template<class C, class S>
-ANFParser<C, S>::ANFParser(
-    S* _solver,
-    unsigned _verbosity
-):
-    solver(_solver),
-    verbosity(_verbosity),
-    lineNum(0),
-    anf_equations_added(0),
-    cnf_clauses_added(0),
-    next_aux_var(0)
+AnfParser<C, S>::AnfParser(S *_solver, unsigned _verbosity) : solver(_solver), verbosity(_verbosity)
 {
 }
 
-template<class C, class S>
-bool ANFParser<C, S>::check_var(const uint32_t var)
+template<class C, class S> bool AnfParser<C, S>::check_var(const uint32_t var)
 {
-    if (var >= (1ULL<<28)) {
-        std::cerr
-        << "ERROR! "
-        << "Variable requested is far too large: " << var + 1 << endl
-        << "--> At line " << lineNum+1
-        << endl;
+    if (var > max_var) {
+        std::cerr << "ERROR! "
+                  << "Variable requested is too large for DIMACS parser parameter: " << var << endl
+                  << "--> At line " << line_num << please_read_dimacs << endl;
         return false;
     }
-    
+
+    if (var >= (1ULL << 28)) {
+        std::cerr << "ERROR! "
+                  << "Variable requested is far too large: " << var + 1 << endl
+                  << "--> At line " << line_num << please_read_dimacs << endl;
+        return false;
+    }
+
+    if ((int)var >= num_header_vars && strict_header) {
+        std::cerr << "ERROR! "
+                  << "Variable requested is larger than the header told us." << endl
+                  << " -> var is : " << var + 1 << endl
+                  << " -> header told us maximum will be : " << num_header_vars << endl
+                  << " -> At line " << line_num << endl;
+        return false;
+    }
+
     if (var >= solver->nVars()) {
+        assert(!strict_header);
         solver->new_vars(var - solver->nVars() + 1);
     }
-    
+
     return true;
 }
 
-template<class C, class S>
-bool ANFParser<C, S>::match(C& in, const char* str)
+template<class C, class S> bool AnfParser<C, S>::read_clause(C &in)
 {
-    for (; *str != 0; ++str, ++in)
-        if (*str != *in)
+    int32_t parsed_lit;
+    uint32_t var;
+    for (;;) {
+        if (!in.parseInt(parsed_lit, line_num)) {
             return false;
+        }
+        if (parsed_lit == 0) {
+            break;
+        }
+
+        var = std::abs(parsed_lit) - 1;
+        var += offset_vars;
+
+        if (!check_var(var)) {
+            return false;
+        }
+
+        lits.push_back((parsed_lit > 0) ? Lit(var, false) : Lit(var, true));
+        if (*in != ' ') {
+            std::cerr << "ERROR! "
+                      << "After last element on the line must be 0" << endl
+                      << "--> At line " << line_num << please_read_dimacs << endl
+                      << endl;
+            return false;
+        }
+    }
+
     return true;
 }
 
-template<class C, class S>
-bool ANFParser<C, S>::parse_header(C& in)
+template<class C, class S> bool AnfParser<C, S>::scan_instance(C &in)
+{
+    std::string str;
+    for (;;) {
+        in.skipWhitespace();
+        switch (*in) {
+            case EOF:
+                goto ARRANGE_IMPLICATIONS;
+            case 'p':
+                if (!parse_header(in)) {
+                    return false;
+                }
+                in.skipLine();
+                line_num++;
+                break;
+            case '\n':
+                if (verbosity) {
+                    cout << "c WARNING: Empty line at line number " << line_num
+                         << " -- this is not part of the ANF specifications (" << dimacs_spec << "). Ignoring." << endl;
+                }
+                in.skipLine();
+                line_num++;
+                break;
+            case 'x':
+                ++in;
+                scan_anf_clauses(in);
+                break;
+            default:
+                assert(0);
+                break;
+        }
+    }
+ARRANGE_IMPLICATIONS:
+    for (const auto &mono: monos) {
+        monos_vec.push_back(mono);
+    }
+    assert(std::is_sorted(monos_vec.begin(), monos_vec.end()));
+
+    auto auxiliary_var_start = solver->nVars();
+    solver->new_vars(monos_vec.size());
+
+    assert(solver->nVars() == auxiliary_var_start + monos_vec.size());
+
+    for (const auto &mono: monos_vec) {
+        Lit aux_lit = Lit(auxiliary_var_start++, false);
+        const size_t mono_size = mono.size();
+        // aux_lit <-> (mono[0] & mono[1] & ... )
+        // which is equivalent to:
+        // (!aux_lit v mono[0]) & (!aux_lit v mono[1]) & ... & (!aux_lit v mono[mono_size - 1]) & (aux_lit v !mono[0] v !mono[1] v ... v !mono[mono_size - 1])
+
+        // add clauses
+        for (auto lit: mono) {
+            norm_clauses_added++;
+            solver->add_clause({~aux_lit, lit});
+        }
+
+        vector<Lit> cls;
+        cls.reserve(mono_size + 1);
+        cls.push_back(aux_lit);
+        for (auto lit: mono) {
+            cls.push_back(~lit);
+        }
+        norm_clauses_added++;
+        solver->add_clause(cls);
+
+        // add equivalence
+        eq_clauses_added++;
+        solver->add_eq_clause(aux_lit, mono);
+    }
+    return true;
+}
+
+template<class C, class S> bool AnfParser<C, S>::scan_anf_clauses(C &in)
+{
+    poly.clear();
+    if (!read_anf_clause(in)) {
+        return false;
+    }
+    if (!in.skipEOL(line_num)) {
+        return false;
+    }
+    line_num++;
+
+    for (const auto &mono: poly) {
+        if (mono.size() <= 1) continue;
+        monos.insert(mono);
+    }
+
+    return true;
+}
+
+template<class C, class S> bool AnfParser<C, S>::read_anf_clause(C &in)
+{
+    int32_t parsed_lit;
+    uint32_t var;
+    std::string str;
+    for (;;) {
+        if (!in.parseString(str)) {
+            return false;
+        }
+
+        bool with_unit_mono = false;
+        switch (str[0]) {
+            case '0':
+                return true;
+            case 'T': {
+                with_unit_mono = !with_unit_mono;
+                break;
+            }
+            case '.': {
+                size_t mono_size = std::stoull(str.substr(1));
+                vector<Lit> mono;
+                for (size_t i = 0; i < mono_size; i++) {
+                    if (!in.parseInt(parsed_lit, line_num)) return false;
+                    var = std::abs(parsed_lit) - 1;
+                    var += offset_vars;
+                    if (!check_var(var)) return false;
+                    mono.push_back((parsed_lit > 0) ? Lit(var, false) : Lit(var, true));
+                }
+                poly.push_back(mono);
+                break;
+            }
+            default: {
+                parsed_lit = std::stoi(str);
+                vector<Lit> mono;
+                var = std::abs(parsed_lit) - 1;
+                var += offset_vars;
+                if (!check_var(var)) return false;
+                mono.push_back((parsed_lit > 0) ? Lit(var, false) : Lit(var, true));
+                poly.push_back(mono);
+                break;
+            }
+        }
+
+        if (with_unit_mono) poly.push_back({});
+    }
+    return true;
+}
+
+template<class C, class S> bool AnfParser<C, S>::parse_header(C &in)
 {
     ++in;
     in.skipWhitespace();
     std::string str;
     in.parseString(str);
     if (str == "cnf") {
-        int num_vars, num_eqs;
-        if (!in.parseInt(num_vars, lineNum) || !in.parseInt(num_eqs, lineNum)) {
+        if (header_found && strict_header) {
+            std::cerr << "ERROR: CNF header ('p cnf vars cls') found twice in file! Exiting." << endl;
+            exit(-1);
+        }
+        header_found = true;
+
+        if (!in.parseInt(num_header_vars, line_num) || !in.parseInt(num_header_cls, line_num)) {
             return false;
         }
         if (verbosity) {
-            cout << "c ANF header: " << num_vars << " variables, " << num_eqs << " equations" << endl;
+            cout << "c o -- header says num vars:   " << std::setw(12) << num_header_vars << endl;
+            cout << "c o -- header says num clauses:" << std::setw(12) << num_header_cls << endl;
         }
-        if (num_vars > 0) {
-            solver->new_vars(num_vars);
+        if (num_header_vars < 0) {
+            std::cerr << "ERROR: Number of variables in header cannot be less than 0" << endl;
+            return false;
+        }
+        if (num_header_cls < 0) {
+            std::cerr << "ERROR: Number of clauses in header cannot be less than 0" << endl;
+            return false;
+        }
+        num_header_vars += offset_vars;
+
+        if (solver->nVars() < (size_t)num_header_vars) {
+            solver->new_vars(num_header_vars - solver->nVars());
         }
     } else {
-        std::cerr << "ERROR! Expected 'cnf' after 'p' at line " << lineNum+1 << endl;
+        std::cerr << "PARSE ERROR! Unexpected char (hex: " << std::hex << std::setw(2) << std::setfill('0') << "0x"
+                  << *in << std::setfill(' ') << std::dec << ")"
+                  << " At line " << line_num << "' in the header" << please_read_dimacs << endl;
         return false;
     }
+
     return true;
 }
 
-template<class C, class S>
-uint32_t ANFParser<C, S>::introduce_product_var(const vector<uint32_t>& product_vars)
+template<class C, class S> bool AnfParser<C, S>::parse_and_add_clause(C &in)
 {
-    vector<uint32_t> sorted_vars = product_vars;
-    std::sort(sorted_vars.begin(), sorted_vars.end());
-    
-    auto it = product_cache.find(sorted_vars);
-    if (it != product_cache.end()) {
-        return it->second;
-    }
-    
-    uint32_t new_var = solver->nVars();
-    solver->new_vars(1);
-    next_aux_var = new_var + 1;
-    
-    product_cache[sorted_vars] = new_var;
-    
-    if (verbosity >= 2) {
-        cout << "c Introduced auxiliary variable y" << new_var + 1 << " for product: ";
-        for (size_t i = 0; i < sorted_vars.size(); i++) {
-            cout << "x" << sorted_vars[i] + 1;
-            if (i + 1 < sorted_vars.size()) cout << "*";
-        }
-        cout << endl;
-    }
-    
-    add_product_cnf_clauses(new_var, sorted_vars);
-    
-    return new_var;
-}
-
-template<class C, class S>
-void ANFParser<C, S>::add_product_cnf_clauses(uint32_t product_var, const vector<uint32_t>& vars)
-{
-    if (verbosity >= 3) {
-        cout << "c   Adding Tseitin CNF for y" << product_var+1 << " = ";
-        for (size_t i = 0; i < vars.size(); i++) {
-            cout << "x" << vars[i]+1;
-            if (i + 1 < vars.size()) cout << " & ";
-        }
-        cout << endl;
-    }
-    
-    for (uint32_t v : vars) {
-        lits.clear();
-        lits.push_back(Lit(product_var, true));
-        lits.push_back(Lit(v, false));
-        solver->add_clause(lits);
-        cnf_clauses_added++;
-    }
-    
     lits.clear();
-    lits.push_back(Lit(product_var, false));
-    for (uint32_t v : vars) {
-        lits.push_back(Lit(v, true));
+    if (!read_clause(in)) {
+        return false;
     }
+    in.skipWhitespace();
+    if (!in.skipEOL(line_num)) {
+        return false;
+    }
+    line_num++;
     solver->add_clause(lits);
-    cnf_clauses_added++;
-}
-
-template<class C, class S>
-bool ANFParser<C, S>::parse_anf_term(C& in, ANFProductTerm& term, bool& is_constant)
-{
-    in.skipWhitespace();
-    
-    if (*in == 'T' || *in == 't') {
-        ++in;
-        is_constant = true;
-        term.vars.clear();
-        return true;
-    }
-    
-    if (*in == 'F' || *in == 'f') {
-        ++in;
-        is_constant = false;
-        term.vars.clear();
-        return true;
-    }
-    
-    is_constant = false;
-    
-    if (*in == '.') {
-        ++in;
-        int32_t num_vars;
-        if (!in.parseInt(num_vars, lineNum)) {
-            std::cerr << "ERROR! Expected number after '.' at line " << lineNum+1 << endl;
-            return false;
-        }
-        
-        if (num_vars < 0) {
-            std::cerr << "ERROR! Number of variables cannot be negative at line " << lineNum+1 << endl;
-            return false;
-        }
-        
-        term.vars.clear();
-        for (int32_t i = 0; i < num_vars; i++) {
-            in.skipWhitespace();
-            int32_t parsed_var;
-            if (!in.parseInt(parsed_var, lineNum)) {
-                std::cerr << "ERROR! Failed to parse variable " << i+1 << " of product term at line " << lineNum+1 << endl;
-                return false;
-            }
-            
-            if (parsed_var <= 0) {
-                std::cerr << "ERROR! Variable must be positive in product term at line " << lineNum+1 << endl;
-                return false;
-            }
-            
-            uint32_t var = parsed_var - 1;
-            if (!check_var(var)) {
-                return false;
-            }
-            term.vars.push_back(var);
-        }
-    } else {
-        int32_t parsed_var;
-        if (!in.parseInt(parsed_var, lineNum)) {
-            return false;
-        }
-        
-        if (parsed_var <= 0) {
-            std::cerr << "ERROR! Variable must be positive at line " << lineNum+1 << endl;
-            return false;
-        }
-        
-        uint32_t var = parsed_var - 1;
-        if (!check_var(var)) {
-            return false;
-        }
-        term.vars.clear();
-        term.vars.push_back(var);
-    }
-    
+    norm_clauses_added++;
     return true;
 }
 
-template<class C, class S>
-bool ANFParser<C, S>::parse_and_add_anf_equation(C& in)
+template<class C, class S> bool AnfParser<C, S>::parse_and_add_xor_clause(C &in)
 {
-    if (!match(in, "x ")) {
-        std::cerr << "ERROR! ANF equation must start with 'x ' at line " << lineNum+1 << endl;
+    lits.clear();
+    if (!read_clause(in)) {
         return false;
     }
-    
-    vector<ANFProductTerm> terms;
-    bool rhs = true;
-    
-    for (;;) {
-        in.skipWhitespace();
-        
-        if (*in == '0') {
-            ++in;
-            break;
-        }
-        
-        ANFProductTerm term;
-        bool is_constant;
-        if (!parse_anf_term(in, term, is_constant)) {
-            return false;
-        }
-        
-        if (is_constant) {
-            rhs ^= true;
-        } else if (!term.vars.empty()) {
-            terms.push_back(term);
-        }
-    }
-    
-    xor_vars.clear();
-    
-    for (auto& term : terms) {
-        if (term.vars.size() == 1) {
-            xor_vars.push_back(term.vars[0]);
-        } else if (term.vars.size() > 1) {
-            uint32_t aux_var = introduce_product_var(term.vars);
-            xor_vars.push_back(aux_var);
-        }
-    }
-    
-    if (verbosity >= 2) {
-        cout << "c   XOR clause: ";
-        for (auto v : xor_vars) cout << v+1 << " ";
-        cout << " = " << (rhs ? "1" : "0") << endl;
-    }
-    
-    if (!xor_vars.empty()) {
-        solver->add_xor_clause(xor_vars, rhs);
-    } else if (rhs) {
-        if (verbosity >= 2) {
-            cout << "c   Adding empty clause (UNSAT)" << endl;
-        }
-        lits.clear();
-        solver->add_clause(lits);
-    }
-    
-    anf_equations_added++;
-    
-    in.skipWhitespace();
-    if (!in.skipEOL(lineNum)) {
+    if (!in.skipEOL(line_num)) {
         return false;
     }
-    lineNum++;
-    
+    line_num++;
+    solver->add_xor_clause(lits, true);
+    xor_clauses_added++;
     return true;
 }
 
-template<class C, class S>
-bool ANFParser<C, S>::parse_ANF_main(C& in)
+template<class C, class S> bool AnfParser<C, S>::parse_and_add_anf_clause(C &in)
 {
+    poly.clear();
+    if (!read_anf_clause(in)) {
+        return false;
+    }
+    if (!in.skipEOL(line_num)) {
+        return false;
+    }
+    line_num++;
+
+    // now add the anf clause. Monomials(degree >= 2) will be replaced by corresponding auxiliary variables
+    lits.clear();
+    bool with_unit_mono = false;
+    for (const auto &mono: poly) {
+        switch (mono.size()) {
+            case 0: {
+                with_unit_mono = !with_unit_mono;
+                break;
+            }
+            case 1: {
+                lits.push_back(mono[0]);
+                break;
+            }
+            default: {
+                // find auxiliary variable for this monomial
+                auto iter = std::lower_bound(monos_vec.begin(), monos_vec.end(), mono);
+                assert(iter != monos_vec.end() && (*iter) == mono);
+
+                size_t index = std::distance(monos_vec.begin(), iter);
+                Lit aux_lit = Lit(solver->nVars() - monos_vec.size() + index, false);
+
+                lits.push_back(aux_lit);
+                break;
+            }
+        }
+    }
+
+    solver->add_xor_clause(lits, !with_unit_mono);
+    xor_clauses_added++;
+    return true;
+}
+
+template<class C, class S> bool AnfParser<C, S>::parse_ANF_main(C &in)
+{
+    std::string str;
     for (;;) {
         in.skipWhitespace();
-        // todo：cnf_parse
         switch (*in) {
-        case EOF:
-            return true;
-        case 'p':
-            if (!parse_header(in)) {
-                return false;
-            }
-            in.skipLine();
-            lineNum++;
-            break;
-        case 'c':
-            in.skipLine();
-            lineNum++;
-            break;
-        case 'x':
-            if (!parse_and_add_anf_equation(in)) {
-                return false;
-            }
-            break;
-        case '\n':
-            in.skipLine();
-            lineNum++;
-            break;
-        default:
-            std::cerr << "ERROR! Unexpected character '" << *in 
-                     << "' at line " << lineNum+1 << endl;
-            return false;
+            case EOF:
+                return true;
+            case 'p':
+                in.skipLine();
+                line_num++;
+                break;
+            case 'x':
+                ++in;
+                if (!parse_and_add_anf_clause(in)) return false;
+                break;
+            case '\n':
+                if (verbosity) {
+                    cout << "c WARNING: Empty line at line number " << line_num
+                         << " -- this is not part of the ANF specifications (" << dimacs_spec << "). Ignoring." << endl;
+                }
+                in.skipLine();
+                line_num++;
+                break;
+            default:
+                assert(0);
+                break;
         }
     }
-    
+
     return true;
 }
 
-template <class C, class S>
-template <class T>
-bool ANFParser<C, S>::parse_ANF(T input_stream)
+
+template<class C, class S>
+template<class T>
+bool AnfParser<C, S>::parse_ANF(T input_stream, const bool _strict_header, uint32_t _offset_vars)
 {
+    strict_header = _strict_header;
+    offset_vars = _offset_vars;
     const uint32_t origNumVars = solver->nVars();
-    
-    C in(input_stream);
-    if (!parse_ANF_main(in)) {
-        return false;
-    }
-    
+
+    C in1(input_stream), in2(input_stream);
+
+    // add eq clauses (including those cnf clauses)
+    if (!scan_instance(in1)) return false;
+    if (!parse_ANF_main(in2)) return false;
+
     if (verbosity) {
-        cout
-        << "c -- ANF equations parsed: " << anf_equations_added << endl
-        << "c -- CNF clauses added: " << cnf_clauses_added << endl
-        << "c -- vars added (including auxiliary): " << (solver->nVars() - origNumVars)
-        << endl;
-        
+        cout << "c -- clauses added: " << norm_clauses_added << endl
+             << "c -- xor clauses added: " << xor_clauses_added << endl
+             << "c -- vars added " << (solver->nVars() - origNumVars) << endl;
     }
-    
+
     return true;
 }
 
-}
-
-
+} // namespace CMSat

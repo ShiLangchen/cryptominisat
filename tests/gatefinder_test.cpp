@@ -30,7 +30,8 @@ using std::set;
 using namespace CMSat;
 #include "test_helper.h"
 
-struct gatefinder_test : public ::testing::Test {
+struct gatefinder_test : public ::testing::Test
+{
     gatefinder_test()
     {
         must_inter.store(false, std::memory_order_relaxed);
@@ -38,12 +39,9 @@ struct gatefinder_test : public ::testing::Test {
         //conf.verbosity = 20;
         s = new Solver(&conf, &must_inter);
     }
-    ~gatefinder_test()
-    {
-        delete s;
-    }
+    ~gatefinder_test() { delete s; }
 
-    Solver* s;
+    Solver *s;
     std::atomic<bool> must_inter;
 };
 
@@ -57,8 +55,8 @@ TEST_F(gatefinder_test, orgate_2)
     s->add_clause_outside(str_to_cl("-1, 2, 3"));
 
     const auto gs = s->get_recovered_or_gates();
-    EXPECT_EQ( 1, gs.size());
-    EXPECT_EQ( Lit(0, false), gs[0].rhs);
+    EXPECT_EQ(1, gs.size());
+    EXPECT_EQ(Lit(0, false), gs[0].rhs);
 }
 
 TEST_F(gatefinder_test, orgate_3)
@@ -70,8 +68,8 @@ TEST_F(gatefinder_test, orgate_3)
     s->add_clause_outside(str_to_cl("-1, 2, 3"));
 
     const auto gs = s->get_recovered_or_gates();
-    EXPECT_EQ( 1, gs.size());
-    EXPECT_EQ( Lit(0, false), gs[0].rhs);
+    EXPECT_EQ(1, gs.size());
+    EXPECT_EQ(Lit(0, false), gs[0].rhs);
 }
 
 TEST_F(gatefinder_test, orgate_4)
@@ -83,7 +81,7 @@ TEST_F(gatefinder_test, orgate_4)
     s->add_clause_outside(str_to_cl("-1, 2, 3"));
 
     const auto gs = s->get_recovered_or_gates();
-    EXPECT_EQ( 1, gs.size());
+    EXPECT_EQ(1, gs.size());
     const auto tmp = gs[0].get_lhs();
     EXPECT_TRUE(find_lit(tmp, "2"));
     EXPECT_TRUE(find_lit(tmp, "3"));
@@ -98,9 +96,9 @@ TEST_F(gatefinder_test, orgate_5)
     s->add_clause_outside(str_to_cl("1, 2, 3"));
 
     const auto gs = s->get_recovered_or_gates();
-    EXPECT_EQ( str_to_lit("-1"), gs[0].rhs);
+    EXPECT_EQ(str_to_lit("-1"), gs[0].rhs);
 
-    EXPECT_EQ( 1, gs.size());
+    EXPECT_EQ(1, gs.size());
     const auto tmp = gs[0].get_lhs();
     EXPECT_TRUE(find_lit(tmp, "2"));
     EXPECT_TRUE(find_lit(tmp, "3"));
@@ -115,9 +113,9 @@ TEST_F(gatefinder_test, orgate_6)
     s->add_clause_outside(str_to_cl("1, -2, -3"));
 
     const auto gs = s->get_recovered_or_gates();
-    EXPECT_EQ( str_to_lit("-1"), gs[0].rhs);
+    EXPECT_EQ(str_to_lit("-1"), gs[0].rhs);
 
-    EXPECT_EQ( 1, gs.size());
+    EXPECT_EQ(1, gs.size());
     const auto tmp = gs[0].get_lhs();
     EXPECT_TRUE(find_lit(tmp, "-2"));
     EXPECT_TRUE(find_lit(tmp, "-3"));
@@ -142,11 +140,10 @@ TEST_F(gatefinder_test, itegate_1)
 
     const auto gs = s->get_recovered_ite_gates();
 
-    EXPECT_EQ( 2, gs.size());
+    EXPECT_EQ(2, gs.size());
     const auto tmp = gs[0].get_all();
     EXPECT_TRUE(find_lit(tmp, "-2"));
     EXPECT_TRUE(find_lit(tmp, "-3"));
     EXPECT_TRUE(find_lit(tmp, "-4"));
     EXPECT_TRUE(find_lit(tmp, "1"));
 }
-

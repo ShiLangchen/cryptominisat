@@ -79,320 +79,308 @@ using std::numeric_limits;
 //--base="--printsol 0 --simdrat 1 --predforeverpow 0.1 --predforevermult 0.40 --predlongmult 0.5 --predshortmult 0.5 --preddontmovetime 1 --predadjustsize 0 --predforeverchunkmult 4 --occredmax 50 --branchstr vsidsx_once+maple1+maple2+vsids2+maple1+maple2+vsidsx --ternkeep 5 --distillmaxm 10"
 
 
-DLL_PUBLIC SolverConf::SolverConf() :
-        // Polarities
-        polarity_mode(PolarityMode::polarmode_automatic)
+DLL_PUBLIC SolverConf::SolverConf()
+    : // Polarities
+    polarity_mode(PolarityMode::polarmode_automatic)
 
-        //Clause cleaning
-        , pred_short_size(5500)
-        , pred_long_size(18500)
-        , pred_forever_size(10500) // Used only if pred_forever_cutoff is 0
-        , pred_forever_cutoff(0) //this sets a static cutoff
-        , order_tier2_by(2) //order Tier2 by this tier's sort function. 2 means Tier2, i.e. default
+    //Clause cleaning
+    , pred_short_size(5500)
+    , pred_long_size(18500)
+    , pred_forever_size(10500) // Used only if pred_forever_cutoff is 0
+    , pred_forever_cutoff(0) //this sets a static cutoff
+    , order_tier2_by(2) //order Tier2 by this tier's sort function. 2 means Tier2, i.e. default
 
-        , pred_forever_size_pow(0.01) // Used only if pred_forever_cutoff is 0
-        //
-        , pred_long_chunk(4700)
-        , pred_forever_chunk(2000) // Used only if pred_forever_cutoff is 0
-        , pred_forever_chunk_mult(0)
-        //
-        , move_from_tier0(1) //if 1 = moves it, rather than deletes it
-        , move_from_tier1(1) //if 1 = moves it, rather than deletes it
-        //
-        , pred_long_check_every_n(3)
-        , pred_forever_check_every_n(12)
-        , pred_distill_only_smallgue(false)
-        , pred_dontmove_until_timeinside(1) //always move, don't wait
+    , pred_forever_size_pow(0.01) // Used only if pred_forever_cutoff is 0
+    //
+    , pred_long_chunk(4700)
+    , pred_forever_chunk(2000) // Used only if pred_forever_cutoff is 0
+    , pred_forever_chunk_mult(0)
+    //
+    , move_from_tier0(1) //if 1 = moves it, rather than deletes it
+    , move_from_tier1(1) //if 1 = moves it, rather than deletes it
+    //
+    , pred_long_check_every_n(3)
+    , pred_forever_check_every_n(12)
+    , pred_distill_only_smallgue(false)
+    , pred_dontmove_until_timeinside(1) //always move, don't wait
 
-        , every_lev1_reduce(10000) // kept for a while then moved to lev2
-        , every_lev2_reduce(15000) // cleared regularly
-        , every_pred_reduce(10000) //5000 seems to work better
-        , must_touch_lev1_within(70000)
+    , every_lev1_reduce(10000) // kept for a while then moved to lev2
+    , every_lev2_reduce(15000) // cleared regularly
+    , every_pred_reduce(10000) //5000 seems to work better
+    , must_touch_lev1_within(70000)
 
-        , max_temp_lev2_learnt_clauses(30000) //only used if every_lev2_reduce==0
-        , inc_max_temp_lev2_red_cls(1.0)      //only used if every_lev2_reduce==0
-        , protect_cl_if_improved_glue_below_this_glue_for_one_turn(30)
-        , glue_put_lev0_if_below_or_eq(3) // never removed
-        , glue_put_lev1_if_below_or_eq(6) // kept for a while then moved to lev2
-        #ifdef FINAL_PREDICTOR
-        , dump_pred_distrib(0)
-        #endif
-        , clause_decay(0.999)
-        , adjust_glue_if_too_many_tier0(0.7)
-        , min_num_confl_adjust_glue_cutoff(150ULL*1000ULL)
-        //NOTE: The "Scavel" system's "usedt" does NOT speed up the solver
-        //test conducted: out-drat-check-8359337.wlm01-1-drat0
+    , max_temp_lev2_learnt_clauses(30000) //only used if every_lev2_reduce==0
+    , inc_max_temp_lev2_red_cls(1.0) //only used if every_lev2_reduce==0
+    , protect_cl_if_improved_glue_below_this_glue_for_one_turn(30)
+    , glue_put_lev0_if_below_or_eq(3) // never removed
+    , glue_put_lev1_if_below_or_eq(6) // kept for a while then moved to lev2
+#ifdef FINAL_PREDICTOR
+    , dump_pred_distrib(0)
+#endif
+    , clause_decay(0.999)
+    , adjust_glue_if_too_many_tier0(0.7)
+    , min_num_confl_adjust_glue_cutoff(150ULL * 1000ULL)
+    //NOTE: The "Scavel" system's "usedt" does NOT speed up the solver
+    //test conducted: out-drat-check-8359337.wlm01-1-drat0
 
-        //Restarting
-        , restart_first(100)
-        , restart_inc(1.1)
-        , restartType(Restart::automatic)
-        , do_blocking_restart(1)
-        , blocking_restart_trail_hist_length(5000)
-        , blocking_restart_multip(1.4)
-        , fixed_restart_num_confl(100)
-        , local_glue_multiplier(0.80)
-        , shortTermHistorySize (50)
-        , lower_bound_for_blocking_restart(10000)
-        , ratio_glue_geom(5)
-        , doAlwaysFMinim(false)
+    //Restarting
+    , restart_first(100)
+    , restart_inc(1.1)
+    , restartType(Restart::automatic)
+    , do_blocking_restart(1)
+    , blocking_restart_trail_hist_length(5000)
+    , blocking_restart_multip(1.4)
+    , fixed_restart_num_confl(100)
+    , local_glue_multiplier(0.80)
+    , shortTermHistorySize(50)
+    , lower_bound_for_blocking_restart(10000)
+    , ratio_glue_geom(5)
+    , doAlwaysFMinim(false)
 
-        //branch strategy
-        , branch_strategy_setup("vmtf+vsids")
+    //branch strategy
+    , branch_strategy_setup("vmtf+vsids")
 
-        //Clause minimisation
-        , doRecursiveMinim (true)
-        , doMinimRedMore(true)
-        , doMinimRedMoreMore(2)
-        , max_glue_more_minim(6)
-        , max_size_more_minim(30)
-        , more_red_minim_limit_binary(200)
-        , max_num_lits_more_more_red_min(1)
+    //Clause minimisation
+    , doRecursiveMinim(true)
+    , doMinimRedMore(true)
+    , doMinimRedMoreMore(2)
+    , max_glue_more_minim(6)
+    , max_size_more_minim(30)
+    , more_red_minim_limit_binary(200)
+    , max_num_lits_more_more_red_min(1)
 
-        //Verbosity
-        , verbosity        (0)
-        , doPrintGateDot   (false)
-        , print_full_restart_stat   (false)
-        , print_all_restarts (false)
-        , verbStats        (1)
-        , do_print_times(1)
-        , print_restart_line_every_n_confl(8192)
+    //Verbosity
+    , verbosity(0)
+    , doPrintGateDot(false)
+    , print_full_restart_stat(false)
+    , print_all_restarts(false)
+    , verbStats(1)
+    , do_print_times(1)
+    , print_restart_line_every_n_confl(8192)
 
-        //Limits
-        , maxTime          (numeric_limits<double>::max())
-        , max_confl         (numeric_limits<uint64_t>::max())
+    //Limits
+    , maxTime(numeric_limits<double>::max())
+    , max_confl(numeric_limits<uint64_t>::max())
 
-        //Glues
-        , update_glues_on_analyze(true)
-        , max_glue_cutoff_gluehistltlimited(50)
+    //Glues
+    , update_glues_on_analyze(true)
+    , max_glue_cutoff_gluehistltlimited(50)
 
-        //Chono BT
-        , diff_declev_for_chrono (20)
+    //Chono BT
+    , diff_declev_for_chrono(20)
 
-        //decision-based clause generation. These values have been validated
-        //see 8099966.wlm01
-        , do_decision_based_cl(1)
-        , decision_based_cl_max_levels(9)
-        , decision_based_cl_min_learned_size(50)
+    //decision-based clause generation. These values have been validated
+    //see 8099966.wlm01
+    , do_decision_based_cl(1)
+    , decision_based_cl_max_levels(9)
+    , decision_based_cl_min_learned_size(50)
 
-        //SQL
-        , dump_individual_restarts_and_clauses(true)
-        , dump_individual_cldata_ratio(0.01)
-        , sql_overwrite_file(0)
-        , lock_for_data_gen_ratio(0.1)
+    //SQL
+    , dump_individual_restarts_and_clauses(true)
+    , dump_individual_cldata_ratio(0.01)
+    , sql_overwrite_file(0)
+    , lock_for_data_gen_ratio(0.1)
 
-        //Var-elim
-        , doVarElim        (true)
-        , varelim_cutoff_too_many_clauses(2000)
-        , do_empty_varelim (true)
-        , do_full_varelim(true)
-        , do_xor_varelim(true)
-        , empty_varelim_time_limitM(300LL)
-        , varelim_time_limitM(750)
-        , varelim_sub_str_limitM(600)
-        , varElimRatioPerIter(1.60)
-        , velim_resolvent_too_large(20)
-        , var_linkin_limit_MB(1000)
-        , varelim_gate_find_limit(800)
-        , picosat_gate_limitK(70)
-        , picosat_confl_limit(100)
-        , varelim_check_resolvent_subs(false)
+    //Var-elim
+    , doVarElim(true)
+    , varelim_cutoff_too_many_clauses(2000)
+    , do_empty_varelim(true)
+    , do_full_varelim(true)
+    , do_xor_varelim(true)
+    , empty_varelim_time_limitM(300LL)
+    , varelim_time_limitM(750)
+    , varelim_sub_str_limitM(600)
+    , varElimRatioPerIter(1.60)
+    , velim_resolvent_too_large(20)
+    , var_linkin_limit_MB(1000)
+    , varelim_gate_find_limit(800)
+    , picosat_gate_limitK(70)
+    , picosat_confl_limit(100)
+    , varelim_check_resolvent_subs(false)
 
-        //Subs, str limits for simplifier
-        , subsumption_time_limitM(300)
-        , weaken_time_limitM(300)
-        , dummy_str_time_limitM(20)
-        , subsumption_time_limit_ratio_sub_str_w_bin(0.1)
-        , subsumption_time_limit_ratio_sub_w_long(0.9)
-        , strengthening_time_limitM(300)
-        , occ_based_lit_rem_time_limitM(50)
+    //Subs, str limits for simplifier
+    , subsumption_time_limitM(300)
+    , weaken_time_limitM(300)
+    , dummy_str_time_limitM(20)
+    , subsumption_time_limit_ratio_sub_str_w_bin(0.1)
+    , subsumption_time_limit_ratio_sub_w_long(0.9)
+    , strengthening_time_limitM(300)
+    , occ_based_lit_rem_time_limitM(50)
 
 
-        //Ternary resolution
-        , doTernary(true)
-        , ternary_res_time_limitM(100)
-        , ternary_keep_mult(5)
-        , ternary_max_create(0.3)
-        , allow_ternary_bin_create(false)
+    //Ternary resolution
+    , doTernary(true)
+    , ternary_res_time_limitM(100)
+    , ternary_keep_mult(5)
+    , ternary_max_create(0.3)
+    , allow_ternary_bin_create(false)
 
-        //Bosphorus
-        , do_bosphorus(false)
-        , bosphorus_every_n(1)
+    //BreakID
+    , doBreakid(false)
+    , breakid_use_assump(true)
+    , breakid_every_n(5)
+    , breakid_vars_limit_K(300)
+    , breakid_cls_limit_K(600)
+    , breakid_lits_limit_K(3500)
+    , breakid_time_limit_K(2000)
+    , breakid_max_constr_per_permut(50)
+    , breakid_matrix_detect(true)
 
-        //BreakID
-        , doBreakid(false)
-        , breakid_use_assump(true)
-        , breakid_every_n(5)
-        , breakid_vars_limit_K(300)
-        , breakid_cls_limit_K(600)
-        , breakid_lits_limit_K(3500)
-        , breakid_time_limit_K(2000)
-        , breakid_max_constr_per_permut(50)
-        , breakid_matrix_detect(true)
+    //Bounded variable addition
+    , do_bva(false)
+    , min_bva_gain(16)
+    , bva_limit_per_call(250000)
+    , bva_also_twolit_diff(true)
+    , bva_extra_lit_and_red_start(0)
+    , bva_time_limitM(50)
+    , bva_every_n(7)
 
-        //Bounded variable addition
-        , do_bva(false)
-        , min_bva_gain(16)
-        , bva_limit_per_call(250000)
-        , bva_also_twolit_diff(true)
-        , bva_extra_lit_and_red_start(0)
-        , bva_time_limitM(50)
-        , bva_every_n(7)
+    //Probing
+    , do_full_probe(true)
+    , doIntreeProbe(true)
+    , doTransRed(true)
+    , full_probe_time_limitM(20ULL)
+    , intree_time_limitM(400ULL)
+    , intree_scc_varreplace_time_limitM(30ULL)
+    , do_hyperbin_and_transred(true)
 
-        //Probing
-        , do_full_probe    (true)
-        , doIntreeProbe    (true)
-        , doTransRed       (true)
-        , full_probe_time_limitM(20ULL)
-        , intree_time_limitM(400ULL)
-        , intree_scc_varreplace_time_limitM(30ULL)
-        , do_hyperbin_and_transred(true)
+    //XOR
+    , doFindXors(true)
+    , maxXorToFind(7)
+    , maxXorToFindSlow(5)
+    , maxXORMatrix(400ULL)
+    , xor_finder_time_limitM(400)
+    , allow_elim_xor_vars(1)
 
-        //XOR
-        , doFindXors       (true)
-        , maxXorToFind     (7)
-        , maxXorToFindSlow (5)
-        , maxXORMatrix     (400ULL)
-        , xor_finder_time_limitM(400)
-        , allow_elim_xor_vars(1)
+    //Cardinality
+    , doFindCard(0)
 
-        //Cardinality
-        , doFindCard(0)
+    //Var-replacer
+    , doFindAndReplaceEqLits(true)
+    , max_scc_depth(10000)
 
-        //Var-replacer
-        , doFindAndReplaceEqLits(true)
-        , max_scc_depth (10000)
+    //Iterative Alo Scheduling
+    , simplify_at_startup(false)
+    , simplify_at_every_startup(false)
+    , do_simplify_problem(true)
+    , full_simplify_at_startup(false)
+    , never_stop_search(false)
+    , num_conflicts_of_search(40ULL * 1000ULL)
+    , num_conflicts_of_search_inc(1.4)
+    , num_conflicts_of_search_inc_max(10)
+    , max_num_simplify_per_solve_call(25)
+    , simplify_schedule_startup("sub-impl, occ-backw-sub,"
+                                "scc-vrepl,"
+                                "breakid, "
+                                "occ-bve,occ-xor")
+    //validated with run 8114195.wlm01
+    , simplify_schedule_nonstartup(
+              //"scc-vrepl,"
+              //"intree-probe,"
+              "scc-vrepl,sub-impl,"
+              "breakid,"
+              //occurrence based
+              "occ-backw-sub-str,occ-clean-implicit,occ-bve," //occ-gates,"
+              "occ-bva,occ-ternary-res,occ-xor,card-find,"
+              //consolidate after OCC
+              "cl-consolidate,"
+              //strengthen again
+              "scc-vrepl,"
+              //renumber then it's time for SLS
+              "renumber,"
+              "louvain-comms,")
 
-        //Iterative Alo Scheduling
-        , simplify_at_startup(false)
-        , simplify_at_every_startup(false)
-        , do_simplify_problem(true)
-        , full_simplify_at_startup(false)
-        , never_stop_search(false)
-        , num_conflicts_of_search(40ULL*1000ULL)
-        , num_conflicts_of_search_inc(1.4)
-        , num_conflicts_of_search_inc_max(10)
-        , max_num_simplify_per_solve_call(25)
-        , simplify_schedule_startup(
-            "sub-impl, occ-backw-sub,"
-            "scc-vrepl,"
-            "breakid, "
-            "occ-bve,occ-xor"
-        )
-        //validated with run 8114195.wlm01
-        , simplify_schedule_nonstartup(
-            //"scc-vrepl,"
-            //"intree-probe,"
-            "scc-vrepl,sub-impl,"
-            "breakid,"
-             //occurrence based
-            "occ-backw-sub-str,occ-clean-implicit,occ-bve,"//occ-gates,"
-            "occ-bva,occ-ternary-res,occ-xor,card-find,"
-            //consolidate after OCC
-            "cl-consolidate,"
-            //strengthen again
-            "scc-vrepl,"
-            //renumber then it's time for SLS
-            "renumber,"
-            "bosphorus,"
-            "louvain-comms,"
-        )
+    //Occur based simplification
+    , perform_occur_based_simp(true)
+    , do_strengthen_with_occur(true)
+    , maxRedLinkInSize(50)
+    , maxOccurIrredMB(2500)
+    , maxOccurRedMB(600)
+    , maxOccurRedLitLinkedM(50)
+    , subsume_gothrough_multip(1.0)
 
-        //Occur based simplification
-        , perform_occur_based_simp(true)
-        , do_strengthen_with_occur       (true)
-        , maxRedLinkInSize (50)
-        , maxOccurIrredMB  (2500)
-        , maxOccurRedMB    (600)
-        , maxOccurRedLitLinkedM(50)
-        , subsume_gothrough_multip(1.0)
+    //WalkSAT
+    , doSLS(true)
+    , sls_every_n(2)
+    , yalsat_max_mems(10)
+    , sls_memoutMB(500)
+    , walksat_max_runs(50)
+    , sls_get_phase(1)
+    , sls_ccnr_asipire(1)
+    , which_sls("ccnr")
+    , sls_how_many_to_bump(100)
+    , sls_bump_var_max_n_times(100)
+    , sls_bump_type(6)
 
-        //WalkSAT
-        , doSLS(true)
-        , sls_every_n(2)
-        , yalsat_max_mems(10)
-        , sls_memoutMB(500)
-        , walksat_max_runs(50)
-        , sls_get_phase(1)
-        , sls_ccnr_asipire(1)
-        , which_sls("ccnr")
-        , sls_how_many_to_bump(100)
-        , sls_bump_var_max_n_times(100)
-        , sls_bump_type(6)
+    //Distillation
+    , do_distill_clauses(true)
+    , do_distill_bin_clauses(true)
+    , distill_long_cls_time_limitM(200ULL)
+    , watch_based_str_time_limitM(20LL)
+    , distill_increase_conf_ratio(0.10)
+    , distill_min_confl(10000)
+    , distill_red_tier0_ratio(10.0)
+    , distill_red_tier1_ratio(0.03)
+    , distill_irred_alsoremove_ratio(1.2)
+    , distill_irred_noremove_ratio(1.0) //from out-3946531.wlm01-15-drat0
+    , distill_rand_shuffle_order_every_n(3)
+#ifdef FINAL_PREDICTOR
+    , distill_sort(3)
+#else
+    , distill_sort(1)
+#endif
 
-        //Distillation
-        , do_distill_clauses(true)
-        , do_distill_bin_clauses(true)
-        , distill_long_cls_time_limitM(200ULL)
-        , watch_based_str_time_limitM(20LL)
-        , distill_increase_conf_ratio(0.10)
-        , distill_min_confl(10000)
-        , distill_red_tier0_ratio(10.0)
-        , distill_red_tier1_ratio(0.03)
-        , distill_irred_alsoremove_ratio(1.2)
-        , distill_irred_noremove_ratio(1.0) //from out-3946531.wlm01-15-drat0
-        , distill_rand_shuffle_order_every_n(3)
-        #ifdef FINAL_PREDICTOR
-        , distill_sort(3)
-        #else
-        , distill_sort(1)
-        #endif
+    //Memory savings
+    , doRenumberVars(true)
+    , must_renumber(false)
+    , doSaveMem(true)
+    , full_watch_consolidate_every_n_confl(4ULL * 1000ULL * 1000ULL) //validated in run 8113323.wlm01
 
-        //Memory savings
-        , doRenumberVars   (true)
-        , must_renumber    (false)
-        , doSaveMem        (true)
-        , full_watch_consolidate_every_n_confl (4ULL*1000ULL*1000ULL) //validated in run 8113323.wlm01
+    //Misc optimisations
+    , doStrSubImplicit(true)
+    , subsume_implicit_time_limitM(100LL)
+    , distill_implicit_with_implicit_time_limitM(200LL)
+    , do_subs_with_resolvent_clauses(true)
 
-        //Misc optimisations
-        , doStrSubImplicit (true)
-        , subsume_implicit_time_limitM(100LL)
-        , distill_implicit_with_implicit_time_limitM(200LL)
-        , do_subs_with_resolvent_clauses(true)
+    //Gates
+    , doGateFind(false)
+    , gatefinder_time_limitM(200)
 
-        //Gates
-        , doGateFind       (false)
-        , gatefinder_time_limitM(200)
+    //Timeouts
+    , global_next_multiplier(1.0)
+    , orig_global_timeout_multiplier(3.0)
+    , global_timeout_multiplier(1.0) // WILL BE UNSET, NOT RELEVANT
+    , global_timeout_multiplier_multiplier(1.1)
+    , global_multiplier_multiplier_max(3)
+    , var_and_mem_out_mult(1.0)
 
-        //Timeouts
-        , global_next_multiplier(1.0)
-        , orig_global_timeout_multiplier(3.0)
-        , global_timeout_multiplier(1.0) // WILL BE UNSET, NOT RELEVANT
-        , global_timeout_multiplier_multiplier(1.1)
-        , global_multiplier_multiplier_max(3)
-        , var_and_mem_out_mult(1.0)
+    //Multi-thread, MPI
+    , sync_every_confl(7000) //THREAD syncing
+    , every_n_mpi_sync(3) //every N thread sync, we do an MPI sync
+    , thread_num(0)
+    , is_mpi(false)
 
-        //Multi-thread, MPI
-        , sync_every_confl(7000) //THREAD syncing
-        , every_n_mpi_sync(3) //every N thread sync, we do an MPI sync
-        , thread_num(0)
-        , is_mpi(false)
+    // Oracle
+    , oracle_get_learnts(false) // get oracle learnt clauses
+    , oracle_removed_is_learnt(false) // clauses removed by Oracle should be learnt
+    , oracle_find_bins(0)
 
-        // Oracle
-        , oracle_get_learnts(false) // get oracle learnt clauses
-        , oracle_removed_is_learnt(false) // clauses removed by Oracle should be learnt
-        , oracle_find_bins(0)
-
-        //misc
-        , origSeed(0)
-        , prefix("c ")
+    //misc
+    , origSeed(0)
+    , prefix("c ")
 {
     ratio_keep_clauses[clean_to_int(ClauseClean::glue)] = 0;
     ratio_keep_clauses[clean_to_int(ClauseClean::activity)] = 0.44;
 }
 
 
-DLL_PUBLIC std::string SolverConf::print_times(
-    const double time_used
-    , const bool time_out
-    , const double time_remain
-) const {
+DLL_PUBLIC std::string
+SolverConf::print_times(const double time_used, const bool time_out, const double time_remain) const
+{
     if (do_print_times) {
         std::stringstream ss;
-        ss
-        << " T: " << std::setprecision(2) << std::fixed << time_used
-        << " T-out: " << (time_out ? "Y" : "N")
-        << " T-r: " << time_remain*100.0  << "%";
+        ss << " T: " << std::setprecision(2) << std::fixed << time_used << " T-out: " << (time_out ? "Y" : "N")
+           << " T-r: " << time_remain * 100.0 << "%";
 
         return ss.str();
     }
@@ -400,15 +388,11 @@ DLL_PUBLIC std::string SolverConf::print_times(
     return std::string();
 }
 
-DLL_PUBLIC std::string SolverConf::print_times(
-    const double time_used
-    , const bool time_out
-) const {
+DLL_PUBLIC std::string SolverConf::print_times(const double time_used, const bool time_out) const
+{
     if (do_print_times) {
         std::stringstream ss;
-        ss
-        << " T: " << std::setprecision(2) << std::fixed << time_used
-        << " T-out: " << (time_out ? "Y" : "N");
+        ss << " T: " << std::setprecision(2) << std::fixed << time_used << " T-out: " << (time_out ? "Y" : "N");
 
         return ss.str();
     }
@@ -416,13 +400,11 @@ DLL_PUBLIC std::string SolverConf::print_times(
     return std::string();
 }
 
-DLL_PUBLIC std::string SolverConf::print_times(
-    const double time_used
-) const {
+DLL_PUBLIC std::string SolverConf::print_times(const double time_used) const
+{
     if (do_print_times) {
         std::stringstream ss;
-        ss
-        << " T: " << std::setprecision(2) << std::fixed << time_used;
+        ss << " T: " << std::setprecision(2) << std::fixed << time_used;
 
         return ss.str();
     }

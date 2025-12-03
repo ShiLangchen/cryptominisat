@@ -31,7 +31,8 @@ THE SOFTWARE.
 
 using std::numeric_limits;
 
-namespace CMSat {
+namespace CMSat
+{
 
 struct SatZillaFeatures
 {
@@ -104,7 +105,8 @@ struct SatZillaFeatures
     double decisions_per_conflict = 0.0;
 
     //learnt distributions
-    struct Distrib {
+    struct Distrib
+    {
         double glue_distr_mean = 0;
         double glue_distr_var = 0;
         double size_distr_mean = 0;
@@ -112,7 +114,7 @@ struct SatZillaFeatures
         double activity_distr_mean = 0; //TODO remove
         double activity_distr_var = 0; //TODO remove
 
-        void print(const std::string& pre_print) const;
+        void print(const std::string &pre_print) const;
     };
     Distrib irred_cl_distrib;
     Distrib red_cl_distrib;
@@ -122,6 +124,6 @@ struct SatZillaFeatures
     uint64_t num_xors_found_last = 0;
 };
 
-}
+} // namespace CMSat
 
 #endif //SOLVE_FEATURES_H_

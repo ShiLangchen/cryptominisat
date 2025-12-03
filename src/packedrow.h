@@ -37,7 +37,8 @@ THE SOFTWARE.
 #include "Vec.h"
 #include "xor.h"
 
-namespace CMSat {
+namespace CMSat
+{
 
 using std::vector;
 
@@ -46,15 +47,15 @@ class EGaussian;
 
 class PackedRow
 {
-public:
+  public:
     PackedRow() = delete;
-    PackedRow& operator=(const PackedRow& b)
+    PackedRow &operator=(const PackedRow &b)
     {
-        #ifdef DEBUG_ROW
+#ifdef DEBUG_ROW
         assert(size > 0);
         assert(b.size > 0);
         assert(b.size == size);
-        #endif
+#endif
 
         //start from -1, because that's wher RHS is
         for (int i = -1; i < size; i++) {
@@ -64,13 +65,13 @@ public:
         return *this;
     }
 
-    PackedRow& operator^=(const PackedRow& b)
+    PackedRow &operator^=(const PackedRow &b)
     {
-        #ifdef DEBUG_ROW
+#ifdef DEBUG_ROW
         assert(size > 0);
         assert(b.size > 0);
         assert(b.size == size);
-        #endif
+#endif
 
         //start from -1, because that's wher RHS is
         for (int i = -1; i < size; i++) {
@@ -80,52 +81,52 @@ public:
         return *this;
     }
 
-    void and_inv(const PackedRow& b)
+    void and_inv(const PackedRow &b)
     {
-        #ifdef DEBUG_ROW
+#ifdef DEBUG_ROW
         assert(size > 0);
         assert(b.size > 0);
         assert(b.size == size);
-        #endif
+#endif
 
         for (int i = 0; i < size; i++) {
             *(mp + i) &= ~(*(b.mp + i));
         }
     }
 
-    void set_and_inv(const PackedRow& a, const PackedRow& b)
+    void set_and_inv(const PackedRow &a, const PackedRow &b)
     {
-        #ifdef DEBUG_ROW
+#ifdef DEBUG_ROW
         assert(size > 0);
         assert(b.size > 0);
         assert(b.size == size);
-        #endif
+#endif
 
         for (int i = 0; i < size; i++) {
             *(mp + i) = *(a.mp + i) & (~(*(b.mp + i)));
         }
     }
 
-    void set_and(const PackedRow& a, const PackedRow& b)
+    void set_and(const PackedRow &a, const PackedRow &b)
     {
-        #ifdef DEBUG_ROW
+#ifdef DEBUG_ROW
         assert(size > 0);
         assert(b.size > 0);
         assert(b.size == size);
-        #endif
+#endif
 
         for (int i = 0; i < size; i++) {
             *(mp + i) = *(a.mp + i) & *(b.mp + i);
         }
     }
 
-    uint32_t set_and_until_popcnt_atleast2(const PackedRow& a, const PackedRow& b)
+    uint32_t set_and_until_popcnt_atleast2(const PackedRow &a, const PackedRow &b)
     {
-        #ifdef DEBUG_ROW
+#ifdef DEBUG_ROW
         assert(size > 0);
         assert(b.size > 0);
         assert(b.size == size);
-        #endif
+#endif
 
         uint32_t pop = 0;
         for (int i = 0; i < size && pop < 2; i++) {
@@ -136,13 +137,13 @@ public:
         return pop;
     }
 
-    void xor_in(const PackedRow& b)
+    void xor_in(const PackedRow &b)
     {
-        #ifdef DEBUG_ROW
+#ifdef DEBUG_ROW
         assert(size > 0);
         assert(b.size > 0);
         assert(b.size == size);
-        #endif
+#endif
 
         rhs_internal ^= b.rhs_internal;
         for (int i = 0; i < size; i++) {
@@ -150,15 +151,9 @@ public:
         }
     }
 
-    inline const int64_t& rhs() const
-    {
-        return rhs_internal;
-    }
+    inline const int64_t &rhs() const { return rhs_internal; }
 
-    inline int64_t& rhs()
-    {
-        return rhs_internal;
-    }
+    inline int64_t &rhs() { return rhs_internal; }
 
     inline bool isZero() const
     {
@@ -168,45 +163,33 @@ public:
         return true;
     }
 
-    inline void setZero()
-    {
-        memset(mp, 0, sizeof(int64_t)*size);
-    }
+    inline void setZero() { memset(mp, 0, sizeof(int64_t) * size); }
 
-    inline void setOne()
-    {
-        memset(mp, 0xff, sizeof(int64_t)*size);
-    }
+    inline void setOne() { memset(mp, 0xff, sizeof(int64_t) * size); }
 
-    inline void clearBit(const uint32_t i)
-    {
-        mp[i/64] &= ~(1LL << (i%64));
-    }
+    inline void clearBit(const uint32_t i) { mp[i / 64] &= ~(1LL << (i % 64)); }
 
     inline void setBit(const uint32_t i)
     {
         //SetBit(mp+i/64, i%64);
-        mp[i/64] |= (1LL << (i%64));
+        mp[i / 64] |= (1LL << (i % 64));
     }
 
-    inline void invert_rhs(const bool b = true)
-    {
-        rhs_internal ^= (int)b;
-    }
+    inline void invert_rhs(const bool b = true) { rhs_internal ^= (int)b; }
 
     void swapBoth(PackedRow b)
     {
-        #ifdef DEBUG_ROW
+#ifdef DEBUG_ROW
         assert(size > 0);
         assert(b.size > 0);
         assert(b.size == size);
-        #endif
+#endif
 
-        int64_t* __restrict mp1 = mp-1;
-        int64_t* __restrict mp2 = b.mp-1;
+        int64_t *__restrict mp1 = mp - 1;
+        int64_t *__restrict mp2 = b.mp - 1;
 
-        uint32_t i = size+1;
-        while(i != 0) {
+        uint32_t i = size + 1;
+        while (i != 0) {
             std::swap(*mp1, *mp2);
             mp1++;
             mp2++;
@@ -216,20 +199,16 @@ public:
 
     inline bool operator[](const uint32_t i) const
     {
-        #ifdef DEBUG_ROW
-        assert(size*64 > i);
-        #endif
+#ifdef DEBUG_ROW
+        assert(size * 64 > i);
+#endif
 
-        return (mp[i/64] >> (i%64)) & 1;
+        return (mp[i / 64] >> (i % 64)) & 1;
     }
 
-    template<class T>
-    void set(
-        const T& v,
-        const vector<uint32_t>& var_to_col,
-        const uint32_t num_cols)
+    template<class T> void set(const T &v, const vector<uint32_t> &var_to_col, const uint32_t num_cols)
     {
-        assert(size == ((int)num_cols/64) + ((bool)(num_cols % 64)));
+        assert(size == ((int)num_cols / 64) + ((bool)(num_cols % 64)));
 
         setZero();
         for (uint32_t i = 0; i != v.size(); i++) {
@@ -243,64 +222,53 @@ public:
     }
 
     // using find nonbasic and basic value
-    uint32_t find_watchVar(
-        vector<Lit>& tmp_clause,
-        const vector<uint32_t>& col_to_var,
-        vector<char> &var_has_resp_row,
-        uint32_t& non_resp_var);
+    uint32_t find_watchVar(vector<Lit> &tmp_clause,
+                           const vector<uint32_t> &col_to_var,
+                           vector<char> &var_has_resp_row,
+                           uint32_t &non_resp_var);
 
     // using find nonbasic value after watch list is enter
-    gret propGause(
-        const vector<lbool>& assigns,
-        const vector<uint32_t>& col_to_var,
-        vector<char> &var_has_resp_row,
-        uint32_t& new_resp_var,
-        PackedRow& tmp_col,
-        PackedRow& tmp_col2,
-        PackedRow& cols_vals,
-        PackedRow& cols_unset,
-        Lit& ret_lit_prop
-    );
+    gret propGause(const vector<lbool> &assigns,
+                   const vector<uint32_t> &col_to_var,
+                   vector<char> &var_has_resp_row,
+                   uint32_t &new_resp_var,
+                   PackedRow &tmp_col,
+                   PackedRow &tmp_col2,
+                   PackedRow &cols_vals,
+                   PackedRow &cols_unset,
+                   Lit &ret_lit_prop);
 
-    void get_reason(
-        vector<Lit>& tmp_clause,
-        const vector<lbool>& assigns,
-        const vector<uint32_t>& col_to_var,
-        PackedRow& cols_vals,
-        PackedRow& tmp_col2,
-        Lit prop
-    );
-    void get_reason_xor(
-        Xor& tmp_xor,
-        [[maybe_unused]] const vector<lbool>& assigns,
-        const vector<uint32_t>& col_to_var,
-        PackedRow& cols_vals,
-        PackedRow& tmp_col2
-    );
+    void get_reason(vector<Lit> &tmp_clause,
+                    const vector<lbool> &assigns,
+                    const vector<uint32_t> &col_to_var,
+                    PackedRow &cols_vals,
+                    PackedRow &tmp_col2,
+                    Lit prop);
+    void get_reason_xor(Xor &tmp_xor,
+                        [[maybe_unused]] const vector<lbool> &assigns,
+                        const vector<uint32_t> &col_to_var,
+                        PackedRow &cols_vals,
+                        PackedRow &tmp_col2);
 
     uint32_t popcnt() const;
     uint32_t popcnt_at_least_2() const;
 
-private:
+  private:
     friend class PackedMatrix;
     friend class EGaussian;
-    friend std::ostream& operator << (std::ostream& os, const PackedRow& m);
+    friend std::ostream &operator<<(std::ostream &os, const PackedRow &m);
 
-    PackedRow(const uint32_t _size, int64_t*  const _mp) :
-        mp(_mp+1)
-        , rhs_internal(*_mp)
-        , size(_size)
-    {}
+    PackedRow(const uint32_t _size, int64_t *const _mp) : mp(_mp + 1), rhs_internal(*_mp), size(_size) {}
 
     //int __attribute__ ((aligned (16))) *const mp;
     int64_t *__restrict const mp;
-    int64_t& rhs_internal;
+    int64_t &rhs_internal;
     const int size;
 };
 
-inline std::ostream& operator << (std::ostream& os, const PackedRow& m)
+inline std::ostream &operator<<(std::ostream &os, const PackedRow &m)
 {
-    for(int i = 0; i < m.size*64; i++) {
+    for (int i = 0; i < m.size * 64; i++) {
         os << (int)m[i];
     }
     os << " -- rhs: " << m.rhs();
@@ -325,4 +293,4 @@ inline uint32_t PackedRow::popcnt() const
     return ret;
 }
 
-}
+} // namespace CMSat

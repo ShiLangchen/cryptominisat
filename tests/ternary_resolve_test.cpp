@@ -32,7 +32,8 @@ THE SOFTWARE.
 
 using namespace CMSat;
 
-struct ternary_resolv : public ::testing::Test {
+struct ternary_resolv : public ::testing::Test
+{
     ternary_resolv()
     {
         must_inter.store(false, std::memory_order_relaxed);
@@ -42,12 +43,9 @@ struct ternary_resolv : public ::testing::Test {
         s->new_vars(50);
         occsimp = s->occsimplifier;
     }
-    ~ternary_resolv()
-    {
-        delete s;
-    }
-    Solver* s = NULL;
-    OccSimplifier* occsimp = NULL;
+    ~ternary_resolv() { delete s; }
+    Solver *s = NULL;
+    OccSimplifier *occsimp = NULL;
     std::atomic<bool> must_inter;
 };
 
@@ -137,7 +135,8 @@ TEST_F(ternary_resolv, only_one_v1)
     EXPECT_EQ(get_num_red_cls_contains(s, "1, 3, 4"), 1);
 }
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+int main(int argc, char **argv)
+{
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

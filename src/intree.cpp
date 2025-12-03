@@ -34,26 +34,21 @@ THE SOFTWARE.
 
 using namespace CMSat;
 
-InTree::InTree(Solver* _solver) :
-    solver(_solver)
-    , seen(_solver->seen)
-{}
+InTree::InTree(Solver *_solver) : solver(_solver), seen(_solver->seen) {}
 
-bool InTree::replace_until_fixedpoint(bool& aborted)
+bool InTree::replace_until_fixedpoint(bool &aborted)
 {
     assert(solver->conf.doFindAndReplaceEqLits);
-    uint64_t time_limit =
-        solver->conf.intree_scc_varreplace_time_limitM*1000ULL*1000ULL
-        *solver->conf.global_timeout_multiplier
-        *0.5;
-    time_limit = (double)time_limit * std::min(std::pow((double)(numCalls+1), 0.2), 3.0);
+    uint64_t time_limit = solver->conf.intree_scc_varreplace_time_limitM * 1000ULL * 1000ULL
+                          * solver->conf.global_timeout_multiplier * 0.5;
+    time_limit = (double)time_limit * std::min(std::pow((double)(numCalls + 1), 0.2), 3.0);
     frat_func_start();
 
     aborted = false;
     uint64_t bogoprops = 0;
     uint32_t last_replace = numeric_limits<uint32_t>::max();
     uint32_t this_replace = solver->varReplacer->get_num_replaced_vars();
-    while(last_replace != this_replace && !aborted) {
+    while (last_replace != this_replace && !aborted) {
         last_replace = this_replace;
         if (!solver->clauseCleaner->remove_and_clean_all()) return false;
         bool OK = solver->varReplacer->replace_if_enough_is_found(0, &bogoprops);
@@ -78,7 +73,7 @@ bool InTree::replace_until_fixedpoint(bool& aborted)
 bool InTree::watches_only_contains_nonbin(const Lit lit) const
 {
     watch_subarray_const ws = solver->watches[lit];
-    for(const Watched w: ws) {
+    for (const Watched w: ws) {
         if (w.isBin()) {
             return false;
         }
@@ -107,12 +102,9 @@ void InTree::fill_roots()
     //l is root if no clause of form (l, l2).
 
     roots.clear();
-    for(uint32_t i = 0; i < solver->nVars()*2; i++)
-    {
-        Lit lit(i/2, i%2);
-        if (solver->varData[lit.var()].removed != Removed::none
-            || solver->value(lit) != l_Undef
-        ) {
+    for (uint32_t i = 0; i < solver->nVars() * 2; i++) {
+        Lit lit(i / 2, i % 2);
+        if (solver->varData[lit.var()].removed != Removed::none || solver->value(lit) != l_Undef) {
             continue;
         }
 
@@ -122,7 +114,8 @@ void InTree::fill_roots()
     }
 }
 
-bool InTree::intree_probe() {
+bool InTree::intree_probe()
+{
     assert(solver->okay());
     queue.clear();
     reset_reason_stack.clear();
@@ -135,17 +128,15 @@ bool InTree::intree_probe() {
     frat_func_start();
 
     if (!solver->conf.doFindAndReplaceEqLits) {
-      verb_print(1, "[intree] SCC is not allowed, intree cannot work this way, aborting");
-      return solver->okay();
+        verb_print(1, "[intree] SCC is not allowed, intree cannot work this way, aborting");
+        return solver->okay();
     }
 
     bool aborted = false;
     if (!replace_until_fixedpoint(aborted)) return solver->okay();
     if (aborted) {
         if (solver->conf.verbosity) {
-            cout
-            << "c [intree] too expensive or depth exceeded during SCC: aborting"
-            << endl;
+            cout << "c [intree] too expensive or depth exceeded during SCC: aborting" << endl;
         }
         solver->use_depth_trick = true;
         solver->perform_transitive_reduction = true;
@@ -153,19 +144,18 @@ bool InTree::intree_probe() {
     }
 
     double my_time = cpuTime();
-    bogoprops_to_use = solver->conf.intree_time_limitM*1000ULL*1000ULL
-        *solver->conf.global_timeout_multiplier;
-    bogoprops_to_use = (double)bogoprops_to_use * std::pow((double)(numCalls+1), 0.3);
+    bogoprops_to_use = solver->conf.intree_time_limitM * 1000ULL * 1000ULL * solver->conf.global_timeout_multiplier;
+    bogoprops_to_use = (double)bogoprops_to_use * std::pow((double)(numCalls + 1), 0.3);
     start_bogoprops = solver->propStats.bogoProps;
 
     fill_roots();
     std::shuffle(roots.begin(), roots.end(), solver->mtrand);
 
     //Let's enqueue all ~root -s.
-    for(Lit lit: roots) enqueue(~lit, lit_Undef, false, 0);
+    for (Lit lit: roots) enqueue(~lit, lit_Undef, false, 0);
 
     //clear seen
-    for(QueueElem elem: queue) {
+    for (QueueElem elem: queue) {
         if (elem.propagated != lit_Undef) seen[elem.propagated.toInt()] = 0;
     }
     const size_t orig_num_free_vars = solver->get_num_free_vars();
@@ -174,21 +164,17 @@ bool InTree::intree_probe() {
     unmark_all_bins();
 
     const double time_used = cpuTime() - my_time;
-    const double time_remain = float_div(
-        (int64_t)solver->propStats.bogoProps-start_bogoprops, bogoprops_to_use);
+    const double time_remain = float_div((int64_t)solver->propStats.bogoProps - start_bogoprops, bogoprops_to_use);
     const bool time_out = ((int64_t)solver->propStats.bogoProps > start_bogoprops + bogoprops_to_use);
 
     verb_print(1,
-        "[intree] Set "
-        << (orig_num_free_vars - solver->get_num_free_vars())
-        << " vars"
-        << " hyper-added: " << hyperbin_added
-        << " trans-irred: " << removedIrredBin
-        << " trans-red: " << removedRedBin
-        << solver->conf.print_times(time_used,  time_out, time_remain));
+               "[intree] Set " << (orig_num_free_vars - solver->get_num_free_vars()) << " vars"
+                               << " hyper-added: " << hyperbin_added << " trans-irred: " << removedIrredBin
+                               << " trans-red: " << removedRedBin
+                               << solver->conf.print_times(time_used, time_out, time_remain));
 
     if (solver->sqlStats) {
-        solver->sqlStats->time_passed( solver , "intree" , time_used , time_out , time_remain);
+        solver->sqlStats->time_passed(solver, "intree", time_used, time_out, time_remain);
     }
 
     frat_func_end();
@@ -199,8 +185,8 @@ bool InTree::intree_probe() {
 
 void InTree::unmark_all_bins()
 {
-    for(watch_subarray wsub: solver->watches) {
-        for(Watched& w: wsub) {
+    for (watch_subarray wsub: solver->watches) {
+        for (Watched &w: wsub) {
             if (w.isBin()) {
                 w.unmark_bin_cl();
             }
@@ -216,13 +202,10 @@ void InTree::tree_look()
     solver->propStats.clear();
 
     bool timeout = false;
-    while(!queue.empty())
-    {
-        if (start_bogoprops + bogoprops_to_use <
-            (int64_t)solver->propStats.bogoProps
-            + (int64_t)solver->propStats.otfHyperTime
-            || timeout
-        ) {
+    while (!queue.empty()) {
+        if (start_bogoprops + bogoprops_to_use
+                    < (int64_t)solver->propStats.bogoProps + (int64_t)solver->propStats.otfHyperTime
+            || timeout) {
             break;
         }
 
@@ -230,16 +213,14 @@ void InTree::tree_look()
         queue.pop_front();
 
         if (solver->conf.verbosity >= 10) {
-            cout << "Dequeued [[" << elem << "]] dec lev:"
-            << solver->decisionLevel() << endl;
+            cout << "Dequeued [[" << elem << "]] dec lev:" << solver->decisionLevel() << endl;
         }
 
         if (elem.propagated != lit_Undef) {
-            timeout = handle_lit_popped_from_queue(
-                elem.propagated, elem.other_lit, elem.red, elem.ID);
+            timeout = handle_lit_popped_from_queue(elem.propagated, elem.other_lit, elem.red, elem.ID);
         } else {
             assert(solver->decisionLevel() > 0);
-            solver->cancelUntil<false, true>(solver->decisionLevel()-1);
+            solver->cancelUntil<false, true>(solver->decisionLevel() - 1);
 
             depth_failed.pop_back();
             assert(!depth_failed.empty());
@@ -253,7 +234,8 @@ void InTree::tree_look()
                 if (tmp.var_reason_changed != var_Undef) {
                     solver->varData[tmp.var_reason_changed].reason = tmp.orig_propby;
                     if (solver->conf.verbosity >= 10) {
-                        cout << "RESet reason for VAR " << tmp.var_reason_changed+1 << " to:  ????" << /*tmp.orig_propby.lit2() << */ " red: " << (int)tmp.orig_propby.isRedStep() << endl;
+                        cout << "RESet reason for VAR " << tmp.var_reason_changed + 1 << " to:  ????"
+                             << /*tmp.orig_propby.lit2() << */ " red: " << (int)tmp.orig_propby.isRedStep() << endl;
                     }
                 }
             }
@@ -270,8 +252,7 @@ void InTree::tree_look()
     empty_failed_list();
 }
 
-bool InTree::handle_lit_popped_from_queue(
-    const Lit lit, const Lit other_lit, const bool red, const int32_t ID)
+bool InTree::handle_lit_popped_from_queue(const Lit lit, const Lit other_lit, const bool red, const int32_t ID)
 {
     solver->new_decision_level();
     depth_failed.push_back(depth_failed.back());
@@ -281,12 +262,10 @@ bool InTree::handle_lit_popped_from_queue(
 
     bool timeout = false;
 
-    if (solver->value(lit) == l_False
-        || depth_failed.back() == 1
-    ) {
+    if (solver->value(lit) == l_False || depth_failed.back() == 1) {
         //l is failed.
         failed.push_back(~lit);
-        verb_print(10,"Failed :" << ~lit << " level: " << solver->decisionLevel());
+        verb_print(10, "Failed :" << ~lit << " level: " << solver->decisionLevel());
         return false;
     }
 
@@ -295,8 +274,7 @@ bool InTree::handle_lit_popped_from_queue(
         assert(solver->value(other_lit) == l_True);
         reset_reason_stack.back() = ResetReason(other_lit.var(), solver->varData[other_lit.var()].reason);
         solver->varData[other_lit.var()].reason = PropBy(~lit, red, false, false, ID);
-        verb_print(10, "Set reason for VAR " << other_lit.var()+1
-        << " to: " << ~lit << " red: " << (int)red);
+        verb_print(10, "Set reason for VAR " << other_lit.var() + 1 << " to: " << ~lit << " red: " << (int)red);
     }
 
     if (solver->value(lit) == l_Undef) {
@@ -308,9 +286,7 @@ bool InTree::handle_lit_popped_from_queue(
             uint64_t max_hyper_time = numeric_limits<uint64_t>::max();
             if (!solver->frat->enabled()) {
                 max_hyper_time =
-                solver->propStats.otfHyperTime
-                + solver->propStats.bogoProps
-                + 1600ULL*1000ULL*1000ULL;
+                        solver->propStats.otfHyperTime + solver->propStats.bogoProps + 1600ULL * 1000ULL * 1000ULL;
             }
 
             Lit ret = solver->propagate_bfs(max_hyper_time);
@@ -342,7 +318,7 @@ bool InTree::handle_lit_popped_from_queue(
 bool InTree::empty_failed_list()
 {
     assert(solver->decisionLevel() == 0);
-    for(const Lit lit: failed) {
+    for (const Lit lit: failed) {
         if (!solver->ok) {
             return false;
         }
@@ -355,7 +331,7 @@ bool InTree::empty_failed_list()
             }
         } else if (solver->value(lit) == l_False) {
             //*(solver->frat) << add << ++solver->clauseID << ~lit << fin;
-            *solver->frat << add << ++solver->clauseID <<fin;
+            *solver->frat << add << ++solver->clauseID << fin;
             set_unsat_cl_id(solver->clauseID);
             solver->ok = false;
             return false;
@@ -379,15 +355,11 @@ void InTree::enqueue(const Lit lit, const Lit other_lit, const bool red_cl, cons
     assert(solver->value(lit) == l_Undef);
 
     watch_subarray ws = solver->watches[lit];
-    for(Watched& w: ws) {
-        if (w.isBin()
-            && seen[(~w.lit2()).toInt()] == 0
-            && solver->value(w.lit2()) == l_Undef
-        ) {
+    for (Watched &w: ws) {
+        if (w.isBin() && seen[(~w.lit2()).toInt()] == 0 && solver->value(w.lit2()) == l_Undef) {
             //Mark both
             w.mark_bin_cl();
-            Watched& other_w = findWatchedOfBin(
-                solver->watches, w.lit2(), lit, w.red(), w.get_id());
+            Watched &other_w = findWatchedOfBin(solver->watches, w.lit2(), lit, w.red(), w.get_id());
             other_w.mark_bin_cl();
 
             enqueue(~w.lit2(), lit, w.red(), w.get_id());
@@ -401,10 +373,10 @@ double InTree::mem_used() const
 {
     double mem = 0;
     mem += sizeof(InTree);
-    mem += roots.size()*sizeof(Lit);
-    mem += failed.size()*sizeof(Lit);
-    mem += reset_reason_stack.size()*sizeof(ResetReason);
-    mem += queue.size()*sizeof(QueueElem);
-    mem += depth_failed.size()*sizeof(char);
+    mem += roots.size() * sizeof(Lit);
+    mem += failed.size() * sizeof(Lit);
+    mem += reset_reason_stack.size() * sizeof(ResetReason);
+    mem += queue.size() * sizeof(QueueElem);
+    mem += depth_failed.size() * sizeof(char);
     return mem;
 }

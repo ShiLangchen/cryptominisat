@@ -31,7 +31,8 @@ using std::set;
 using namespace CMSat;
 #include "test_helper.h"
 
-struct sub_impl : public ::testing::Test {
+struct sub_impl : public ::testing::Test
+{
     sub_impl()
     {
         must_inter.store(false, std::memory_order_relaxed);
@@ -40,13 +41,10 @@ struct sub_impl : public ::testing::Test {
         s = new Solver(&conf, &must_inter);
         sub = s->subsumeImplicit;
     }
-    ~sub_impl()
-    {
-        delete s;
-    }
+    ~sub_impl() { delete s; }
 
-    Solver* s;
-    SubsumeImplicit* sub;
+    Solver *s;
+    SubsumeImplicit *sub;
     std::atomic<bool> must_inter;
 };
 
@@ -99,7 +97,8 @@ TEST_F(sub_impl, sub_2by2_4)
     check_irred_cls_eq(s, "1, 4; 1, 2, 3, 4;-1, 2, 4");
 }
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+int main(int argc, char **argv)
+{
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

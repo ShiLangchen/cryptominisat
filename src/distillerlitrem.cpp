@@ -34,14 +34,12 @@ using std::cout;
 using std::endl;
 
 #ifdef VERBOSE_DEBUG
-#define VERBOSE_SUBSUME_NONEXIST
+    #define VERBOSE_SUBSUME_NONEXIST
 #endif
 
 //#define VERBOSE_SUBSUME_NONEXIST
 
-DistillerLitRem::DistillerLitRem(Solver* _solver) :
-    solver(_solver)
-{}
+DistillerLitRem::DistillerLitRem(Solver *_solver) : solver(_solver) {}
 
 bool DistillerLitRem::distill_lit_rem()
 {
@@ -60,10 +58,8 @@ bool DistillerLitRem::distill_lit_rem()
 end:
     globalStats += runStats;
     if (solver->conf.verbosity) {
-        if (solver->conf.verbosity >= 3)
-            runStats.print(solver->nVars());
-        else
-            runStats.print_short(solver);
+        if (solver->conf.verbosity >= 3) runStats.print(solver->nVars());
+        else runStats.print_short(solver);
     }
     runStats.clear();
 
@@ -72,34 +68,27 @@ end:
 
 struct ClauseSizeSorterLargestFirst
 {
-    ClauseSizeSorterLargestFirst(const ClauseAllocator& _cl_alloc) :
-        cl_alloc(_cl_alloc)
-    {}
+    ClauseSizeSorterLargestFirst(const ClauseAllocator &_cl_alloc) : cl_alloc(_cl_alloc) {}
 
-    const ClauseAllocator& cl_alloc;
+    const ClauseAllocator &cl_alloc;
 
     bool operator()(const ClOffset off1, const ClOffset off2) const
     {
-        const Clause* cl1 = cl_alloc.ptr(off1);
-        const Clause* cl2 = cl_alloc.ptr(off2);
+        const Clause *cl1 = cl_alloc.ptr(off1);
+        const Clause *cl2 = cl_alloc.ptr(off2);
 
         //Correct order if c1's size is larger
         return cl1->size() > cl2->size();
     }
 };
 
-bool DistillerLitRem::go_through_clauses(
-    vector<ClOffset>& cls,
-    uint32_t at
-) {
+bool DistillerLitRem::go_through_clauses(vector<ClOffset> &cls, uint32_t at)
+{
     double my_time = cpuTime();
     bool time_out = false;
     vector<ClOffset>::iterator i, j;
     i = j = cls.begin();
-    for (vector<ClOffset>::iterator end = cls.end()
-        ; i != end
-        ; ++i
-    ) {
+    for (vector<ClOffset>::iterator end = cls.end(); i != end; ++i) {
         //Check if we are in state where we only copy offsets around
         if (time_out || !solver->ok) {
             *j++ = *i;
@@ -107,13 +96,10 @@ bool DistillerLitRem::go_through_clauses(
         }
 
         //if done enough, stop doing it
-        if ((int64_t)solver->propStats.bogoProps-(int64_t)oldBogoProps >= maxNumProps
-            || solver->must_interrupt_asap()
-        ) {
+        if ((int64_t)solver->propStats.bogoProps - (int64_t)oldBogoProps >= maxNumProps
+            || solver->must_interrupt_asap()) {
             if (solver->conf.verbosity >= 3) {
-                cout
-                << "c Need to finish distillation -- ran out of prop (=allocated time)"
-                << endl;
+                cout << "c Need to finish distillation -- ran out of prop (=allocated time)" << endl;
             }
             runStats.timeOut++;
             time_out = true;
@@ -122,7 +108,7 @@ bool DistillerLitRem::go_through_clauses(
         //Get pointer
         ClOffset offset = *i;
         ClOffset offset2;
-        Clause& cl = *solver->cl_alloc.ptr(offset);
+        Clause &cl = *solver->cl_alloc.ptr(offset);
         if (cl.size() <= at) {
             *j++ = *i;
             continue;
@@ -145,48 +131,37 @@ bool DistillerLitRem::go_through_clauses(
         }
 
         //Try to distill clause
-        offset2 = try_distill_clause_and_return_new(
-            offset
-            , &cl.stats
-            , at
-        );
+        offset2 = try_distill_clause_and_return_new(offset, &cl.stats, at);
 
         if (offset2 != CL_OFFSET_MAX) {
             *j++ = offset2;
         }
     }
-    cls.resize(cls.size()- (i-j));
+    cls.resize(cls.size() - (i - j));
 
     runStats.time_used += cpuTime() - my_time;
     return time_out;
 }
 
-bool DistillerLitRem::distill_long_cls_all(
-    vector<ClOffset>& offs
-    , double time_mult
-) {
+bool DistillerLitRem::distill_long_cls_all(vector<ClOffset> &offs, double time_mult)
+{
     assert(solver->ok);
     if (time_mult == 0.0) {
         return solver->okay();
     }
 
     if (solver->conf.verbosity >= 6) {
-        cout
-        << "c Doing distillation branch for long clauses"
-        << endl;
+        cout << "c Doing distillation branch for long clauses" << endl;
     }
 
     const size_t origTrailSize = solver->trail_size();
 
     //Time-limiting
-    maxNumProps =
-        5*1000LL*1000ULL
-        *solver->conf.global_timeout_multiplier;
+    maxNumProps = 5 * 1000LL * 1000ULL * solver->conf.global_timeout_multiplier;
 
-    if (solver->litStats.irredLits + solver->litStats.redLits <
-            (500ULL*1000ULL*solver->conf.var_and_mem_out_mult)
-    ) {
-        maxNumProps *=2;
+    if (solver->litStats.irredLits + solver->litStats.redLits
+        < (500ULL * 1000ULL * solver->conf.var_and_mem_out_mult)) {
+        maxNumProps *= 2;
     }
     maxNumProps *= time_mult;
     orig_maxNumProps = maxNumProps;
@@ -197,7 +172,7 @@ bool DistillerLitRem::distill_long_cls_all(
     runStats.numCalled += 1;
 
     bool time_out = false;
-    for(uint32_t i = 0; i < 10 && !time_out; i++) {
+    for (uint32_t i = 0; i < 10 && !time_out; i++) {
         uint32_t prev_cls_tried = runStats.cls_tried;
         time_out = go_through_clauses(offs, i);
         if (solver->conf.verbosity >= 2) {
@@ -210,22 +185,14 @@ bool DistillerLitRem::distill_long_cls_all(
         }
     }
 
-    const double time_remain = float_div(
-        maxNumProps - ((int64_t)solver->propStats.bogoProps-(int64_t)oldBogoProps),
-        orig_maxNumProps);
+    const double time_remain =
+            float_div(maxNumProps - ((int64_t)solver->propStats.bogoProps - (int64_t)oldBogoProps), orig_maxNumProps);
     if (solver->conf.verbosity >= 3) {
         cout << "c [distill-litrem] "
-        << " tried: " << runStats.checkedClauses << "/" << offs.size()
-        << endl;
+             << " tried: " << runStats.checkedClauses << "/" << offs.size() << endl;
     }
     if (solver->sqlStats) {
-        solver->sqlStats->time_passed(
-            solver
-            , "distill-litrem"
-            , runStats.time_used
-            , time_out
-            , time_remain
-        );
+        solver->sqlStats->time_passed(solver, "distill-litrem", runStats.time_used, time_out, time_remain);
     }
 
 
@@ -235,17 +202,15 @@ bool DistillerLitRem::distill_long_cls_all(
     return solver->okay();
 }
 
-ClOffset DistillerLitRem::try_distill_clause_and_return_new(
-    ClOffset offset
-    , const ClauseStats* const stats
-    , const uint32_t at
-) {
+ClOffset
+DistillerLitRem::try_distill_clause_and_return_new(ClOffset offset, const ClauseStats *const stats, const uint32_t at)
+{
     assert(solver->prop_at_head());
     assert(solver->decisionLevel() == 0);
     const size_t origTrailSize = solver->trail_size();
     runStats.cls_tried++;
 
-    Clause& cl = *solver->cl_alloc.ptr(offset);
+    Clause &cl = *solver->cl_alloc.ptr(offset);
     const bool red = cl.red();
 
     uint32_t orig_size = cl.size();
@@ -256,7 +221,7 @@ ClOffset DistillerLitRem::try_distill_clause_and_return_new(
     //}
 
     solver->new_decision_level();
-    for (const auto& l: cl) {
+    for (const auto &l: cl) {
         Lit lit = l;
         if (lit == torem) {
             lit = ~lit;
@@ -268,26 +233,26 @@ ClOffset DistillerLitRem::try_distill_clause_and_return_new(
     PropBy confl = solver->propagate<true>();
     solver->cancelUntil<false, true>(0);
 
-     //Couldn't remove literal
+    //Couldn't remove literal
     if (confl.isnullptr()) {
         return offset;
     }
 
     //Managed to remove literal
     lits.clear();
-    for(const auto& l: cl) {
+    for (const auto &l: cl) {
         if (l != torem) {
             lits.push_back(l);
         }
     }
-//     cout
-//     << "Failed"
-//     << " confl.isnullptr(): " << confl.isnullptr()
-//     << " i: " << i
-//     << " at: " << at
-//     << " cl before: " << cl
-//     << " cl after: " << lits
-//     << endl;
+    //     cout
+    //     << "Failed"
+    //     << " confl.isnullptr(): " << confl.isnullptr()
+    //     << " i: " << i
+    //     << " at: " << at
+    //     << " cl before: " << cl
+    //     << " cl after: " << lits
+    //     << endl;
 
     //We can remove the literal
     (*solver->frat) << deldelay << cl << fin;
@@ -308,15 +273,15 @@ ClOffset DistillerLitRem::try_distill_clause_and_return_new(
     if (cl2 != nullptr) {
         return solver->cl_alloc.get_offset(cl2);
     } else {
-        #ifdef STATS_NEEDED
+#ifdef STATS_NEEDED
         solver->stats_del_cl(offset);
-        #endif
+#endif
         //it became a bin/unit/zero
         return CL_OFFSET_MAX;
     }
 }
 
-DistillerLitRem::Stats& DistillerLitRem::Stats::operator+=(const Stats& other)
+DistillerLitRem::Stats &DistillerLitRem::Stats::operator+=(const Stats &other)
 {
     time_used += other.time_used;
     timeOut += other.timeOut;
@@ -330,53 +295,31 @@ DistillerLitRem::Stats& DistillerLitRem::Stats::operator+=(const Stats& other)
     return *this;
 }
 
-void DistillerLitRem::Stats::print_short(const Solver* _solver) const
+void DistillerLitRem::Stats::print_short(const Solver *_solver) const
 {
-    cout
-    << "c [distill-litrem]"
-    << " useful: "<< numClShorten
-    << "/" << checkedClauses << "/" << potentialClauses
-    << " lits-rem: " << numLitsRem
-    << " 0-depth-assigns: " << zeroDepthAssigns
-    << _solver->conf.print_times(time_used, timeOut)
-    << endl;
+    cout << "c [distill-litrem]"
+         << " useful: " << numClShorten << "/" << checkedClauses << "/" << potentialClauses
+         << " lits-rem: " << numLitsRem << " 0-depth-assigns: " << zeroDepthAssigns
+         << _solver->conf.print_times(time_used, timeOut) << endl;
 }
 
 void DistillerLitRem::Stats::print(const size_t nVars) const
 {
     cout << "c -------- DISTILL-LITREM STATS --------" << endl;
-    print_stats_line("c time"
-        , time_used
-        , ratio_for_stat(time_used, numCalled)
-        , "per call"
-    );
+    print_stats_line("c time", time_used, ratio_for_stat(time_used, numCalled), "per call");
 
-    print_stats_line("c timed out"
-        , timeOut
-        , stats_line_percent(timeOut, numCalled)
-        , "% of calls"
-    );
+    print_stats_line("c timed out", timeOut, stats_line_percent(timeOut, numCalled), "% of calls");
 
-    print_stats_line("c distill/checked/potential"
-        , numClShorten
-        , checkedClauses
-        , potentialClauses
-    );
+    print_stats_line("c distill/checked/potential", numClShorten, checkedClauses, potentialClauses);
 
-    print_stats_line("c lits-rem",
-        numLitsRem
-    );
-    print_stats_line("c 0-depth-assigns",
-        zeroDepthAssigns
-        , stats_line_percent(zeroDepthAssigns, nVars)
-        , "% of vars"
-    );
+    print_stats_line("c lits-rem", numLitsRem);
+    print_stats_line("c 0-depth-assigns", zeroDepthAssigns, stats_line_percent(zeroDepthAssigns, nVars), "% of vars");
     cout << "c -------- DISTILL STATS END --------" << endl;
 }
 
 double DistillerLitRem::mem_used() const
 {
     double mem_used = sizeof(DistillerLitRem);
-    mem_used += lits.size()*sizeof(Lit);
+    mem_used += lits.size() * sizeof(Lit);
     return mem_used;
 }

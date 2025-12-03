@@ -28,54 +28,54 @@ THE SOFTWARE.
 
 using namespace CMSat;
 
-struct F : public ::testing::Test {
-    F() {
-    }
+struct F : public ::testing::Test
+{
+    F() {}
 
-    ~F() {
-    }
+    ~F() {}
 
-    Clause* allocate_space_for(size_t n, void*& tmp)
+    Clause *allocate_space_for(size_t n, void *&tmp)
     {
-        tmp = malloc(sizeof(Clause) + n*sizeof(Lit));
+        tmp = malloc(sizeof(Clause) + n * sizeof(Lit));
         std::vector<Lit> lits;
-        for(size_t i = 0; i < n ; i++) {
+        for (size_t i = 0; i < n; i++) {
             lits.push_back(Lit(i, false));
         }
-        Clause* c_ptr = new(tmp) Clause(lits, 0, 1);
+        Clause *c_ptr = new (tmp) Clause(lits, 0, 1);
         return c_ptr;
     }
 };
 
 TEST_F(F, convert_to_string)
 {
-    void* tmp;
-    Clause& cl = *allocate_space_for(3, tmp);
+    void *tmp;
+    Clause &cl = *allocate_space_for(3, tmp);
     cl[0] = Lit(0, false);
     cl[1] = Lit(1, false);
     cl[2] = Lit(2, false);
 
     std::stringstream ss;
     ss << cl;
-    EXPECT_EQ( ss.str(), "1 2 3 -- ID: 1");
+    EXPECT_EQ(ss.str(), "1 2 3 -- ID: 1");
     free(tmp);
 }
 
 TEST_F(F, convert_to_string2)
 {
-    void* tmp;
-    Clause& cl = *allocate_space_for(3, tmp);
+    void *tmp;
+    Clause &cl = *allocate_space_for(3, tmp);
     cl[0] = Lit(0, false);
     cl[1] = Lit(1, true);
     cl[2] = Lit(2, false);
 
     std::stringstream ss;
     ss << cl;
-    EXPECT_EQ( ss.str(), "1 -2 3 -- ID: 1");
+    EXPECT_EQ(ss.str(), "1 -2 3 -- ID: 1");
     free(tmp);
 }
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+int main(int argc, char **argv)
+{
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

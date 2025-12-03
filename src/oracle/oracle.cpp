@@ -31,22 +31,28 @@ using std::max;
 using std::pair;
 using std::swap;
 
-namespace sspp {
-namespace oracle {
-namespace {
+namespace sspp
+{
+namespace oracle
+{
+namespace
+{
 constexpr const double EPS = 1e-150;
 }
 
-void Stats::Print() const {
-    cout <<"Decisions/Propagations "<<decisions<<"/"<<mems<<endl;
-    cout <<"Conflicts: "<<conflicts<<endl;
-    cout <<"Learned clauses/bin/unit: "<<learned_clauses<<"/"<<learned_bin_clauses<<"/"<<learned_units<<endl;
-    cout <<"Forgot clauses: "<<forgot_clauses<<endl;
-    cout <<"Nontriv redu: "<<nontriv_redu<<endl;
-    cout <<"Restarts "<<restarts<<endl;
+void Stats::Print() const
+{
+    cout << "Decisions/Propagations " << decisions << "/" << mems << endl;
+    cout << "Conflicts: " << conflicts << endl;
+    cout << "Learned clauses/bin/unit: " << learned_clauses << "/" << learned_bin_clauses << "/" << learned_units
+         << endl;
+    cout << "Forgot clauses: " << forgot_clauses << endl;
+    cout << "Nontriv redu: " << nontriv_redu << endl;
+    cout << "Restarts " << restarts << endl;
 }
 
-void Oracle::AddSolToCache() {
+void Oracle::AddSolToCache()
+{
     for (Var i = 1; i <= vars; i++) {
         assert(vs[i].phase == 0 || vs[i].phase == 1);
         sol_cache[i].push_back(vs[i].phase);
@@ -54,12 +60,14 @@ void Oracle::AddSolToCache() {
     stats.cache_added++;
 }
 
-void Oracle::ClearSolCache() {
+void Oracle::ClearSolCache()
+{
     if (sol_cache[1].empty()) return;
     for (Var v = 1; v <= vars; v++) sol_cache[v].clear();
 }
 
-bool Oracle::SatByCache(const vector<Lit>& assumps) const {
+bool Oracle::SatByCache(const vector<Lit> &assumps) const
+{
     // 1st variable's cache size is the same as all the rest
     int cs = sol_cache[1].size();
 
@@ -67,11 +75,17 @@ bool Oracle::SatByCache(const vector<Lit>& assumps) const {
     for (int i = 0; i < cs; i++) {
         bool ok = true;
         // all our assumptions must be in the solution
-        for (const Lit& l : assumps) {
+        for (const Lit &l: assumps) {
             if (IsPos(l)) {
-                if (sol_cache[VarOf(l)][i] == 0) { ok = false; break; }
+                if (sol_cache[VarOf(l)][i] == 0) {
+                    ok = false;
+                    break;
+                }
             } else {
-                if (sol_cache[VarOf(l)][i] == 1) { ok = false; break; }
+                if (sol_cache[VarOf(l)][i] == 1) {
+                    ok = false;
+                    break;
+                }
             }
         }
         if (ok) return true;
@@ -80,39 +94,44 @@ bool Oracle::SatByCache(const vector<Lit>& assumps) const {
     return false;
 }
 
-void Oracle::ResizeClauseDb() {
-    std::sort(cla_info.begin(), cla_info.end(), [](const CInfo& a, const CInfo& b){
+void Oracle::ResizeClauseDb()
+{
+    std::sort(cla_info.begin(), cla_info.end(), [](const CInfo &a, const CInfo &b) {
         if (a.glue == -1 || b.glue == -1) return a.glue < b.glue;
         if (a.used != b.used) return a.used > b.used;
         return a.total_used > b.total_used;
     });
     {
-        vector<size_t> new_reason(vars+2);
-        for (Var v = 1; v <= vars; v++) { new_reason[v] = vs[v].reason; }
+        vector<size_t> new_reason(vars + 2);
+        for (Var v = 1; v <= vars; v++) {
+            new_reason[v] = vs[v].reason;
+        }
         size_t prev_orig_clauses_size = orig_clauses_size;
         vector<Lit> new_clauses(orig_clauses_size);
-        for (size_t i = 0; i < orig_clauses_size; i++) { new_clauses[i] = clauses[i]; }
+        for (size_t i = 0; i < orig_clauses_size; i++) {
+            new_clauses[i] = clauses[i];
+        }
         vector<CInfo> new_cla_info;
         // This sets new_clauses and fixes reasons
         const size_t good_size = 10000;
         num_lbd2_red_cls = 0;
         num_used_red_cls = 0;
         for (size_t i = 0; i < cla_info.size(); i++) {
-            if (i+1 < cla_info.size()) {
-                cmsat_prefetch(clauses.data() + cla_info[i+1].pt);
+            if (i + 1 < cla_info.size()) {
+                cmsat_prefetch(clauses.data() + cla_info[i + 1].pt);
             }
             stats.mems++;
             Lit impll = 0;
             size_t cls = cla_info[i].pt;
-            if (vs[VarOf(clauses[cls+1])].reason == cls) {
-                swap(clauses[cls], clauses[cls+1]);
+            if (vs[VarOf(clauses[cls + 1])].reason == cls) {
+                swap(clauses[cls], clauses[cls + 1]);
                 // Can only happen in binary clause
-                assert(clauses[cls+2] == 0);
+                assert(clauses[cls + 2] == 0);
             }
             if (vs[VarOf(clauses[cls])].reason == cls) {
                 impll = clauses[cls];
                 assert(LitVal(impll) == 1);
-                for (size_t k = cls+1; clauses[k] != 0; k++) {
+                for (size_t k = cls + 1; clauses[k] != 0; k++) {
                     assert(LitVal(clauses[k]) == -1);
                 }
             }
@@ -123,9 +142,9 @@ void Oracle::ResizeClauseDb() {
             }
             size_t len = 0;
             bool frozen_sat = false;
-            while (clauses[cls+len]) {
-                if (!frozen_sat && LitVal(clauses[cls+len]) == 1) {
-                    Var v = VarOf(clauses[cls+len]);
+            while (clauses[cls + len]) {
+                if (!frozen_sat && LitVal(clauses[cls + len]) == 1) {
+                    Var v = VarOf(clauses[cls + len]);
                     if (vs[v].level == 1) frozen_sat = true;
                 }
                 len++;
@@ -134,8 +153,7 @@ void Oracle::ResizeClauseDb() {
             if (frozen_sat) assert(!impll);
             if (cla_info[i].glue <= 2) num_lbd2_red_cls++;
             else if (cla_info[i].used) num_used_red_cls++;
-            if (frozen_sat || (impll == 0 && !added && !cla_info[i].Keep()
-                        && i > good_size+num_lbd2_red_cls)) {
+            if (frozen_sat || (impll == 0 && !added && !cla_info[i].Keep() && i > good_size + num_lbd2_red_cls)) {
                 stats.forgot_clauses++;
                 clauses[cls] = 0;
                 continue;
@@ -143,20 +161,22 @@ void Oracle::ResizeClauseDb() {
             size_t new_pt = new_clauses.size();
             if (impll) new_reason[VarOf(impll)] = new_pt;
             if (added) assert(new_clauses.size() == orig_clauses_size);
-            else new_cla_info.push_back({new_clauses.size(), cla_info[i].glue, cla_info[i].used-1, cla_info[i].total_used});
+            else
+                new_cla_info.push_back(
+                        {new_clauses.size(), cla_info[i].glue, cla_info[i].used - 1, cla_info[i].total_used});
             for (size_t k = cls; clauses[k]; k++) new_clauses.push_back(clauses[k]);
             new_clauses.push_back(0);
             if (added) orig_clauses_size = new_clauses.size();
             clauses[cls] = new_pt;
         }
         for (Var v = 1; v <= vars; v++) vs[v].reason = new_reason[v];
-        for (Lit l = 2; l <= vars*2+1; l++) {
+        for (Lit l = 2; l <= vars * 2 + 1; l++) {
             size_t pos = 0;
             for (size_t i = 0; i < watches[l].size(); i++) {
                 watches[l][pos++] = watches[l][i];
-                if (watches[l][pos-1].cls >= prev_orig_clauses_size) {
-                    if (clauses[watches[l][pos-1].cls] == 0) pos--;
-                    else watches[l][pos-1].cls = clauses[watches[l][pos-1].cls];
+                if (watches[l][pos - 1].cls >= prev_orig_clauses_size) {
+                    if (clauses[watches[l][pos - 1].cls] == 0) pos--;
+                    else watches[l][pos - 1].cls = clauses[watches[l][pos - 1].cls];
                 }
             }
             watches[l].resize(pos);
@@ -164,31 +184,32 @@ void Oracle::ResizeClauseDb() {
         clauses = new_clauses;
         cla_info = new_cla_info;
 #ifdef SLOW_DEBUG
-        for (Lit l = 2; l <= vars*2+1; l++) {
-            for (const auto& w : watches[l]) assert(clauses[w.cls] == l || clauses[w.cls+1] == l);
+        for (Lit l = 2; l <= vars * 2 + 1; l++) {
+            for (const auto &w: watches[l]) assert(clauses[w.cls] == l || clauses[w.cls + 1] == l);
         }
 #endif
     }
     for (Var v = 1; v <= vars; v++) {
         if (vs[v].reason) {
             size_t cl = vs[v].reason;
-            assert(clauses[cl-1] == 0);
+            assert(clauses[cl - 1] == 0);
             if (cl < orig_clauses_size) continue;
             assert(VarOf(clauses[cl]) == v);
             assert(LitVal(clauses[cl]) == 1);
-            for (size_t k = cl+1; clauses[k]; k++) {
+            for (size_t k = cl + 1; clauses[k]; k++) {
                 assert(LitVal(clauses[k]) == -1);
             }
         }
     }
 }
 
-void Oracle::BumpClause(size_t cls) {
+void Oracle::BumpClause(size_t cls)
+{
     if (cls < orig_clauses_size) return;
     assert(cla_info.size() > 0);
     size_t i = 0;
-    for (size_t b = cla_info.size()/2; b >= 1; b /= 2) {
-        while (i + b < cla_info.size() && cla_info[i+b].pt <= cls) {
+    for (size_t b = cla_info.size() / 2; b >= 1; b /= 2) {
+        while (i + b < cla_info.size() && cla_info[i + b].pt <= cls) {
             i += b;
         }
     }
@@ -200,7 +221,7 @@ void Oracle::BumpClause(size_t cls) {
     }
     lvl_it++;
     int glue = 0;
-    for (;clauses[cls] != 0; cls++) {
+    for (; clauses[cls] != 0; cls++) {
         if (lvl_seen[vs[VarOf(clauses[cls])].level] != lvl_it) {
             lvl_seen[vs[VarOf(clauses[cls])].level] = lvl_it;
             glue++;
@@ -212,67 +233,72 @@ void Oracle::BumpClause(size_t cls) {
     return;
 }
 
-void Oracle::InitLuby() {
+void Oracle::InitLuby()
+{
     luby.clear();
 }
 
-int Oracle::NextLuby() {
+int Oracle::NextLuby()
+{
     luby.push_back(1);
-    while (luby.size() >= 2 && luby[luby.size()-1] == luby[luby.size()-2]) {
+    while (luby.size() >= 2 && luby[luby.size() - 1] == luby[luby.size() - 2]) {
         luby.pop_back();
         luby.back() *= 2;
     }
     return luby.back();
 }
 
-Var Oracle::PopVarHeap() {
+Var Oracle::PopVarHeap()
+{
     if (var_act_heap[1] <= 0) {
         return 0;
     }
     size_t i = 1;
     while (i < heap_N) {
-        if (var_act_heap[i*2] == var_act_heap[i]) {
-            i = i*2;
+        if (var_act_heap[i * 2] == var_act_heap[i]) {
+            i = i * 2;
         } else {
-            i = i*2+1;
+            i = i * 2 + 1;
         }
     }
     assert(var_act_heap[i] == var_act_heap[1]);
     assert(i > heap_N);
     Var ret = i - heap_N;
     var_act_heap[i] = -var_act_heap[i];
-    for (i/=2;i;i/=2) {
-        var_act_heap[i] = max(var_act_heap[i*2], var_act_heap[i*2+1]);
+    for (i /= 2; i; i /= 2) {
+        var_act_heap[i] = max(var_act_heap[i * 2], var_act_heap[i * 2 + 1]);
     }
     return ret;
 }
 
-void Oracle::ActivateActivity(Var v) {
+void Oracle::ActivateActivity(Var v)
+{
     if (var_act_heap[heap_N + v] > 0) return;
     assert(var_act_heap[heap_N + v] < 0);
     var_act_heap[heap_N + v] = -var_act_heap[heap_N + v];
-    for (size_t i = (heap_N + v)/2; i >= 1; i/=2) {
-        var_act_heap[i] = max(var_act_heap[i*2], var_act_heap[i*2+1]);
+    for (size_t i = (heap_N + v) / 2; i >= 1; i /= 2) {
+        var_act_heap[i] = max(var_act_heap[i * 2], var_act_heap[i * 2 + 1]);
     }
 }
 
-void Oracle::BumpVar(Var v) {
+void Oracle::BumpVar(Var v)
+{
     stats.mems++;
     if (var_act_heap[heap_N + v] < 0) {
         var_act_heap[heap_N + v] -= var_inc;
     } else {
         assert(var_act_heap[heap_N + v] > 0);
         var_act_heap[heap_N + v] += var_inc;
-        for (size_t i = (heap_N + v)/2; i >= 1; i/=2) {
-            var_act_heap[i] = max(var_act_heap[i*2], var_act_heap[i*2+1]);
+        for (size_t i = (heap_N + v) / 2; i >= 1; i /= 2) {
+            var_act_heap[i] = max(var_act_heap[i * 2], var_act_heap[i * 2 + 1]);
         }
     }
     var_inc = var_inc * var_fact;
     if (var_inc > 10000.0) {
-        stats.mems+=10;
+        stats.mems += 10;
         var_inc /= 10000.0;
         for (Var i = 1; i <= vars; i++) {
-            double& act = var_act_heap[heap_N + i];
+            double &act = var_act_heap[heap_N + i];
             act /= 10000.0;
             if (-EPS < act && act < EPS) {
                 assert(act != 0);
@@ -283,30 +309,31 @@ void Oracle::BumpVar(Var v) {
                 }
             }
         }
-        for (size_t i = heap_N-1; i >= 1; i--) {
-            var_act_heap[i] = max(var_act_heap[i*2], var_act_heap[i*2+1]);
+        for (size_t i = heap_N - 1; i >= 1; i--) {
+            var_act_heap[i] = max(var_act_heap[i * 2], var_act_heap[i * 2 + 1]);
         }
     }
 }
 
-void Oracle::SetAssumpLit(Lit lit, bool freeze) {
+void Oracle::SetAssumpLit(Lit lit, bool freeze)
+{
     assert(CurLevel() == 1);
     Var v = VarOf(lit);
     assert(vs[v].reason == 0);
     assert(vs[v].level != 1);
-    for (Lit tl : {PosLit(v), NegLit(v)}) {
-        for (const Watch w : watches[tl]) {
+    for (Lit tl: {PosLit(v), NegLit(v)}) {
+        for (const Watch w: watches[tl]) {
             stats.mems++;
             assert(w.size > 2);
             size_t pos = w.cls;
-            size_t opos = w.cls+1;
+            size_t opos = w.cls + 1;
             if (clauses[pos] != tl) {
                 pos++;
                 opos--;
             }
             assert(clauses[pos] == tl);
             size_t f = 0;
-            for (size_t i = w.cls+2; clauses[i]; i++) {
+            for (size_t i = w.cls + 2; clauses[i]; i++) {
                 if (LitVal(clauses[i]) == 0) {
                     f = i;
                 }
@@ -320,15 +347,19 @@ void Oracle::SetAssumpLit(Lit lit, bool freeze) {
     assert(watches[lit].empty());
     assert(watches[Neg(lit)].empty());
     assert(prop_q.empty());
-    if (freeze) { Assign(lit, 0, 1); }
-    else { Assign(lit, 0, 2); }
+    if (freeze) {
+        Assign(lit, 0, 1);
+    } else {
+        Assign(lit, 0, 2);
+    }
     assert(decided.back() == VarOf(lit));
     decided.pop_back();
     assert(prop_q.back() == Neg(lit));
     prop_q.pop_back();
 }
 
-void Oracle::Assign(Lit dec, size_t reason_clause, int level) {
+void Oracle::Assign(Lit dec, size_t reason_clause, int level)
+{
     if (level <= 1) reason_clause = 0;
     Var v = VarOf(dec);
     lit_val[dec] = 1;
@@ -342,7 +373,8 @@ void Oracle::Assign(Lit dec, size_t reason_clause, int level) {
     cmsat_prefetch(watches[Neg(dec)].data());
 }
 
-void Oracle::UnDecide(int level) {
+void Oracle::UnDecide(int level)
+{
     while (!decided.empty() && vs[decided.back()].level >= level) {
         stats.mems++;
         Var v = decided.back();
@@ -357,7 +389,8 @@ void Oracle::UnDecide(int level) {
     assert(prop_q.empty());
 }
 
-size_t Oracle::AddLearnedClause(const vector<Lit>& clause) {
+size_t Oracle::AddLearnedClause(const vector<Lit> &clause)
+{
     stats.learned_clauses++;
     if (clause.size() == 2) stats.learned_bin_clauses++;
     assert(clause.size() >= 2);
@@ -369,8 +402,8 @@ size_t Oracle::AddLearnedClause(const vector<Lit>& clause) {
     for (size_t i = 1; i < clause.size(); i++) {
         assert(LitAssigned(clause[i]) && !LitSat(clause[i]));
         if (i >= 2) {
-            assert(vs[VarOf(clause[i])].level <= vs[VarOf(clause[i-1])].level);
-            if (vs[VarOf(clause[i])].level < vs[VarOf(clause[i-1])].level) {
+            assert(vs[VarOf(clause[i])].level <= vs[VarOf(clause[i - 1])].level);
+            if (vs[VarOf(clause[i])].level < vs[VarOf(clause[i - 1])].level) {
                 glue++;
             }
         }
@@ -380,14 +413,15 @@ size_t Oracle::AddLearnedClause(const vector<Lit>& clause) {
     size_t pt = clauses.size();
     watches[clause[0]].push_back({pt, clause[1], (int)clause.size()});
     watches[clause[1]].push_back({pt, clause[0], (int)clause.size()});
-    for (Lit lit : clause) clauses.push_back(lit);
+    for (Lit lit: clause) clauses.push_back(lit);
     clauses.push_back(0);
     cla_info.push_back({pt, glue, 1, 0});
     return pt;
 }
 
 // Check if lit can be removed from the learned clause
-bool Oracle::LitReduntant(Lit lit) {
+bool Oracle::LitReduntant(Lit lit)
+{
     // TODO: this can be optimized a lot
     assert(redu_s.empty());
     redu_it++;
@@ -402,11 +436,11 @@ bool Oracle::LitReduntant(Lit lit) {
         assert(vs[v].reason);
         size_t rc = vs[v].reason;
         if (clauses[rc] != Neg(lit)) {
-            swap(clauses[rc], clauses[rc+1]);
+            swap(clauses[rc], clauses[rc + 1]);
         }
         assert(LitVal(lit) == -1);
         assert(clauses[rc] == Neg(lit));
-        for (size_t k = rc+1; clauses[k]; k++) {
+        for (size_t k = rc + 1; clauses[k]; k++) {
             if (!in_cc[clauses[k]] && vs[VarOf(clauses[k])].level > 1) {
                 if (vs[VarOf(clauses[k])].reason == 0) {
                     redu_s.clear();
@@ -426,12 +460,13 @@ bool Oracle::LitReduntant(Lit lit) {
     return true;
 }
 
-vector<Lit> Oracle::LearnUip(size_t conflict_clause) {
+vector<Lit> Oracle::LearnUip(size_t conflict_clause)
+{
     assert(conflict_clause > 0);
     BumpClause(conflict_clause);
 #ifdef DEBUG_ORACLE_VERB
     oclv2("Conflict clause NUM: " << conflict_clause << " cl:");
-    for(size_t i = conflict_clause; clauses[i]; i++) {
+    for (size_t i = conflict_clause; clauses[i]; i++) {
         oclv2(" v: " << VarOf(clauses[i]) << " val: " << LitVal(clauses[i]));
     }
     oclv2(endl);
@@ -444,8 +479,7 @@ vector<Lit> Oracle::LearnUip(size_t conflict_clause) {
     for (size_t i = conflict_clause; clauses[i]; i++) {
         assert(LitVal(clauses[i]) == -1);
         oclv("clauses[i]: " << VarOf(clauses[i]) << " val: " << LitVal(clauses[i])
-                << " vs[VarOf(clauses[i])].level: " << vs[VarOf(clauses[i])].level
-                << " level: " << level);
+                            << " vs[VarOf(clauses[i])].level: " << vs[VarOf(clauses[i])].level << " level: " << level);
         assert(vs[VarOf(clauses[i])].level <= level);
         BumpVar(VarOf(clauses[i]));
         if (vs[VarOf(clauses[i])].level == level) {
@@ -457,7 +491,7 @@ vector<Lit> Oracle::LearnUip(size_t conflict_clause) {
         }
     }
     assert(open > 0);
-    for (size_t i = decided.size()-1; open; i--) {
+    for (size_t i = decided.size() - 1; open; i--) {
         Var v = decided[i];
         if (!seen[v]) continue;
         assert(vs[v].level == level);
@@ -483,7 +517,7 @@ vector<Lit> Oracle::LearnUip(size_t conflict_clause) {
         seen[v] = false;
     }
     for (size_t i = 1; i < clause.size(); i++) {
-        assert(VarOf(clause[i]) != VarOf(clause[i-1]));
+        assert(VarOf(clause[i]) != VarOf(clause[i - 1]));
     }
 
 
@@ -515,14 +549,15 @@ vector<Lit> Oracle::LearnUip(size_t conflict_clause) {
 }
 
 // Returns id of conflict clause or 0 if no conflict
-size_t Oracle::Propagate(int level) {
+size_t Oracle::Propagate(int level)
+{
     size_t conflict = 0;
     for (size_t i = 0; i < prop_q.size(); i++) {
         stats.mems++;
         // ff short for falsified
         const Lit ff = prop_q[i];
         assert(vs[VarOf(ff)].level == level);
-        vector<Watch>& wt = watches[ff];
+        vector<Watch> &wt = watches[ff];
         vector<Watch>::const_iterator j1 = wt.begin();
         vector<Watch>::iterator j2 = wt.begin();
         while (j1 != wt.end()) {
@@ -534,7 +569,7 @@ size_t Oracle::Propagate(int level) {
                 if (bv < 0) {
                     // CONFLICT
                     conflict = w.cls;
-                }    else {
+                } else {
                     // UNIT
                     Assign(w.blit, w.cls, level);
                 }
@@ -544,17 +579,17 @@ size_t Oracle::Propagate(int level) {
             // Check if satisfied by the other watched literal
             // fun xor swap trick
             stats.mems++;
-            const Lit other = clauses[w.cls]^clauses[w.cls+1]^ff;
+            const Lit other = clauses[w.cls] ^ clauses[w.cls + 1] ^ ff;
             int ov = LitVal(other);
             if (ov > 0) { // SAT by other watch - change blit
                 j2[-1].blit = other;
                 continue;
             }
             clauses[w.cls] = other;
-            clauses[w.cls+1] = ff;
+            clauses[w.cls + 1] = ff;
             // Try to find true or unassigned lit
             size_t fo = 0;
-            for (size_t k = w.cls+2; clauses[k]; k++) {
+            for (size_t k = w.cls + 2; clauses[k]; k++) {
                 if (LitVal(clauses[k]) != -1) {
                     fo = k;
                     break;
@@ -562,9 +597,9 @@ size_t Oracle::Propagate(int level) {
             }
             // Found true or unassigned lit
             if (fo) {
-                clauses[w.cls+1] = clauses[fo];
+                clauses[w.cls + 1] = clauses[fo];
                 clauses[fo] = ff;
-                watches[clauses[w.cls+1]].push_back({w.cls, other, w.size});
+                watches[clauses[w.cls + 1]].push_back({w.cls, other, w.size});
                 j2--;
                 continue;
             }
@@ -592,7 +627,8 @@ size_t Oracle::Propagate(int level) {
 }
 
 
-int Oracle::CDCLBT(size_t confl_clause, int min_level) {
+int Oracle::CDCLBT(size_t confl_clause, int min_level)
+{
     stats.conflicts++;
     auto clause = LearnUip(confl_clause);
     assert(clause.size() >= 1);
@@ -610,17 +646,17 @@ int Oracle::CDCLBT(size_t confl_clause, int min_level) {
         oclv("ass_level: " << ass_level << " min_level: " << min_level);
         if (ass_level >= min_level) {
             oclv("if (ass_level >= min_level) ");
-            UnDecide(ass_level+1);
+            UnDecide(ass_level + 1);
             size_t cl_id = AddLearnedClause(clause);
             Assign(clause[0], cl_id, ass_level);
             return ass_level;
         } else {
             oclv("NOT if (ass_level >= min_level)");
             assert(prop_q.empty());
-            UnDecide(min_level+1);
+            UnDecide(min_level + 1);
             vector<pair<Lit, int>> decs;
-            for (int i = (int)decided.size()-1;; i--) {
-                assert(i>0);
+            for (int i = (int)decided.size() - 1;; i--) {
+                assert(i > 0);
                 Var v = decided[i];
                 assert(vs[v].level <= min_level);
                 if (vs[v].level <= ass_level) {
@@ -628,25 +664,25 @@ int Oracle::CDCLBT(size_t confl_clause, int min_level) {
                 }
                 decs.push_back({MkLit(v, vs[v].phase), vs[v].level});
             }
-            UnDecide(ass_level+1);
+            UnDecide(ass_level + 1);
             size_t cl_id = AddLearnedClause(clause);
             Assign(clause[0], cl_id, ass_level);
-            if (Propagate(ass_level)) return min_level-1;
+            if (Propagate(ass_level)) return min_level - 1;
             int level = ass_level;
             std::reverse(decs.begin(), decs.end());
             for (int i = 0; i < (int)decs.size(); i++) {
                 if (LitVal(decs[i].first) == -1) {
-                    return min_level-1;
+                    return min_level - 1;
                 }
                 if (LitVal(decs[i].first) == 0) {
                     Decide(decs[i].first, decs[i].second);
                     if (Propagate(decs[i].second)) {
-                        return min_level-1;
+                        return min_level - 1;
                     }
                     level = decs[i].second;
                 }
                 if (i) {
-                    assert(decs[i].second >= decs[i-1].second);
+                    assert(decs[i].second >= decs[i - 1].second);
                 }
             }
             return max(level, min_level);
@@ -654,7 +690,8 @@ int Oracle::CDCLBT(size_t confl_clause, int min_level) {
     }
 }
 
-TriState Oracle::HardSolve(int64_t max_mems) {
+TriState Oracle::HardSolve(int64_t max_mems)
+{
     InitLuby();
     int64_t confls = 0;
     int64_t next_restart = 1;
@@ -663,7 +700,7 @@ TriState Oracle::HardSolve(int64_t max_mems) {
     Var nv = 1;
     while (true) {
         size_t confl_clause = Propagate(cur_level);
-        if (stats.mems > mems_startup+max_mems) return TriState::unknown();
+        if (stats.mems > mems_startup + max_mems) return TriState::unknown();
         if (confl_clause) {
             confls++;
             total_confls++;
@@ -674,21 +711,18 @@ TriState Oracle::HardSolve(int64_t max_mems) {
         }
         if (confls >= next_restart) {
             int nl = NextLuby();
-            next_restart = confls + nl*restart_factor;
+            next_restart = confls + nl * restart_factor;
             UnDecide(3);
             cur_level = 2;
             stats.restarts++;
             if (total_confls > last_db_clean + 10000) {
                 last_db_clean = total_confls;
-                oclv("c [oracle] Resizing cldb"
-                    << " num_lbd2_red_cls: " << num_lbd2_red_cls
-                    << " num_used_red_cls: " << num_used_red_cls
-                    << " cla_info.size(): " << cla_info.size());
+                oclv("c [oracle] Resizing cldb" << " num_lbd2_red_cls: " << num_lbd2_red_cls << " num_used_red_cls: "
+                                                << num_used_red_cls << " cla_info.size(): " << cla_info.size());
                 ResizeClauseDb();
-                oclv("c [oracle] after cldb resize"
-                    << " num_lbd2_red_cls: " << num_lbd2_red_cls
-                    << " num_used_red_cls: " << num_used_red_cls
-                    << " cla_info.size(): " << cla_info.size());
+                oclv("c [oracle] after cldb resize" << " num_lbd2_red_cls: " << num_lbd2_red_cls
+                                                    << " num_used_red_cls: " << num_used_red_cls
+                                                    << " cla_info.size(): " << cla_info.size());
             }
         }
         Var decv = 0;
@@ -707,7 +741,8 @@ TriState Oracle::HardSolve(int64_t max_mems) {
     }
 }
 
-void Oracle::AddOrigClause(vector<Lit> clause, bool entailed) {
+void Oracle::AddOrigClause(vector<Lit> clause, bool entailed)
+{
     assert(CurLevel() == 1);
     for (int i = 0; i < (int)clause.size(); i++) {
         assert(VarOf(clause[i]) >= 1 && VarOf(clause[i]) <= vars);
@@ -717,7 +752,7 @@ void Oracle::AddOrigClause(vector<Lit> clause, bool entailed) {
             i--;
         }
     }
-    for (Lit lit : clause) assert(LitVal(lit) == 0);
+    for (Lit lit: clause) assert(LitVal(lit) == 0);
     if (!entailed) ClearSolCache();
     if (clause.size() == 0) {
         unsat = true;
@@ -732,7 +767,7 @@ void Oracle::AddOrigClause(vector<Lit> clause, bool entailed) {
     size_t pt = clauses.size();
     watches[clause[0]].push_back({clauses.size(), clause[1], (int)clause.size()});
     watches[clause[1]].push_back({clauses.size(), clause[0], (int)clause.size()});
-    for (Lit lit : clause) clauses.push_back(lit);
+    for (Lit lit: clause) clauses.push_back(lit);
     clauses.push_back(0);
     // If we have no learned clauses then this is original clause
     // Otherwise this is "learned" clause with glue -1 and used -1
@@ -743,52 +778,58 @@ void Oracle::AddOrigClause(vector<Lit> clause, bool entailed) {
     cla_info.push_back({pt, -1, -1, 0});
 }
 
-Oracle::Oracle(int vars_, const vector<vector<Lit>>& clauses_,
-        const vector<vector<Lit>>& learned_clauses_) : Oracle(vars_, clauses_) {
-    for (const auto& clause : learned_clauses_) {
+Oracle::Oracle(int vars_, const vector<vector<Lit>> &clauses_, const vector<vector<Lit>> &learned_clauses_)
+    : Oracle(vars_, clauses_)
+{
+    for (const auto &clause: learned_clauses_) {
         AddClauseIfNeededAndStr(clause, true);
     }
 }
 
-Oracle::Oracle(int vars_, const vector<vector<Lit>>& clauses_) : vars(vars_), rand_gen(1337) {
+Oracle::Oracle(int vars_, const vector<vector<Lit>> &clauses_) : vars(vars_), rand_gen(1337)
+{
     assert(vars >= 1);
-    vs.resize(vars+1);
-    seen.resize(vars+1);
-    lvl_seen.resize(vars+3);
-    sol_cache.resize(vars+1);
-    watches.resize(vars*2+2);
-    lit_val.resize(vars*2+2);
-    redu_seen.resize(vars*2+2);
-    in_cc.resize(vars*2+2);
+    vs.resize(vars + 1);
+    seen.resize(vars + 1);
+    lvl_seen.resize(vars + 3);
+    sol_cache.resize(vars + 1);
+    watches.resize(vars * 2 + 2);
+    lit_val.resize(vars * 2 + 2);
+    redu_seen.resize(vars * 2 + 2);
+    in_cc.resize(vars * 2 + 2);
     // setting magic constants
     restart_factor = 100;
 
     clauses.push_back(0);
     orig_clauses_size = 1;
-    for (const vector<Lit>& clause : clauses_) {
+    for (const vector<Lit> &clause: clauses_) {
         AddOrigClause(clause, false);
     }
 
     // variable activity
-    var_fact = powl((long double)2, (long double)(1.0L/(long double)vars));
+    var_fact = powl((long double)2, (long double)(1.0L / (long double)vars));
     assert(var_fact > 1.0);
     heap_N = 1;
     while (heap_N <= (size_t)vars) heap_N *= 2;
-    var_act_heap.resize(heap_N*2);
+    var_act_heap.resize(heap_N * 2);
     for (Var v = 1; v <= vars; v++) {
         var_act_heap[heap_N + v] = var_inc * RandInt(95, 105, rand_gen);
     }
-    for (int i = heap_N-1; i >= 1; i--) {
-        var_act_heap[i] = max(var_act_heap[i*2], var_act_heap[i*2+1]);
+    for (int i = heap_N - 1; i >= 1; i--) {
+        var_act_heap[i] = max(var_act_heap[i * 2], var_act_heap[i * 2 + 1]);
     }
 }
 
-TriState Oracle::Solve(const vector<Lit>& assumps, bool usecache, int64_t max_mems) {
+TriState Oracle::Solve(const vector<Lit> &assumps, bool usecache, int64_t max_mems)
+{
     if (unsat) return false;
-    if (usecache && SatByCache(assumps)) {stats.cache_useful++; return true;}
+    if (usecache && SatByCache(assumps)) {
+        stats.cache_useful++;
+        return true;
+    }
     oclv("SOLVE called ");
     // TODO: solution caching
-    for (const auto& lit : assumps) {
+    for (const auto &lit: assumps) {
         if (LitVal(lit) == -1) {
             prop_q.clear();
             UnDecide(2);
@@ -798,7 +839,10 @@ TriState Oracle::Solve(const vector<Lit>& assumps, bool usecache, int64_t max_me
         }
     }
     size_t confl_clause = Propagate(2);
-    if (confl_clause) { UnDecide(2); return false; }
+    if (confl_clause) {
+        UnDecide(2);
+        return false;
+    }
     oclv("HARD SOLVING");
     TriState sol = HardSolve(max_mems);
     UnDecide(2);
@@ -814,7 +858,9 @@ TriState Oracle::Solve(const vector<Lit>& assumps, bool usecache, int64_t max_me
         }
     }
     if (sol.isTrue()) {
-        if (usecache) { AddSolToCache(); }
+        if (usecache) {
+            AddSolToCache();
+        }
     } else if (sol.isFalse()) {
         // UNSAT
         if (assumps.size() == 1) {
@@ -827,7 +873,8 @@ TriState Oracle::Solve(const vector<Lit>& assumps, bool usecache, int64_t max_me
     return sol;
 }
 
-bool Oracle::FreezeUnit(Lit unit) {
+bool Oracle::FreezeUnit(Lit unit)
+{
     if (unsat) return false;
     assert(CurLevel() == 1);
     if (LitVal(unit) == -1) {
@@ -850,7 +897,8 @@ bool Oracle::FreezeUnit(Lit unit) {
 
 // Checks if the clause is SAT & then does strengthening on the clause
 // before adding it to the CNF
-bool Oracle::AddClauseIfNeededAndStr(vector<Lit> clause, bool entailed) {
+bool Oracle::AddClauseIfNeededAndStr(vector<Lit> clause, bool entailed)
+{
     if (unsat) return false;
     assert(CurLevel() == 1);
     for (int i = 0; i < (int)clause.size(); i++) {
@@ -871,7 +919,7 @@ bool Oracle::AddClauseIfNeededAndStr(vector<Lit> clause, bool entailed) {
     for (int i = 0; i < (int)clause.size(); i++) {
         Lit tp = clause[i];
         assert(LitVal(tp) == 0);
-        for (Lit o : clause) {
+        for (Lit o: clause) {
             if (o != tp) {
                 Decide(Neg(o), 2);
             }
@@ -899,7 +947,8 @@ bool Oracle::AddClauseIfNeededAndStr(vector<Lit> clause, bool entailed) {
     return false;
 }
 
-vector<vector<Lit>> Oracle::GetLearnedClauses() const {
+vector<vector<Lit>> Oracle::GetLearnedClauses() const
+{
     assert(CurLevel() == 1);
     vector<vector<Lit>> ret;
     ret.push_back({});

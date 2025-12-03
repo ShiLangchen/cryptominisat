@@ -29,27 +29,28 @@ THE SOFTWARE.
 #include "watcharray.h"
 #include <array>
 
-namespace CMSat {
+namespace CMSat
+{
 
 class Solver;
 class OccSimplifier;
 using std::set;
 
-inline std::ostream& operator<<(std::ostream& os, const OrGate& gate)
+inline std::ostream &operator<<(std::ostream &os, const OrGate &gate)
 {
     os << " gate " << " lits: ";
-    for(auto const& l: gate.lits) os << l << ",";
+    for (auto const &l: gate.lits) os << l << ",";
     os << " rhs: " << gate.rhs << " ID: " << gate.id;
     return os;
 }
 
 class GateFinder
 {
-public:
+  public:
     GateFinder(OccSimplifier *simplifier, Solver *control);
     void find_all();
     void cleanup();
-    const vector<OrGate>& get_gates() const;
+    const vector<OrGate> &get_gates() const;
 
     //Stats
     struct Stats
@@ -60,12 +61,8 @@ public:
             *this = tmp;
         }
 
-        double total_time() const
-        {
-            return findGateTime + orBasedTime + varReplaceTime
-                + andBasedTime + erTime;
-        }
-        Stats& operator+=(const Stats& other);
+        double total_time() const { return findGateTime + orBasedTime + varReplaceTime + andBasedTime + erTime; }
+        Stats &operator+=(const Stats &other);
         void print(const size_t nVars) const;
 
         //Time
@@ -82,7 +79,7 @@ public:
         uint64_t orGateUseful = 0;
         uint64_t numLongCls = 0;
         uint64_t numLongClsLits = 0;
-        int64_t  litsRem = 0;
+        int64_t litsRem = 0;
 
         //Var-replace
         uint64_t varReplaced = 0;
@@ -99,26 +96,22 @@ public:
         uint64_t num = 0;
     };
 
-    const Stats& get_stats() const;
+    const Stats &get_stats() const;
 
-private:
-    OrGate* find_gate_to_elim_on(Lit lit, uint32_t cutoff);
+  private:
+    OrGate *find_gate_to_elim_on(Lit lit, uint32_t cutoff);
     void print_graphviz_dot();
 
     //Setup
-    void link_in_gate(const OrGate& gate);
-    void add_gate_if_not_already_inside(const Lit rhs, const vector<Lit>& lhs, const int32_t ID);
+    void link_in_gate(const OrGate &gate);
+    void add_gate_if_not_already_inside(const Lit rhs, const vector<Lit> &lhs, const int32_t ID);
     void find_or_gates_in_sweep_mode(Lit lit);
 
     //Finding
     vector<Lit> tmp_lhs;
     void find_or_gates_and_update_stats();
     void find_or_gates();
-    void findOrGate(
-        const Lit rhs
-        , const Lit lit1
-        , const Lit lit2
-    );
+    void findOrGate(const Lit rhs, const Lit lit1, const Lit lit2);
 
     vector<ClOffset> subs; //to reduce overhead of allocation
     size_t findEqOrGates();
@@ -135,9 +128,9 @@ private:
     Stats globalStats;
 
     //Limits
-    int64_t  numMaxGateFinder;
-    int64_t  numMaxShortenWithGates;
-    int64_t  numMaxClRemWithGates;
+    int64_t numMaxGateFinder;
+    int64_t numMaxShortenWithGates;
+    int64_t numMaxClRemWithGates;
 
     //long-term stats
     uint64_t numDotPrinted;
@@ -145,21 +138,21 @@ private:
     //Main data
     OccSimplifier *simplifier;
     Solver *solver;
-    vector<uint32_t>& seen;
-    vector<uint8_t>& seen2;
-    vector<Lit>& toClear;
+    vector<uint32_t> &seen;
+    vector<uint8_t> &seen2;
+    vector<Lit> &toClear;
 };
 
-inline const GateFinder::Stats& GateFinder::get_stats() const
+inline const GateFinder::Stats &GateFinder::get_stats() const
 {
     return globalStats;
 }
 
-inline const vector<OrGate>& GateFinder::get_gates() const
+inline const vector<OrGate> &GateFinder::get_gates() const
 {
     return orGates;
 }
 
-} //end namespace
+} // namespace CMSat
 
 #endif //_GATEFINDER_H_

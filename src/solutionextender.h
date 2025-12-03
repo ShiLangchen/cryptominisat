@@ -27,10 +27,11 @@ THE SOFTWARE.
 #include "clause.h"
 #include "watcharray.h"
 
-namespace CMSat {
+namespace CMSat
+{
 
 #ifdef VERBOSE_DEBUG
-#define VERBOSE_DEBUG_RECONSTRUCT
+    #define VERBOSE_DEBUG_RECONSTRUCT
 #endif
 
 class Solver;
@@ -38,34 +39,31 @@ class OccSimplifier;
 
 class SolutionExtender
 {
-    public:
-        SolutionExtender(Solver* _solver, OccSimplifier* simplifier);
-        void extend();
-        bool add_cl(const vector<Lit>& lits, const uint32_t elimed_on);
-        bool add_xor_cl(const vector<Lit>& lits, const uint32_t elimed_on);
-        void dummy_elimed(const uint32_t elimed_on);
+  public:
+    SolutionExtender(Solver *_solver, OccSimplifier *simplifier);
+    void extend();
+    bool add_cl(const vector<Lit> &lits, const uint32_t elimed_on);
+    bool add_xor_cl(const vector<Lit> &lits, const uint32_t elimed_on);
+    void dummy_elimed(const uint32_t elimed_on);
 
-    private:
-        Solver* solver;
-        OccSimplifier* simplifier;
+  private:
+    Solver *solver;
+    OccSimplifier *simplifier;
 
-        void set_pre_checks(const vector<Lit>& lits, const uint32_t elimed_on);
-        bool satisfied(const vector<Lit>& lits) const;
-        bool xor_satisfied(const vector< Lit >& lits) const;
-        bool contains_var(
-            const vector<Lit>& lits
-            , const uint32_t tocontain
-        ) const;
+    void set_pre_checks(const vector<Lit> &lits, const uint32_t elimed_on);
+    bool satisfied(const vector<Lit> &lits) const;
+    bool xor_satisfied(const vector<Lit> &lits) const;
+    bool contains_var(const vector<Lit> &lits, const uint32_t tocontain) const;
 };
 
-inline bool SolutionExtender::contains_var(const vector<Lit>& lits , const uint32_t tocontain) const {
-    for(const Lit lit: lits) {
-        if (lit.var() == tocontain)
-            return true;
+inline bool SolutionExtender::contains_var(const vector<Lit> &lits, const uint32_t tocontain) const
+{
+    for (const Lit lit: lits) {
+        if (lit.var() == tocontain) return true;
     }
     return false;
 }
 
-} //end namespace
+} // namespace CMSat
 
 #endif //__SOLUTIONEXTENDER_H__

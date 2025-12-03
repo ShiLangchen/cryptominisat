@@ -29,7 +29,8 @@ THE SOFTWARE.
 using namespace CMSat;
 #include "test_helper.h"
 
-struct distill_test : public ::testing::Test {
+struct distill_test : public ::testing::Test
+{
     distill_test()
     {
         must_inter.store(false, std::memory_order_relaxed);
@@ -39,14 +40,11 @@ struct distill_test : public ::testing::Test {
         distill_long_cls = s->distill_long_cls;
         distill_lit_rem = s->distill_lit_rem;
     }
-    ~distill_test()
-    {
-        delete s;
-    }
+    ~distill_test() { delete s; }
 
-    Solver* s;
-    DistillerLong* distill_long_cls;
-    DistillerLitRem* distill_lit_rem;
+    Solver *s;
+    DistillerLong *distill_long_cls;
+    DistillerLitRem *distill_lit_rem;
     std::atomic<bool> must_inter;
 };
 
@@ -83,8 +81,7 @@ TEST_F(distill_test, long_by1_2)
     check_irred_cls_contains(s, "1, 2, 4");
 }
 
-TEST_F(distill_test, long_by1_nodistill
-)
+TEST_F(distill_test, long_by1_nodistill)
 {
     s->new_vars(5);
     s->add_clause_outside(str_to_cl("-1, 3"));
@@ -94,8 +91,7 @@ TEST_F(distill_test, long_by1_nodistill
     check_irred_cls_contains(s, "1, 2, 3, 4");
 }
 
-TEST_F(distill_test, long_by1_nodistill2
-)
+TEST_F(distill_test, long_by1_nodistill2)
 {
     s->new_vars(5);
     s->add_clause_outside(str_to_cl("-1, -2"));
@@ -186,7 +182,8 @@ TEST_F(distill_test, litrem_3)
 }
 
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+int main(int argc, char **argv)
+{
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

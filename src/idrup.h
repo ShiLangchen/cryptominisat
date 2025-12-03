@@ -33,26 +33,26 @@ using std::vector;
 #define DEBUG_IDRUP
 
 #if 0
-#define IDRUP_PRINT((...) \
-    do { \
-        const uint32_t tmp_num = sprintf((char*)buf_ptr, __VA_ARGS__); \
-        buf_ptr+=tmp_num; \
-        buf_len+=tmp_num; \
+    #define IDRUP_PRINT((...) do {                                                                                     \
+        const uint32_t tmp_num = sprintf((char *)buf_ptr, __VA_ARGS__);                                                \
+        buf_ptr += tmp_num;                                                                                            \
+        buf_len += tmp_num;                                                                                            \
     } while (0)
 #else
-#define IDRUP_PRINT(...) do {} while (0)
+    #define IDRUP_PRINT(...)                                                                                           \
+        do {                                                                                                           \
+        } while (0)
 #endif
 
 
-namespace CMSat {
-
-template<bool binidrup = false>
-class IdrupFile: public Frat
+namespace CMSat
 {
-  const int flush_bound = 32768; // original value: 1048576;
-public:
-    IdrupFile(vector<uint32_t>& _interToOuterMain) :
-        interToOuterMain(_interToOuterMain)
+
+template<bool binidrup = false> class IdrupFile : public Frat
+{
+    const int flush_bound = 32768; // original value: 1048576;
+  public:
+    IdrupFile(vector<uint32_t> &_interToOuterMain) : interToOuterMain(_interToOuterMain)
     {
         drup_buf = new unsigned char[2 * 1024 * 1024];
         buf_ptr = drup_buf;
@@ -64,48 +64,32 @@ public:
         del_len = 0;
     }
 
-    ~IdrupFile() override {
+    ~IdrupFile() override
+    {
         flush();
         delete[] drup_buf;
         delete[] del_buf;
     }
 
-    void set_sumconflicts_ptr(uint64_t* _sumConflicts) override
-    {
-        sumConflicts = _sumConflicts;
-    }
+    void set_sumconflicts_ptr(uint64_t *_sumConflicts) override { sumConflicts = _sumConflicts; }
 
-    void set_sqlstats_ptr(SQLStats* _sqlStats) override
-    {
-        sqlStats = _sqlStats;
-    }
+    void set_sqlstats_ptr(SQLStats *_sqlStats) override { sqlStats = _sqlStats; }
 
-    FILE* getFile() override
-    {
-        return drup_file;
-    }
+    FILE *getFile() override { return drup_file; }
 
-    void flush() override
-    {
-      binDRUP_flush();
-    }
+    void flush() override { binDRUP_flush(); }
 
-    void binDRUP_flush() {
+    void binDRUP_flush()
+    {
         fwrite(drup_buf, sizeof(unsigned char), buf_len, drup_file);
-        fflush (drup_file);
+        fflush(drup_file);
         buf_ptr = drup_buf;
         buf_len = 0;
     }
 
-    void setFile(FILE* _file) override
-    {
-        drup_file = _file;
-    }
+    void setFile(FILE *_file) override { drup_file = _file; }
 
-    bool something_delayed() override
-    {
-        return delete_filled;
-    }
+    bool something_delayed() override { return delete_filled; }
 
     void forget_delay() override
     {
@@ -115,23 +99,17 @@ public:
         delete_filled = false;
     }
 
-    bool enabled() override
-    {
-        return true;
-    }
+    bool enabled() override { return true; }
 
-    bool incremental() override
-    {
-        return true;
-    }
+    bool incremental() override { return true; }
     int del_len = 0;
-    unsigned char* del_buf;
-    unsigned char* del_ptr;
+    unsigned char *del_buf;
+    unsigned char *del_ptr;
 
     bool delete_filled = false;
     bool must_delete_next = false;
 
-    Frat& operator<<(const int32_t) override
+    Frat &operator<<(const int32_t) override
     {
 #if 0 // clauseID
         if (must_delete_next) {
@@ -143,28 +121,29 @@ public:
         return *this;
     }
 
-    Frat& operator<<(const Clause& cl) override
+    Frat &operator<<(const Clause &cl) override
     {
         if (skipnextclause) return *this;
         if (must_delete_next) {
             byteDRUPdID(cl.stats.id);
-            for(const Lit l: cl) byteDRUPd(l);
+            for (const Lit l: cl) byteDRUPd(l);
         } else {
             byteDRUPaID(cl.stats.id);
-            for(const Lit l: cl) byteDRUPa(l);
+            for (const Lit l: cl) byteDRUPa(l);
         }
 
         return *this;
     }
 
-    Frat& operator<<(const vector<Lit>& cl) override {
-      if (skipnextclause) return *this;
-      if (must_delete_next) {
-            for(const Lit l: cl) {
+    Frat &operator<<(const vector<Lit> &cl) override
+    {
+        if (skipnextclause) return *this;
+        if (must_delete_next) {
+            for (const Lit l: cl) {
                 byteDRUPd(l);
             }
         } else {
-            for(const Lit l: cl) {
+            for (const Lit l: cl) {
                 byteDRUPa(l);
             }
         }
@@ -172,42 +151,41 @@ public:
         return *this;
     }
 
-    Frat& operator<<(const FratOutcome o) override
+    Frat &operator<<(const FratOutcome o) override
     {
         uint32_t num;
-	switch(o) {
-	    case unsatisfiable:
-	      this->flush();
-	      num = sprintf((char*)buf_ptr, "s UNSATISFIABLE\n");
-	      buf_ptr+=num;
-	      buf_len+=num;
-	      this->flush();
-	      break;
-	    case satisfiable:
-	      this->flush();
-	      num = sprintf((char*)buf_ptr, "s SATISFIABLE\n");
-	      buf_ptr+=num;
-	      buf_len+=num;
-	      this->flush();
-	      break;
-	    case unknown:
-	      this->flush();
-	      num = sprintf((char*)buf_ptr, "s UNKNOWN\n");
-	      buf_ptr+=num;
-	      buf_len+=num;
-	      this->flush();
-	      break;
-	}
+        switch (o) {
+            case unsatisfiable:
+                this->flush();
+                num = sprintf((char *)buf_ptr, "s UNSATISFIABLE\n");
+                buf_ptr += num;
+                buf_len += num;
+                this->flush();
+                break;
+            case satisfiable:
+                this->flush();
+                num = sprintf((char *)buf_ptr, "s SATISFIABLE\n");
+                buf_ptr += num;
+                buf_len += num;
+                this->flush();
+                break;
+            case unknown:
+                this->flush();
+                num = sprintf((char *)buf_ptr, "s UNKNOWN\n");
+                buf_ptr += num;
+                buf_len += num;
+                this->flush();
+                break;
+        }
         return *this;
     }
 
-    Frat& operator<<(const FratFlag flag) override
+    Frat &operator<<(const FratFlag flag) override
     {
         const bool old = skipnextclause;
         skipnextclause = false;
 
-        switch (flag)
-        {
+        switch (flag) {
             case FratFlag::fin:
                 if (old) break;
                 if (must_delete_next) {
@@ -217,7 +195,7 @@ public:
                     } else {
                         *del_ptr++ = '0';
                         *del_ptr++ = '\n';
-                        del_len+=2;
+                        del_len += 2;
                     }
                     delete_filled = true;
                 } else {
@@ -227,7 +205,7 @@ public:
                     } else {
                         *buf_ptr++ = '0';
                         *buf_ptr++ = '\n';
-                        buf_len+=2;
+                        buf_len += 2;
                     }
                     if (buf_len > flush_bound) {
                         binDRUP_flush();
@@ -237,8 +215,7 @@ public:
                 }
                 cl_id = 0;
                 must_delete_next = false;
-  	            if (flushing)
-		                this->flush(), --flushing;
+                if (flushing) this->flush(), --flushing;
                 break;
 
             case FratFlag::deldelay:
@@ -247,7 +224,7 @@ public:
                 forget_delay();
                 *del_ptr++ = 'd';
                 del_len++;
-                if (!binidrup)  {
+                if (!binidrup) {
                     *del_ptr++ = ' ';
                     del_len++;
                 }
@@ -292,7 +269,7 @@ public:
                 break;
 
             case FratFlag::reloc:
-  	        skipnextclause = true;
+                skipnextclause = true;
                 // adding = false;
                 // forget_delay();
                 // *buf_ptr++ = 'r';
@@ -301,11 +278,11 @@ public:
                 //     *buf_ptr++ = ' ';
                 //     buf_len++;
                 // }
-	      break;
+                break;
 
             case FratFlag::finalcl:
-	      assert (false);
-              break;
+                assert(false);
+                break;
 
             case FratFlag::origcl:
                 adding = false;
@@ -374,25 +351,25 @@ public:
                     buf_len++;
                 }
 
-              break;
-	    case FratFlag::deldelayx:
-	    case FratFlag::delx:
-	    case FratFlag::finalx:
-	    case FratFlag::implyclfromx:
-	    case FratFlag::implyxfromcls:
-	    case FratFlag::origclx:
-  	      skipnextclause = true;
-    	      break;
+                break;
+            case FratFlag::deldelayx:
+            case FratFlag::delx:
+            case FratFlag::finalx:
+            case FratFlag::implyclfromx:
+            case FratFlag::implyxfromcls:
+            case FratFlag::origclx:
+                skipnextclause = true;
+                break;
             default:
-	      __builtin_unreachable();
-              break;
+                __builtin_unreachable();
+                break;
         }
 
         return *this;
     }
 
-private:
-    Frat& operator<<(const Lit lit) override
+  private:
+    Frat &operator<<(const Lit lit) override
     {
         if (skipnextclause) return *this;
         if (must_delete_next) {
@@ -402,7 +379,7 @@ private:
         }
 
         return *this;
-   }
+    }
 
     void byteDRUPa(const Lit l)
     {
@@ -418,26 +395,24 @@ private:
             // End marker of this unsigned number
             *(buf_ptr - 1) &= 0x7f;
         } else {
-            uint32_t num = sprintf(
-                (char*)buf_ptr, "%s%d ", (l.sign() ? "-": ""), l.var()+1);
-            buf_ptr+=num;
-            buf_len+=num;
+            uint32_t num = sprintf((char *)buf_ptr, "%s%d ", (l.sign() ? "-" : ""), l.var() + 1);
+            buf_ptr += num;
+            buf_len += num;
         }
     }
 
-    virtual Frat& operator<<([[maybe_unused]] const char* str) override
+    virtual Frat &operator<<([[maybe_unused]] const char *str) override
     {
 #ifdef DEBUG_IDRUP
         this->flush();
-        uint32_t num = sprintf((char*)buf_ptr, "c %s", str);
-        buf_ptr+=num;
-        buf_len+=num;
+        uint32_t num = sprintf((char *)buf_ptr, "c %s", str);
+        buf_ptr += num;
+        buf_len += num;
         this->flush();
 #endif
 
         return *this;
     }
-
 
 
     void byteDRUPaID(const int32_t)
@@ -488,21 +463,20 @@ private:
             // End marker of this unsigned number
             *(del_ptr - 1) &= 0x7f;
         } else {
-            uint32_t num = sprintf(
-                (char*)del_ptr, "%s%d ", (l.sign() ? "-": ""), l.var()+1);
-            del_ptr+=num;
-            del_len+=num;
+            uint32_t num = sprintf((char *)del_ptr, "%s%d ", (l.sign() ? "-" : ""), l.var() + 1);
+            del_ptr += num;
+            del_len += num;
         }
     }
 
     bool adding = false;
     int flushing = 0;
     int32_t cl_id = 0;
-    FILE* drup_file = nullptr;
-    vector<uint32_t>& interToOuterMain;
-    uint64_t* sumConflicts = nullptr;
-    SQLStats* sqlStats = NULL;
+    FILE *drup_file = nullptr;
+    vector<uint32_t> &interToOuterMain;
+    uint64_t *sumConflicts = nullptr;
+    SQLStats *sqlStats = NULL;
     bool skipnextclause = false;
 };
 
-}
+} // namespace CMSat

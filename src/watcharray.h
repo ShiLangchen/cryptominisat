@@ -29,7 +29,8 @@ THE SOFTWARE.
 #include <cstdint>
 #include <vector>
 
-namespace CMSat {
+namespace CMSat
+{
 using std::vector;
 
 using watch_subarray = vec<Watched> &;
@@ -37,35 +38,31 @@ using watch_subarray_const = const vec<Watched> &;
 
 class watch_array
 {
-public:
-    vec<vec<Watched> > watches;
+  public:
+    vec<vec<Watched>> watches;
     vector<Lit> smudged_list;
     vector<char> smudged;
 
-    void smudge(const Lit lit) {
+    void smudge(const Lit lit)
+    {
         if (!smudged[lit.toInt()]) {
             smudged_list.push_back(lit);
             smudged[lit.toInt()] = true;
         }
     }
 
-    const vector<Lit>& get_smudged_list() const {
-        return smudged_list;
-    }
+    const vector<Lit> &get_smudged_list() const { return smudged_list; }
 
     void clear_smudged()
     {
-        for(const Lit lit: smudged_list) {
+        for (const Lit lit: smudged_list) {
             assert(smudged[lit.toInt()]);
             smudged[lit.toInt()] = false;
         }
         smudged_list.clear();
     }
 
-    watch_subarray operator[](Lit pos)
-    {
-        return watches[pos.toInt()];
-    }
+    watch_subarray operator[](Lit pos) { return watches[pos.toInt()]; }
 
     watch_subarray at(size_t pos)
     {
@@ -74,10 +71,7 @@ public:
     }
     watch_subarray operator[](size_t pos) { return at(pos); }
 
-    watch_subarray_const operator[](Lit at) const
-    {
-        return watches[at.toInt()];
-    }
+    watch_subarray_const operator[](Lit at) const { return watches[at.toInt()]; }
 
     watch_subarray_const at(size_t pos) const
     {
@@ -91,7 +85,7 @@ public:
         if (watches.size() < new_size) {
             watches.growTo(new_size);
         } else {
-            watches.shrink(watches.size()-new_size);
+            watches.shrink(watches.size() - new_size);
         }
         smudged.resize(new_size, false);
     }
@@ -104,47 +98,29 @@ public:
 
     size_t mem_used() const
     {
-        double mem = watches.capacity()*sizeof(vec<Watched>);
-        for(size_t i = 0; i < watches.size(); i++) {
+        double mem = watches.capacity() * sizeof(vec<Watched>);
+        for (size_t i = 0; i < watches.size(); i++) {
             //1.2 is overhead
-            mem += (double)watches[i].capacity()*(double)sizeof(Watched)*1.2;
+            mem += (double)watches[i].capacity() * (double)sizeof(Watched) * 1.2;
         }
-        mem += smudged.capacity()*sizeof(char);
-        mem += smudged_list.capacity()*sizeof(Lit);
+        mem += smudged.capacity() * sizeof(char);
+        mem += smudged_list.capacity() * sizeof(Lit);
         return mem;
     }
 
-    size_t size() const
-    {
-        return watches.size();
-    }
+    size_t size() const { return watches.size(); }
 
-    void prefetch(const size_t at) const
-    {
-        cmsat_prefetch(watches[at].data);
-    }
-    typedef vec<Watched>* iterator;
-    typedef const vec<Watched>* const_iterator;
+    void prefetch(const size_t at) const { cmsat_prefetch(watches[at].data); }
+    typedef vec<Watched> *iterator;
+    typedef const vec<Watched> *const_iterator;
 
-    iterator begin()
-    {
-        return watches.begin();
-    }
+    iterator begin() { return watches.begin(); }
 
-    iterator end()
-    {
-        return watches.end();
-    }
+    iterator end() { return watches.end(); }
 
-    const_iterator begin() const
-    {
-        return watches.begin();
-    }
+    const_iterator begin() const { return watches.begin(); }
 
-    const_iterator end() const
-    {
-        return watches.end();
-    }
+    const_iterator end() const { return watches.end(); }
 
     void consolidate()
     {
@@ -156,21 +132,19 @@ public:
 
     void full_consolidate()
     {
-        for(auto& ws: watches) {
+        for (auto &ws: watches) {
             ws.shrink_to_fit();
         }
         watches.shrink_to_fit();
     }
 
-    void print_stat()
-    {
-    }
+    void print_stat() {}
 
     size_t mem_used_alloc() const
     {
         size_t mem = 0;
-        for(auto& ws: watches) {
-            mem += ws.capacity()*sizeof(Watched);
+        for (auto &ws: watches) {
+            mem += ws.capacity() * sizeof(Watched);
         }
 
         return mem;
@@ -179,7 +153,7 @@ public:
     size_t mem_used_array() const
     {
         size_t mem = 0;
-        mem += watches.capacity()*sizeof(vector<Watched>);
+        mem += watches.capacity() * sizeof(vector<Watched>);
         mem += sizeof(watch_array);
         return mem;
     }
@@ -191,6 +165,6 @@ inline void swap(watch_subarray a, watch_subarray b)
 }
 
 
-} //End of namespace
+} // namespace CMSat
 
 #endif //__WATCHARRAY_H__

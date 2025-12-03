@@ -24,5 +24,4 @@ THE SOFTWARE.
 
 using namespace CMSat;
 
-SQLStats::~SQLStats()
-{}
+SQLStats::~SQLStats() {}

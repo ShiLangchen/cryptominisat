@@ -27,13 +27,13 @@ extern "C" {
 
 TEST(ipasir_interface, start)
 {
-    void* s = ipasir_init();
+    void *s = ipasir_init();
     ipasir_release(s);
 }
 
 TEST(ipasir_interface, sat)
 {
-    void* s = ipasir_init();
+    void *s = ipasir_init();
     ipasir_add(s, 1);
     ipasir_add(s, 0);
 
@@ -48,7 +48,7 @@ TEST(ipasir_interface, sat)
 
 TEST(ipasir_interface, sat2)
 {
-    void* s = ipasir_init();
+    void *s = ipasir_init();
     ipasir_add(s, -1);
     ipasir_add(s, 2);
     ipasir_add(s, 0);
@@ -69,7 +69,7 @@ TEST(ipasir_interface, sat2)
 
 TEST(ipasir_interface, sat4)
 {
-    void* s = ipasir_init();
+    void *s = ipasir_init();
     ipasir_add(s, -2);
     ipasir_add(s, -3);
     ipasir_add(s, 0);
@@ -99,7 +99,7 @@ TEST(ipasir_interface, sat4)
 
 TEST(ipasir_interface, unsat)
 {
-    void* s = ipasir_init();
+    void *s = ipasir_init();
     ipasir_add(s, 1);
     ipasir_add(s, 0);
     ipasir_add(s, -1);
@@ -113,7 +113,7 @@ TEST(ipasir_interface, unsat)
 
 TEST(ipasir_interface, unsat2)
 {
-    void* s = ipasir_init();
+    void *s = ipasir_init();
     ipasir_add(s, 1);
     ipasir_add(s, 2);
     ipasir_add(s, 0);
@@ -138,7 +138,7 @@ TEST(ipasir_interface, unsat2)
 
 TEST(ipasir_interface, unsat_empty)
 {
-    void* s = ipasir_init();
+    void *s = ipasir_init();
     ipasir_add(s, 0);
 
     int ret = ipasir_solve(s);
@@ -150,7 +150,7 @@ TEST(ipasir_interface, unsat_empty)
 
 TEST(ipasir_interface, assump)
 {
-    void* s = ipasir_init();
+    void *s = ipasir_init();
     ipasir_add(s, 1);
     ipasir_add(s, 0);
 
@@ -167,7 +167,7 @@ TEST(ipasir_interface, assump)
 
 TEST(ipasir_interface, assump_multi)
 {
-    void* s = ipasir_init();
+    void *s = ipasir_init();
     ipasir_add(s, 1);
     ipasir_add(s, 0);
 
@@ -196,7 +196,7 @@ TEST(ipasir_interface, assump_multi)
 
 TEST(ipasir_interface, assump_multi2)
 {
-    void* s = ipasir_init();
+    void *s = ipasir_init();
     ipasir_add(s, 1);
     ipasir_add(s, 2);
     ipasir_add(s, 0);
@@ -223,7 +223,7 @@ TEST(ipasir_interface, assump_multi2)
 
 TEST(ipasir_interface, assump_multi3)
 {
-    void* s = ipasir_init();
+    void *s = ipasir_init();
     ipasir_add(s, 1);
     ipasir_add(s, 3);
     ipasir_add(s, 0);
@@ -279,25 +279,25 @@ TEST(ipasir_interface, assump_multi3)
 
 TEST(ipasir_interface, assump_yevgeny)
 {
-    void* s = ipasir_init();
+    void *s = ipasir_init();
 
     ipasir_add(s, -1);
-	ipasir_add(s, 0);
+    ipasir_add(s, 0);
 
-	int ret = ipasir_solve(s);
-	EXPECT_EQ(ret, 10);
+    int ret = ipasir_solve(s);
+    EXPECT_EQ(ret, 10);
 
-	ipasir_assume(s, 1);
-	ret = ipasir_solve(s);
-	EXPECT_EQ(ret, 20);
+    ipasir_assume(s, 1);
+    ret = ipasir_solve(s);
+    EXPECT_EQ(ret, 20);
 
-	int failed = ipasir_failed(s, 1);
+    int failed = ipasir_failed(s, 1);
     EXPECT_EQ(failed, 1);
 }
 
 TEST(ipasir_interface, assump2)
 {
-    void* s = ipasir_init();
+    void *s = ipasir_init();
     ipasir_add(s, 1);
     ipasir_add(s, 2);
     ipasir_add(s, 3);
@@ -327,7 +327,7 @@ TEST(ipasir_interface, assump2)
 
 TEST(ipasir_interface, assump3)
 {
-    void* s = ipasir_init();
+    void *s = ipasir_init();
     ipasir_add(s, 1);
     ipasir_add(s, 2);
     ipasir_add(s, -3);
@@ -352,7 +352,7 @@ TEST(ipasir_interface, assump3)
 
 TEST(ipasir_interface, assump_clears)
 {
-    void* s = ipasir_init();
+    void *s = ipasir_init();
     ipasir_add(s, 1);
     ipasir_add(s, 0);
 
@@ -369,7 +369,7 @@ TEST(ipasir_interface, assump_clears)
 
 TEST(ipasir_interface, ipasir_assump_beyond_problemvars)
 {
-    void* s = ipasir_init();
+    void *s = ipasir_init();
     ipasir_add(s, -7);
     ipasir_add(s, 0);
     ipasir_assume(s, 10);
@@ -381,7 +381,7 @@ TEST(ipasir_interface, ipasir_assump_beyond_problemvars)
 
 TEST(ipasir_interface, ipasir_val)
 {
-    void* s = ipasir_init();
+    void *s = ipasir_init();
     ipasir_add(s, -7);
     ipasir_add(s, 0);
     ipasir_add(s, 8);
@@ -396,7 +396,8 @@ TEST(ipasir_interface, ipasir_val)
 }
 
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+int main(int argc, char **argv)
+{
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

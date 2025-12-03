@@ -31,74 +31,70 @@ THE SOFTWARE.
 #include "watcharray.h"
 #include "propby.h"
 
-namespace CMSat {
+namespace CMSat
+{
 
 using std::vector;
 
 class Solver;
 class Clause;
 
-class DistillerBin {
-    public:
-        explicit DistillerBin(Solver* solver);
-        bool distill();
+class DistillerBin
+{
+  public:
+    explicit DistillerBin(Solver *solver);
+    bool distill();
 
-        struct Stats
+    struct Stats
+    {
+        void clear()
         {
-            void clear()
-            {
-                Stats _tmp;
-                *this = _tmp;
-            }
+            Stats _tmp;
+            *this = _tmp;
+        }
 
-            Stats& operator+=(const Stats& other);
-            void print_short(const Solver* solver) const;
-            void print(const size_t nVars) const;
+        Stats &operator+=(const Stats &other);
+        void print_short(const Solver *solver) const;
+        void print(const size_t nVars) const;
 
-            double time_used = 0.0;
-            uint64_t timeOut = 0;
-            uint64_t zeroDepthAssigns = 0;
-            uint64_t numClShorten = 0;
-            uint64_t numLitsRem = 0;
-            uint64_t checkedClauses = 0;
-            uint64_t potentialClauses = 0;
-            uint64_t numCalled = 0;
-            uint64_t clRemoved = 0;
-        };
+        double time_used = 0.0;
+        uint64_t timeOut = 0;
+        uint64_t zeroDepthAssigns = 0;
+        uint64_t numClShorten = 0;
+        uint64_t numLitsRem = 0;
+        uint64_t checkedClauses = 0;
+        uint64_t potentialClauses = 0;
+        uint64_t numCalled = 0;
+        uint64_t clRemoved = 0;
+    };
 
-        const Stats& get_stats() const;
-        double mem_used() const;
+    const Stats &get_stats() const;
+    double mem_used() const;
 
-    private:
+  private:
+    bool try_distill_bin(Lit lit1, Lit lit2, const Watched &w);
+    bool distill_bin_cls_all(double time_mult);
+    bool go_through_bins(const Lit lit);
+    Solver *solver;
+    vec<Watched> tmp;
 
-        bool try_distill_bin(
-            Lit lit1,
-            Lit lit2,
-            const Watched& w
-        );
-        bool distill_bin_cls_all(double time_mult);
-        bool go_through_bins(const Lit lit);
-        Solver* solver;
-        vec<Watched> tmp;
+    //For distill
+    vector<Lit> lits;
+    uint64_t oldBogoProps;
+    int64_t maxNumProps;
+    int64_t orig_maxNumProps;
 
-        //For distill
-        vector<Lit> lits;
-        uint64_t oldBogoProps;
-        int64_t maxNumProps;
-        int64_t orig_maxNumProps;
-
-        //Global status
-        Stats runStats;
-        Stats globalStats;
-        size_t numCalls = 0;
-
+    //Global status
+    Stats runStats;
+    Stats globalStats;
+    size_t numCalls = 0;
 };
 
-inline const DistillerBin::Stats& DistillerBin::get_stats() const
+inline const DistillerBin::Stats &DistillerBin::get_stats() const
 {
     return globalStats;
 }
 
-} //end namespace
+} // namespace CMSat
 
 #endif //__DISTILLERALL_WITH_ALL_H__

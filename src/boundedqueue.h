@@ -34,37 +34,33 @@ THE SOFTWARE.
 #include <sstream>
 #include <iomanip>
 
-namespace CMSat {
+namespace CMSat
+{
 using std::vector;
 
-template <class T, class T2 = uint64_t>
-class bqueue {
+template<class T, class T2 = uint64_t> class bqueue
+{
     //Only stores info for N elements
-    vector<T>  elems;
+    vector<T> elems;
     uint32_t first;
     uint32_t last;
     uint32_t maxsize; //max number of history elements
     uint32_t queuesize; // Number of current elements (must be < maxsize !)
-    T2  sumofqueue;
-    #if defined(STATS_NEEDED) || defined(FINAL_PREDICTOR)
+    T2 sumofqueue;
+#if defined(STATS_NEEDED) || defined(FINAL_PREDICTOR)
     AvgCalc<T, T2> longTermAvg;
-    #endif
+#endif
 
-public:
-    bqueue(void) :
-        first(0)
-        , last(0)
-        , maxsize(0)
-        , queuesize(0)
-        , sumofqueue(0)
-    {}
+  public:
+    bqueue(void) : first(0), last(0), maxsize(0), queuesize(0), sumofqueue(0) {}
 
     size_t usedMem() const
     {
-        return sizeof(size_t)*4 + elems.capacity()*sizeof(T) + sizeof(T2) + sizeof(AvgCalc<T,T2>);
+        return sizeof(size_t) * 4 + elems.capacity() * sizeof(T) + sizeof(T2) + sizeof(AvgCalc<T, T2>);
     }
 
-    void push(const T x) {
+    void push(const T x)
+    {
         if (queuesize == maxsize) {
             // The queue is full, next value to enter will replace oldest one
 
@@ -72,8 +68,7 @@ public:
             sumofqueue -= elems[last];
 
             last++;
-            if (last == maxsize)
-                last = 0;
+            if (last == maxsize) last = 0;
 
         } else {
             queuesize++;
@@ -81,74 +76,62 @@ public:
 
         sumofqueue += x;
 
-        #if defined(STATS_NEEDED) || defined(FINAL_PREDICTOR)
+#if defined(STATS_NEEDED) || defined(FINAL_PREDICTOR)
         longTermAvg.push(x);
-        #endif
+#endif
         elems[first] = x;
 
         first++;
-        if (first == maxsize)
-            first = 0;
+        if (first == maxsize) first = 0;
     }
 
-    size_t num_data_elements() const
-    {
-        return queuesize;
-    }
+    size_t num_data_elements() const { return queuesize; }
 
     double avg() const
     {
-        if (queuesize == 0)
-            return 0;
+        if (queuesize == 0) return 0;
 
         assert(isvalid());
-        return (double)sumofqueue/(double)queuesize;
+        return (double)sumofqueue / (double)queuesize;
     }
 
     double avg_nocheck() const
     {
-        if (queuesize == 0)
-            return 0;
+        if (queuesize == 0) return 0;
 
-        return (double)sumofqueue/(double)queuesize;
+        return (double)sumofqueue / (double)queuesize;
     }
 
-    #if defined(STATS_NEEDED) || defined(FINAL_PREDICTOR)
-    const AvgCalc<T,T2>& getLongtTerm() const
-    {
-        return longTermAvg;
-    }
+#if defined(STATS_NEEDED) || defined(FINAL_PREDICTOR)
+    const AvgCalc<T, T2> &getLongtTerm() const { return longTermAvg; }
 
     T prev(int32_t p) const
     {
-        if (p > (int32_t)queuesize)
-            return 0;
+        if (p > (int32_t)queuesize) return 0;
 
         uint32_t e;
         if (first > 0) {
-            e = first-1;
+            e = first - 1;
         } else {
-            e = maxsize-1;
+            e = maxsize - 1;
         }
 
-        while(p-- > 0) {
+        while (p-- > 0) {
             if (e == 0) {
-                e = maxsize-1;
+                e = maxsize - 1;
             } else {
                 e--;
             }
         }
         return elems[e];
     }
-    #endif
+#endif
 
     std::string getAvgPrint(size_t prec, size_t w) const
     {
         std::stringstream ss;
         if (isvalid()) {
-            ss
-            << std::fixed << std::setprecision(prec) << std::setw(w) << std::right
-            << avg();
+            ss << std::fixed << std::setprecision(prec) << std::setw(w) << std::right << avg();
         } else {
             ss << std::setw(5) << "?";
         }
@@ -156,10 +139,7 @@ public:
         return ss.str();
     }
 
-    bool isvalid() const
-    {
-        return (queuesize == maxsize);
-    }
+    bool isvalid() const { return (queuesize == maxsize); }
 
     void clearAndResize(const size_t size)
     {
@@ -175,22 +155,16 @@ public:
         queuesize = 0;
         sumofqueue = 0;
 
-        #if defined(STATS_NEEDED) || defined(FINAL_PREDICTOR)
+#if defined(STATS_NEEDED) || defined(FINAL_PREDICTOR)
         longTermAvg.clear();
-        #endif
+#endif
     }
 
-    size_t get_size() const
-    {
-        return queuesize;
-    }
+    size_t get_size() const { return queuesize; }
 
-    size_t get_maxsize() const
-    {
-        return maxsize;
-    }
+    size_t get_maxsize() const { return maxsize; }
 };
 
-} //end namespace
+} // namespace CMSat
 
 #endif //BOUNDEDQUEUE_H

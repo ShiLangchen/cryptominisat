@@ -65,12 +65,8 @@ int main()
     assert(solver.get_model()[0] == l_True);
     assert(solver.get_model()[1] == l_False);
     assert(solver.get_model()[2] == l_True);
-    std::cout
-    << "Solution is: "
-    << solver.get_model()[0]
-    << ", " << solver.get_model()[1]
-    << ", " << solver.get_model()[2]
-    << std::endl;
+    std::cout << "Solution is: " << solver.get_model()[0] << ", " << solver.get_model()[1] << ", "
+              << solver.get_model()[2] << std::endl;
 
     return 0;
 }

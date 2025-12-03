@@ -34,18 +34,10 @@ using std::cout;
 using std::endl;
 using namespace CMSat;
 
-SubsumeImplicit::SubsumeImplicit(Solver* _solver) :
-    solver(_solver)
-{
-}
+SubsumeImplicit::SubsumeImplicit(Solver *_solver) : solver(_solver) {}
 
-void SubsumeImplicit::try_subsume_bin(
-    const Lit lit
-    , Watched* i
-    , Watched*& j
-    , int64_t *timeAvail
-    , TouchList* touched
-) {
+void SubsumeImplicit::try_subsume_bin(const Lit lit, Watched *i, Watched *&j, int64_t *timeAvail, TouchList *touched)
+{
     //Subsume bin with bin
     if (i->lit2() == lastLit2) {
         //The sorting algorithm prefers irred to red, so it is
@@ -76,31 +68,30 @@ void SubsumeImplicit::try_subsume_bin(
     }
 }
 
-uint32_t SubsumeImplicit::subsume_at_watch(
-        const uint32_t at, int64_t* timeAvail, TouchList* touched)
+uint32_t SubsumeImplicit::subsume_at_watch(const uint32_t at, int64_t *timeAvail, TouchList *touched)
 {
     runStats.numWatchesLooked++;
     const Lit lit = Lit::toLit(at);
     watch_subarray ws = solver->watches[lit];
 
     if (ws.size() > 1) {
-        *timeAvail -= (int64_t)(ws.size()*std::ceil(std::log((double)ws.size())) + 20);
+        *timeAvail -= (int64_t)(ws.size() * std::ceil(std::log((double)ws.size())) + 20);
         std::sort(ws.begin(), ws.end(), WatchSorterBinTriLong());
     }
     /*cout << "---> Before" << endl;
     print_watch_list(ws, lit);*/
 
-    Watched* i = ws.begin();
-    Watched* j = i;
+    Watched *i = ws.begin();
+    Watched *j = i;
     clear();
 
-    for (Watched* end = ws.end(); i != end; i++) {
+    for (Watched *end = ws.end(); i != end; i++) {
         if (*timeAvail < 0) {
             *j++ = *i;
             continue;
         }
 
-        switch(i->getType()) {
+        switch (i->getType()) {
             case WatchType::watch_clause_t:
             case WatchType::watch_bnn_t:
                 *j++ = *i;
@@ -113,8 +104,8 @@ uint32_t SubsumeImplicit::subsume_at_watch(
                 break;
         }
     }
-    ws.shrink(i-j);
-    return i-j;
+    ws.shrink(i - j);
+    return i - j;
 }
 
 void SubsumeImplicit::subsume_implicit(const bool check_stats, std::string caller)
@@ -122,8 +113,7 @@ void SubsumeImplicit::subsume_implicit(const bool check_stats, std::string calle
     assert(solver->okay());
     const double my_time = cpuTime();
     const uint64_t orig_timeAvailable =
-        1000LL*1000LL*solver->conf.subsume_implicit_time_limitM
-        *solver->conf.global_timeout_multiplier;
+            1000LL * 1000LL * solver->conf.subsume_implicit_time_limitM * solver->conf.global_timeout_multiplier;
     timeAvailable = orig_timeAvailable;
     runStats.clear();
     frat_func_start();
@@ -132,12 +122,10 @@ void SubsumeImplicit::subsume_implicit(const bool check_stats, std::string calle
     if (solver->watches.size() == 0) return;
 
     //Randomize starting point
-    const size_t rnd_start = rnd_uint(solver->mtrand, solver->watches.size()-1);
+    const size_t rnd_start = rnd_uint(solver->mtrand, solver->watches.size() - 1);
     size_t num_done = 0;
-    for (;num_done < solver->watches.size() && timeAvailable > 0 && !solver->must_interrupt_asap()
-         ;num_done++
-    ) {
-        const size_t at = (rnd_start + num_done)  % solver->watches.size();
+    for (; num_done < solver->watches.size() && timeAvailable > 0 && !solver->must_interrupt_asap(); num_done++) {
+        const size_t at = (rnd_start + num_done) % solver->watches.size();
         subsume_at_watch(at, &timeAvailable);
     }
 
@@ -151,28 +139,26 @@ void SubsumeImplicit::subsume_implicit(const bool check_stats, std::string calle
         runStats.print_short(solver, caller.c_str());
     }
     if (solver->sqlStats) {
-        solver->sqlStats->time_passed(
-            solver
-            , std::string("subsume implicit")+caller
-            , time_used
-            , time_out
-            , time_remain
-        );
+        solver->sqlStats->time_passed(solver,
+                                      std::string("subsume implicit") + caller,
+                                      time_used,
+                                      time_out,
+                                      time_remain);
     }
     frat_func_end();
 
     if (check_stats) {
-        #ifdef DEBUG_IMPLICIT_STATS
+#ifdef DEBUG_IMPLICIT_STATS
         solver->check_stats();
-        #endif
+#endif
     }
 
     globalStats += runStats;
 }
 
-SubsumeImplicit::Stats SubsumeImplicit::Stats::operator+=(const SubsumeImplicit::Stats& other)
+SubsumeImplicit::Stats SubsumeImplicit::Stats::operator+=(const SubsumeImplicit::Stats &other)
 {
-    numCalled+= other.numCalled;
+    numCalled += other.numCalled;
     time_out += other.time_out;
     time_used += other.time_used;
     remBins += other.remBins;
@@ -181,32 +167,22 @@ SubsumeImplicit::Stats SubsumeImplicit::Stats::operator+=(const SubsumeImplicit:
     return *this;
 }
 
-void SubsumeImplicit::Stats::print_short(const Solver* solver, const char* caller) const
+void SubsumeImplicit::Stats::print_short(const Solver *solver, const char *caller) const
 {
-    verb_print(1, "[impl-sub" << caller << "]"
-    << " bin: " << remBins
-    << solver->conf.print_times(time_used, time_out)
-    << " w-visit: " << numWatchesLooked);
+    verb_print(1,
+               "[impl-sub" << caller << "]"
+                           << " bin: " << remBins << solver->conf.print_times(time_used, time_out)
+                           << " w-visit: " << numWatchesLooked);
 }
 
-void SubsumeImplicit::Stats::print(const char* caller) const
+void SubsumeImplicit::Stats::print(const char *caller) const
 {
     cout << "c -------- IMPLICIT SUB " << caller << " STATS --------" << endl;
-    print_stats_line("c time"
-        , time_used
-        , float_div(time_used, numCalled)
-        , "per call"
-    );
+    print_stats_line("c time", time_used, float_div(time_used, numCalled), "per call");
 
-    print_stats_line("c timed out"
-        , time_out
-        , stats_line_percent(time_out, numCalled)
-        , "% of calls"
-    );
+    print_stats_line("c timed out", time_out, stats_line_percent(time_out, numCalled), "% of calls");
 
-    print_stats_line("c rem bins"
-        , remBins
-    );
+    print_stats_line("c rem bins", remBins);
     cout << "c -------- IMPLICIT SUB STATS END --------" << endl;
 }
 
@@ -218,7 +194,7 @@ SubsumeImplicit::Stats SubsumeImplicit::get_stats() const
 double SubsumeImplicit::mem_used() const
 {
     double mem = sizeof(SubsumeImplicit);
-    mem += tmplits.size()*sizeof(Lit);
+    mem += tmplits.size() * sizeof(Lit);
 
     return mem;
 }

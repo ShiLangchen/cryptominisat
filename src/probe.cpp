@@ -37,22 +37,19 @@ bool Solver::full_probe(const bool bin_only)
     double my_time = cpuTime();
     int64_t start_bogoprops = solver->propStats.bogoProps;
     int64_t bogoprops_to_use =
-        solver->conf.full_probe_time_limitM*1000ULL*1000ULL
-        *solver->conf.global_timeout_multiplier;
+            solver->conf.full_probe_time_limitM * 1000ULL * 1000ULL * solver->conf.global_timeout_multiplier;
     uint64_t probed = 0;
     const auto orig_repl = varReplacer->get_num_replaced_vars();
 
     vector<uint32_t> vars;
-    for(uint32_t i = 0; i < nVars(); i++) {
+    for (uint32_t i = 0; i < nVars(); i++) {
         Lit l(i, false);
-        if (value(l) == l_Undef && varData[i].removed == Removed::none)
-            vars.push_back(i);
+        if (value(l) == l_Undef && varData[i].removed == Removed::none) vars.push_back(i);
     }
     std::shuffle(vars.begin(), vars.end(), mtrand);
 
-    for(auto const& v: vars) {
-        if ((int64_t)solver->propStats.bogoProps > start_bogoprops + bogoprops_to_use)
-            break;
+    for (auto const &v: vars) {
+        if ((int64_t)solver->propStats.bogoProps > start_bogoprops + bogoprops_to_use) break;
 
         uint32_t min_props;
         Lit l(v, false);
@@ -60,9 +57,7 @@ bool Solver::full_probe(const bool bin_only)
         //we have seen it in every combination, nothing will be learnt
         if (seen2[l.var()] == 3) continue;
 
-        if (value(l) == l_Undef &&
-            varData[v].removed == Removed::none)
-        {
+        if (value(l) == l_Undef && varData[v].removed == Removed::none) {
             probed++;
             bool ret;
             if (bin_only) ret = probe_inter<true>(l, min_props);
@@ -70,49 +65,42 @@ bool Solver::full_probe(const bool bin_only)
             if (!ret) goto cleanup;
 
             if (conf.verbosity >= 5) {
-                const double time_remain = 1.0-float_div(
-                (int64_t)solver->propStats.bogoProps-start_bogoprops, bogoprops_to_use);
-                verb_print(5, "probe time remain: " << time_remain << " probed: " << probed
-                << " set: "  << (orig_num_free_vars - solver->get_num_free_vars())
-                << " T: " << (cpuTime() - my_time));
+                const double time_remain =
+                        1.0 - float_div((int64_t)solver->propStats.bogoProps - start_bogoprops, bogoprops_to_use);
+                verb_print(5,
+                           "probe time remain: " << time_remain << " probed: " << probed
+                                                 << " set: " << (orig_num_free_vars - solver->get_num_free_vars())
+                                                 << " T: " << (cpuTime() - my_time));
             }
         }
     }
 
-    cleanup:
+cleanup:
     std::fill(seen2.begin(), seen2.end(), 0);
 
     const double time_used = cpuTime() - my_time;
-    const double time_remain = 1.0-float_div(
-        (int64_t)solver->propStats.bogoProps-start_bogoprops, bogoprops_to_use);
+    const double time_remain =
+            1.0 - float_div((int64_t)solver->propStats.bogoProps - start_bogoprops, bogoprops_to_use);
     const bool time_out = ((int64_t)solver->propStats.bogoProps > start_bogoprops + bogoprops_to_use);
 
     verb_print(1,
-        "[full-probe] "
-        << " bin_only: " << bin_only
-        << " set: "
-        << (orig_num_free_vars - solver->get_num_free_vars())
-        << " repl: " << (varReplacer->get_num_replaced_vars() - orig_repl)
-        << solver->conf.print_times(time_used,  time_out, time_remain));
+               "[full-probe] " << " bin_only: " << bin_only
+                               << " set: " << (orig_num_free_vars - solver->get_num_free_vars())
+                               << " repl: " << (varReplacer->get_num_replaced_vars() - orig_repl)
+                               << solver->conf.print_times(time_used, time_out, time_remain));
 
 
     if (solver->sqlStats) {
-        solver->sqlStats->time_passed(
-            solver
-            , "full-probe"
-            , time_used
-            , time_out
-            , time_remain
-        );
+        solver->sqlStats->time_passed(solver, "full-probe", time_used, time_out, time_remain);
     }
     frat_func_end();
 
     return okay();
 }
 
-template<bool bin_only> bool Solver::probe_inter(const Lit l, uint32_t& min_props)
+template<bool bin_only> bool Solver::probe_inter(const Lit l, uint32_t &min_props)
 {
-    propStats.bogoProps+=2;
+    propStats.bogoProps += 2;
 
     //Probe l
     uint32_t old_trail_size = trail.size();
@@ -120,14 +108,14 @@ template<bool bin_only> bool Solver::probe_inter(const Lit l, uint32_t& min_prop
     enqueue_light(l);
     PropBy p = propagate_light<bin_only>();
     min_props = trail.size() - old_trail_size;
-    for(uint32_t i = old_trail_size+1; i < trail.size(); i++) {
+    for (uint32_t i = old_trail_size + 1; i < trail.size(); i++) {
         toClear.push_back(trail[i].lit);
         //seen[x] == 0 -> not propagated
         //seen[x] == 1 -> propagated as POS
         //seen[x] == 2 -> propagated as NEG
         const auto var = trail[i].lit.var();
-        seen[var] = 1+(int)trail[i].lit.sign();
-        seen2[var] |= 1+(int)trail[i].lit.sign();
+        seen[var] = 1 + (int)trail[i].lit.sign();
+        seen2[var] |= 1 + (int)trail[i].lit.sign();
     }
     cancelUntil_light();
 
@@ -145,13 +133,13 @@ template<bool bin_only> bool Solver::probe_inter(const Lit l, uint32_t& min_prop
     p = propagate_light<bin_only>();
     min_props = std::min<uint32_t>(min_props, trail.size() - old_trail_size);
     probe_inter_tmp.clear();
-    for(uint32_t i = old_trail_size+1; i < trail.size(); i++) {
+    for (uint32_t i = old_trail_size + 1; i < trail.size(); i++) {
         Lit lit = trail[i].lit;
         uint32_t var = trail[i].lit.var();
-        seen2[var] |= 1+(int)trail[i].lit.sign();
+        seen2[var] |= 1 + (int)trail[i].lit.sign();
         if (seen[var] == 0) continue;
 
-        if (lit.sign() == seen[var]-1) {
+        if (lit.sign() == seen[var] - 1) {
             //Same sign both times (set value of literal)
             probe_inter_tmp.push_back(lit);
         } else {
@@ -170,7 +158,7 @@ template<bool bin_only> bool Solver::probe_inter(const Lit l, uint32_t& min_prop
     }
 
     //Deal with bothprop
-    for(uint32_t i = 0; i < probe_inter_tmp.size(); i++) {
+    for (uint32_t i = 0; i < probe_inter_tmp.size(); i++) {
         Lit bp_lit = probe_inter_tmp[i];
         if (bp_lit != lit_Undef) {
             //I am not going to deal with the messy version of it already being set
@@ -195,10 +183,12 @@ template<bool bin_only> bool Solver::probe_inter(const Lit l, uint32_t& min_prop
             i++;
             bp_lit = probe_inter_tmp[i];
             vector<Lit> lits(2);
-            lits[0] = l; lits[1] = ~bp_lit;
+            lits[0] = l;
+            lits[1] = ~bp_lit;
             add_clause_int(lits);
             if (okay()) {
-                lits[0]^=true; lits[1]^=true;
+                lits[0] ^= true;
+                lits[1] ^= true;
                 add_clause_int(lits);
             }
             if (!okay()) goto end;
@@ -212,13 +202,13 @@ template<bool bin_only> bool Solver::probe_inter(const Lit l, uint32_t& min_prop
         goto end;
     }
 
-    end:
-    for(auto clear_l: toClear) seen[clear_l.var()] = 0;
+end:
+    for (auto clear_l: toClear) seen[clear_l.var()] = 0;
     toClear.clear();
     return okay();
 }
 
-lbool Solver::probe_outside(Lit l, uint32_t& min_props)
+lbool Solver::probe_outside(Lit l, uint32_t &min_props)
 {
     assert(decisionLevel() == 0);
     assert(l.var() < nVarsOuter());

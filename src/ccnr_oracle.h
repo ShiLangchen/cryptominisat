@@ -33,65 +33,73 @@ using std::vector;
 using std::abs;
 using std::ostream;
 
-namespace CMSat {
+namespace CMSat
+{
 class Solver;
 
-struct Olit {
-    int var_num;             //variable num, begin with 1
-    uint32_t cl_num : 31;         //clause ID it belongs to, begin with 0
-    uint32_t sense : 1;           //is 1 for true literals, 0 for false literals.
-    Olit(int the_lit, int the_clause) {
+struct Olit
+{
+    int var_num; //variable num, begin with 1
+    uint32_t cl_num : 31; //clause ID it belongs to, begin with 0
+    uint32_t sense : 1; //is 1 for true literals, 0 for false literals.
+    Olit(int the_lit, int the_clause)
+    {
         var_num = std::abs(the_lit);
         cl_num = the_clause;
         sense = the_lit > 0 ? 1 : 0;
     }
 
-    void reset(void) {
+    void reset(void)
+    {
         sense = 0;
         cl_num = 0;
         var_num = 0;
     }
 
-    bool operator==(const struct Olit &l) const {
+    bool operator==(const struct Olit &l) const
+    {
         return sense == l.sense && cl_num == l.cl_num && var_num == l.var_num;
     }
 
-    bool operator!=(const struct Olit &l) const {
-        return !(*this == l);
-    }
+    bool operator!=(const struct Olit &l) const { return !(*this == l); }
 };
 
-inline ostream& operator<<(ostream& os, const Olit& l) {
+inline ostream &operator<<(ostream &os, const Olit &l)
+{
     os << (l.sense ? "" : "-") << l.var_num;
     return os;
 }
 
-struct Ovariable {
+struct Ovariable
+{
     vector<Olit> lits;
     vector<int> neighbor_vars;
     int64_t score = 0;
     int64_t last_flip_step;
     int unsat_appear; //how many unsat clauses it appears in
-                      //
+            //
     bool cc_value;
     bool is_in_ccd_vars;
 };
 
-struct Oclause {
+struct Oclause
+{
     vector<Olit> lits;
     int sat_count; //no. of satisfied literals
     int sat_var; // the variable that makes the clause satisfied
     int64_t weight;
 };
 
-struct Oconf {
+struct Oconf
+{
     int verb;
     string prefix;
 };
 
-class OracleLS {
- public:
-    OracleLS(Solver* _solver);
+class OracleLS
+{
+  public:
+    OracleLS(Solver *_solver);
     bool local_search(int64_t mems_limit);
     void print_solution();
     void check_solution();
@@ -105,10 +113,11 @@ class OracleLS {
     //data structure used
     vector<int> unsat_cls; // list of unsatisfied clauses
     vector<int> idx_in_unsat_cls; // idx_in_unsat_cls[cl_id] tells where cl_id is in unsat_vars
-                                  //
+            //
     vector<int> unsat_vars; // clauses are UNSAT due to these vars
     vector<int> idx_in_unsat_vars;
-    vector<int8_t>* assump_map = nullptr; // always num_vars+1 size, if 2, it's a variable to flip, otherwise 1/0 for fixed vars
+    vector<int8_t> *assump_map =
+            nullptr; // always num_vars+1 size, if 2, it's a variable to flip, otherwise 1/0 for fixed vars
     vector<int8_t> sol; //solution information. 0 = false, 1 = true, 3 = unset
     vector<int> ccd_vars;
     int64_t delta_tot_cl_weight;
@@ -118,11 +127,11 @@ class OracleLS {
     void build_neighborhood();
     int get_cost() { return unsat_cls.size(); }
     void initialize();
-    void adjust_assumps(const vector<int>& assumps_changed);
-    const auto& get_sol() const { return sol; }
+    void adjust_assumps(const vector<int> &assumps_changed);
+    const auto &get_sol() const { return sol; }
 
   private:
-    Solver* solver;
+    Solver *solver;
     CCNR::Mersenne random_gen;
     Oconf conf;
 
@@ -155,4 +164,4 @@ class OracleLS {
     void check_clause(int cid);
 };
 
-}
+} // namespace CMSat

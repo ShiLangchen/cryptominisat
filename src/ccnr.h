@@ -30,14 +30,16 @@ THE SOFTWARE.
 
 using std::vector;
 
-namespace CCNR {
+namespace CCNR
+{
 
 //--------------------------
 //functions in basis.h & basis.cpp
-struct lit {
+struct lit
+{
     unsigned char sense : 1; //is 1 for true literals, 0 for false literals.
-    int clause_num : 31;     //clause num, begin with 0
-    int var_num;             //variable num, begin with 1
+    int clause_num : 31; //clause num, begin with 0
+    int var_num; //variable num, begin with 1
     lit(int the_lit, int the_clause)
     {
         var_num = abs(the_lit);
@@ -61,12 +63,10 @@ struct lit {
     {
         return sense == l.sense && clause_num == l.clause_num && var_num == l.var_num;
     }
-    bool operator!=(const struct lit &l) const
-    {
-        return !(*this == l);
-    }
+    bool operator!=(const struct lit &l) const { return !(*this == l); }
 };
-struct variable {
+struct variable
+{
     vector<lit> literals;
     vector<int> neighbor_var_nums;
     long long score;
@@ -75,7 +75,8 @@ struct variable {
     bool cc_value;
     bool is_in_ccd_vars;
 };
-struct clause {
+struct clause
+{
     vector<lit> literals;
     int sat_count; //no. of satisfied literals
     int sat_var;
@@ -87,22 +88,17 @@ struct clause {
 
 class ls_solver
 {
-   public:
+  public:
     ls_solver(const bool aspiration);
     bool parse_arguments(int argc, char **argv);
     bool build_instance(std::string inst);
-    bool local_search(
-        const vector<bool> *init_solution = 0
-        , long long int _mems_limit = 100*1000*1000
-        , const char* prefix = "c "
-        , int64_t _max_steps = 1*1000 * 1000
-    );
+    bool local_search(const vector<bool> *init_solution = 0,
+                      long long int _mems_limit = 100 * 1000 * 1000,
+                      const char *prefix = "c ",
+                      int64_t _max_steps = 1 * 1000 * 1000);
     void print_solution(bool need_verify = 0);
     void simple_print();
-    int get_best_cost()
-    {
-        return _best_found_cost;
-    }
+    int get_best_cost() { return _best_found_cost; }
     void set_verbosity(uint32_t verb);
 
     //formula
@@ -128,7 +124,7 @@ class ls_solver
     void build_neighborhood();
     int get_cost() { return _unsat_clauses.size(); }
 
-    private:
+  private:
     int _best_found_cost;
     long long _mems = 0;
     long long _step;

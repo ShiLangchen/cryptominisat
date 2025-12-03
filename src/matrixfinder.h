@@ -29,7 +29,8 @@ THE SOFTWARE.
 #include "xor.h"
 #include "constants.h"
 
-namespace CMSat {
+namespace CMSat
+{
 
 class Solver;
 
@@ -38,54 +39,48 @@ using std::vector;
 using std::pair;
 using std::set;
 
-class MatrixFinder {
+class MatrixFinder
+{
+  public:
+    MatrixFinder(Solver *solver);
+    bool find_matrices(bool &matrix_created);
 
-    public:
-        MatrixFinder(Solver* solver);
-        bool find_matrices(bool& matrix_created);
+  private:
+    uint32_t setup_matrices_attach_remaining_cls();
+    struct MatrixShape
+    {
+        MatrixShape(uint32_t matrix_num) : num(matrix_num) {}
 
-    private:
-        uint32_t setup_matrices_attach_remaining_cls();
-        struct MatrixShape
+        MatrixShape() {}
+
+        uint32_t num;
+        uint32_t rows = 0;
+        uint32_t cols = 0;
+        uint32_t sum_xor_sizes = 0;
+        double density = 0;
+
+        uint64_t tot_size() const { return (uint64_t)rows * (uint64_t)cols; }
+    };
+
+    struct mysorter
+    {
+        bool operator()(const MatrixShape &left, const MatrixShape &right)
         {
-            MatrixShape(uint32_t matrix_num) :
-                num(matrix_num)
-            {}
+            return left.sum_xor_sizes < right.sum_xor_sizes;
+        }
+    };
 
-            MatrixShape()
-            {}
+    inline uint32_t fingerprint(const Xor &c) const;
+    inline bool firstPartOfSecond(const Xor &c1, const Xor &c2) const;
+    inline bool belong_same_matrix(const Xor &x);
 
-            uint32_t num;
-            uint32_t rows = 0;
-            uint32_t cols = 0;
-            uint32_t sum_xor_sizes = 0;
-            double density = 0;
+    map<uint32_t, vector<uint32_t>> reverseTable; //matrix -> vars
+    vector<uint32_t> table; //var -> matrix
+    uint32_t matrix_no;
 
-            uint64_t tot_size() const
-            {
-                return (uint64_t)rows*(uint64_t)cols;
-            }
-        };
-
-        struct mysorter
-        {
-            bool operator () (const MatrixShape& left, const MatrixShape& right)
-            {
-                return left.sum_xor_sizes < right.sum_xor_sizes;
-            }
-        };
-
-        inline uint32_t fingerprint(const Xor& c) const;
-        inline bool firstPartOfSecond(const Xor& c1, const Xor& c2) const;
-        inline bool belong_same_matrix(const Xor& x);
-
-        map<uint32_t, vector<uint32_t> > reverseTable; //matrix -> vars
-        vector<uint32_t> table; //var -> matrix
-        uint32_t matrix_no;
-
-        Solver* solver;
+    Solver *solver;
 };
 
-}
+} // namespace CMSat
 
 #endif //MATRIXFINDER_H

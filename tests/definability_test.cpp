@@ -29,21 +29,19 @@ THE SOFTWARE.
 
 using namespace CMSat;
 
-struct definability : public ::testing::Test {
+struct definability : public ::testing::Test
+{
     definability()
     {
         SolverConf conf;
         s = new SATSolver;
         s->new_vars(50);
-        for(uint32_t i = 0; i < 50; i++) {
+        for (uint32_t i = 0; i < 50; i++) {
             vs.push_back(i);
         }
     }
-    ~definability()
-    {
-        delete s;
-    }
-    SATSolver* s = NULL;
+    ~definability() { delete s; }
+    SATSolver *s = NULL;
     vector<uint32_t> vs;
 };
 
@@ -54,7 +52,6 @@ TEST_F(definability, none_found)
 
     auto defin = s->get_recovered_or_gates();
     EXPECT_EQ(0, defin.size());
-
 }
 
 TEST_F(definability, do_1)
@@ -136,7 +133,7 @@ TEST_F(definability, circular_and_normal)
 
     //The non-circular one must be found
     bool found = false;
-    for(const auto& v: defin) {
+    for (const auto &v: defin) {
         if (v.rhs.var() == 10) {
             found = true;
             break;
@@ -146,7 +143,8 @@ TEST_F(definability, circular_and_normal)
 }
 
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+int main(int argc, char **argv)
+{
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

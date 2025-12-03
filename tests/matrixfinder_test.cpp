@@ -31,7 +31,8 @@ using std::set;
 using namespace CMSat;
 #include "test_helper.h"
 
-struct gauss : public ::testing::Test {
+struct gauss : public ::testing::Test
+{
     gauss()
     {
         must_inter.store(false, std::memory_order_relaxed);
@@ -48,8 +49,8 @@ struct gauss : public ::testing::Test {
         delete s;
     }
 
-    Solver* s;
-    MatrixFinder* mf = NULL;
+    Solver *s;
+    MatrixFinder *mf = NULL;
     std::vector<uint32_t> vars;
     std::atomic<bool> must_inter;
     vector<Xor> xs;
@@ -143,7 +144,8 @@ TEST_F(gauss, separate_3)
     EXPECT_EQ(s->gmatrices.size(), 3);
 }
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+int main(int argc, char **argv)
+{
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

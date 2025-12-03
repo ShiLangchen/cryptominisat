@@ -39,106 +39,102 @@ THE SOFTWARE.
 using std::vector;
 using std::set;
 
-namespace CMSat {
+namespace CMSat
+{
 class Solver;
 class OccSimplifier;
 
-class PossibleXor {
-    public:
-        PossibleXor() {}
-        void setup(
-            const vector<Lit>& cl
-            , const ClOffset offset
-            , cl_abst_type _abst
-            , vector<uint32_t>& seen
-        ) {
-            abst = _abst;
-            size = cl.size();
-            offsets.clear();
-            fully_used.clear();
-            #ifdef VERBOSE_DEBUG_XOR_FINDER
-            cout << "Trying to create XOR from clause: " << cl << endl;
-            #endif
+class PossibleXor
+{
+  public:
+    PossibleXor() {}
+    void setup(const vector<Lit> &cl, const ClOffset offset, cl_abst_type _abst, vector<uint32_t> &seen)
+    {
+        abst = _abst;
+        size = cl.size();
+        offsets.clear();
+        fully_used.clear();
+#ifdef VERBOSE_DEBUG_XOR_FINDER
+        cout << "Trying to create XOR from clause: " << cl << endl;
+#endif
 
-            assert(cl.size() <= sizeof(origCl)/sizeof(Lit)
-                && "The XOR being recovered is larger than MAX_XOR_RECOVER_SIZE");
-            for(size_t i = 0; i < size; i++) {
-                origCl[i] = cl[i];
-                if (i > 0)
-                    assert(cl[i-1] < cl[i]);
-            }
-            setup_seen_rhs_foundcomb(seen);
-            if (offset != numeric_limits<ClOffset>::max()) {
-                //this is the XOR that starts it all
-                //so it's fully used
-                offsets.push_back(offset);
-                fully_used.push_back(true);
-            }
+        assert(cl.size() <= sizeof(origCl) / sizeof(Lit)
+               && "The XOR being recovered is larger than MAX_XOR_RECOVER_SIZE");
+        for (size_t i = 0; i < size; i++) {
+            origCl[i] = cl[i];
+            if (i > 0) assert(cl[i - 1] < cl[i]);
+        }
+        setup_seen_rhs_foundcomb(seen);
+        if (offset != numeric_limits<ClOffset>::max()) {
+            //this is the XOR that starts it all
+            //so it's fully used
+            offsets.push_back(offset);
+            fully_used.push_back(true);
+        }
+    }
+
+    void clear_seen(vector<uint32_t> &seen)
+    {
+        for (uint32_t i = 0; i < size; i++) {
+            seen[origCl[i].var()] = 0;
+        }
+    }
+
+    cl_abst_type getAbst() const;
+    uint32_t getSize() const;
+    bool getRHS() const;
+    bool foundAll() const;
+
+    //Add
+    template<class T> void add(const T &cl, const ClOffset offset, vector<uint32_t> &varsMissing);
+
+    const vector<ClOffset> &get_offsets() const { return offsets; }
+    const vector<char> &get_fully_used() const { return fully_used; }
+
+  private:
+    void setup_seen_rhs_foundcomb(vector<uint32_t> &seen)
+    {
+        //Calculate parameters of base clause.
+        //Also set 'seen' for easy check in 'findXorMatch()'
+        rhs = true;
+        uint32_t whichOne = 0;
+        for (uint32_t i = 0; i < size; i++) {
+            rhs ^= origCl[i].sign();
+            whichOne += ((uint32_t)origCl[i].sign()) << i;
+            seen[origCl[i].var()] = 1;
         }
 
-        void clear_seen(vector<uint32_t>& seen)
-        {
-            for (uint32_t i = 0; i < size; i++) {
-                seen[origCl[i].var()] = 0;
-            }
-        }
+        foundComb.clear();
+        foundComb.resize(1ULL << size, false);
+        foundComb[whichOne] = true;
+    }
+    uint32_t NumberOfSetBits(uint32_t i) const;
+    bool bit(const uint32_t a, const uint32_t b) const;
 
-        cl_abst_type      getAbst() const;
-        uint32_t          getSize() const;
-        bool              getRHS() const;
-        bool              foundAll() const;
-
-        //Add
-        template<class T>
-        void add(const T& cl, const ClOffset offset, vector<uint32_t>& varsMissing);
-
-        const vector<ClOffset>& get_offsets() const { return offsets; }
-        const vector<char>& get_fully_used() const { return fully_used; }
-
-    private:
-        void setup_seen_rhs_foundcomb(vector<uint32_t>& seen)
-        {
-            //Calculate parameters of base clause.
-            //Also set 'seen' for easy check in 'findXorMatch()'
-            rhs = true;
-            uint32_t whichOne = 0;
-            for (uint32_t i = 0; i < size; i++) {
-                rhs ^= origCl[i].sign();
-                whichOne += ((uint32_t)origCl[i].sign()) << i;
-                seen[origCl[i].var()] = 1;
-            }
-
-            foundComb.clear();
-            foundComb.resize(1ULL<<size, false);
-            foundComb[whichOne] = true;
-        }
-        uint32_t NumberOfSetBits(uint32_t i) const;
-        bool     bit(const uint32_t a, const uint32_t b) const;
-
-        //bitfield to indicate which of the following is already set
-        //-1 -2 -3
-        //-1  2  3
-        // 1 -2  3
-        // 1  2 -3
-        //order the above according to sign: if sign:
-        //LSB ... MSB
-        // 1 1 1
-        // 1 0 0
-        // 0 1 0
-        // 0 0 1
-        vector<char> foundComb;
-        Lit origCl[MAX_XOR_RECOVER_SIZE];
-        cl_abst_type abst;
-        uint32_t size;
-        bool rhs;
-        vector<ClOffset> offsets;
-        vector<char> fully_used;
+    //bitfield to indicate which of the following is already set
+    //-1 -2 -3
+    //-1  2  3
+    // 1 -2  3
+    // 1  2 -3
+    //order the above according to sign: if sign:
+    //LSB ... MSB
+    // 1 1 1
+    // 1 0 0
+    // 0 1 0
+    // 0 0 1
+    vector<char> foundComb;
+    Lit origCl[MAX_XOR_RECOVER_SIZE];
+    cl_abst_type abst;
+    uint32_t size;
+    bool rhs;
+    vector<ClOffset> offsets;
+    vector<char> fully_used;
 };
 
 class XorFinder
 {
-public:
-    XorFinder(OccSimplifier* occsimplifier, Solver* solver);
+  public:
+    XorFinder(OccSimplifier *occsimplifier, Solver *solver);
 
     struct Stats
     {
@@ -148,8 +144,8 @@ public:
             *this = tmp;
         }
 
-        Stats& operator+=(const Stats& other);
-        void print_short(const Solver* solver, const double time_remain) const;
+        Stats &operator+=(const Stats &other);
+        void print_short(const Solver *solver, const double time_remain) const;
 
         //Time
         uint32_t numCalls = 0;
@@ -164,31 +160,31 @@ public:
     };
 
     bool find_xors();
-    const Stats& get_stats() const;
+    const Stats &get_stats() const;
     size_t mem_used() const;
     void grab_mem();
-    void clean_equivalent_xors(vector<Xor>& txors);
+    void clean_equivalent_xors(vector<Xor> &txors);
 
-private:
+  private:
     PossibleXor poss_xor;
-    void add_found_xor(const Xor& found_xor);
+    void add_found_xor(const Xor &found_xor);
     void find_xors_based_on_long_clauses();
-    bool xor_has_interesting_var(const Xor& x);
+    bool xor_has_interesting_var(const Xor &x);
 
     ///xor two -- don't re-allocate memory all the time
     ///use tmp_vars_xor_two instead
-    uint32_t xor_two(Xor const* x1, Xor const* x2, uint32_t& clash_var);
+    uint32_t xor_two(Xor const *x1, Xor const *x2, uint32_t &clash_var);
     vector<uint32_t> tmp_vars_xor_two;
 
     int64_t xor_find_time_limit;
 
     //Find XORs
-    void findXor(vector<Lit>& lits, const ClOffset offset, cl_abst_type abst);
+    void findXor(vector<Lit> &lits, const ClOffset offset, cl_abst_type abst);
 
     ///Normal finding of matching clause for XOR
     void findXorMatch(watch_subarray_const occ, const Lit wlit);
 
-    OccSimplifier* occsimplifier;
+    OccSimplifier *occsimplifier;
     Solver *solver;
 
     //Stats
@@ -202,9 +198,9 @@ private:
 
     //Other temporaries
     vector<uint32_t> occ_cnt;
-    vector<Lit>& toClear;
-    vector<uint32_t>& seen;
-    vector<uint8_t>& seen2;
+    vector<Lit> &toClear;
+    vector<uint32_t> &seen;
+    vector<uint8_t> &seen2;
     vector<uint32_t> interesting;
 };
 
@@ -224,24 +220,20 @@ inline bool PossibleXor::getRHS() const
     return rhs;
 }
 
-template<class T> void PossibleXor::add(
-    const T& cl
-    , const ClOffset offset
-    , vector<uint32_t>& varsMissing
-) {
-    #ifdef VERBOSE_DEBUG_XOR_FINDER
+template<class T> void PossibleXor::add(const T &cl, const ClOffset offset, vector<uint32_t> &varsMissing)
+{
+#ifdef VERBOSE_DEBUG_XOR_FINDER
     cout << "Adding to XOR: " << cl << endl;
 
     cout << "FoundComb before:" << endl;
-    for(size_t i = 0; i < foundComb.size(); i++) {
+    for (size_t i = 0; i < foundComb.size(); i++) {
         cout << "foundComb[" << i << "]: " << (int)foundComb[i] << endl;
     }
     cout << "----" << endl;
-    #endif
+#endif
 
     //It's the base clause, skip.
-    if (!offsets.empty() && offset == offsets[0])
-        return;
+    if (!offsets.empty() && offset == offsets[0]) return;
 
     assert(cl.size() <= size);
 
@@ -260,27 +252,23 @@ template<class T> void PossibleXor::add(
 
     bool thisRhs = true;
 
-    for (typename T::const_iterator
-        l = cl.begin(), end = cl.end()
-        ; l != end
-        ; ++l, i++, origI++
-    ) {
+    for (typename T::const_iterator l = cl.begin(), end = cl.end(); l != end; ++l, i++, origI++) {
         thisRhs ^= l->sign();
 
         //some variables might be missing in the middle
-        while(cl[i].var() != origCl[origI].var()) {
+        while (cl[i].var() != origCl[origI].var()) {
             varsMissing.push_back(origI);
             origI++;
             assert(origI < size && "cl must be sorted");
         }
         if (i > 0) {
-            assert(cl[i-1] < cl[i] && "Must be sorted");
+            assert(cl[i - 1] < cl[i] && "Must be sorted");
         }
         whichOne |= ((uint32_t)l->sign()) << origI;
     }
 
     //if vars are missing from the end
-    while(origI < size) {
+    while (origI < size) {
         varsMissing.push_back(origI);
         origI++;
     }
@@ -288,10 +276,10 @@ template<class T> void PossibleXor::add(
     assert(cl.size() < size || rhs == thisRhs);
 
     //set to true every combination for the missing variables
-    for (uint32_t j = 0; j < 1UL<<(varsMissing.size()); j++) {
+    for (uint32_t j = 0; j < 1UL << (varsMissing.size()); j++) {
         uint32_t thisWhichOne = whichOne;
         for (uint32_t i2 = 0; i2 < varsMissing.size(); i2++) {
-            if (bit(j, i2)) thisWhichOne+= 1<<(varsMissing[i2]);
+            if (bit(j, i2)) thisWhichOne += 1 << (varsMissing[i2]);
         }
         foundComb[thisWhichOne] = true;
     }
@@ -300,14 +288,14 @@ template<class T> void PossibleXor::add(
         fully_used.push_back(varsMissing.empty());
     }
 
-    #ifdef VERBOSE_DEBUG_XOR_FINDER
+#ifdef VERBOSE_DEBUG_XOR_FINDER
     cout << "whichOne was:" << whichOne << endl;
     cout << "FoundComb after:" << endl;
-    for(size_t i = 0; i < foundComb.size(); i++) {
+    for (size_t i = 0; i < foundComb.size(); i++) {
         cout << "foundComb[" << i << "]: " << foundComb[i] << endl;
     }
     cout << "----" << endl;
-    #endif
+#endif
 }
 
 inline bool PossibleXor::foundAll() const
@@ -315,7 +303,7 @@ inline bool PossibleXor::foundAll() const
     bool OK = true;
     for (uint32_t i = 0; i < foundComb.size(); i++) {
         //Only count combinations with the correct RHS
-        if ((NumberOfSetBits(i)%2) == (uint32_t)rhs) {
+        if ((NumberOfSetBits(i) % 2) == (uint32_t)rhs) {
             continue;
         }
 
@@ -326,11 +314,11 @@ inline bool PossibleXor::foundAll() const
         }
     }
 
-    #ifdef VERBOSE_DEBUG_XOR_FINDER
+#ifdef VERBOSE_DEBUG_XOR_FINDER
     if (OK) {
         cout << "Found all for this clause" << endl;
     }
-    #endif
+#endif
 
     return OK;
 }
@@ -345,12 +333,12 @@ inline uint32_t PossibleXor::NumberOfSetBits(uint32_t i) const
 
 inline bool PossibleXor::bit(const uint32_t a, const uint32_t b) const
 {
-    return (((a)>>(b))&1);
+    return (((a) >> (b)) & 1);
 }
 
-inline const XorFinder::Stats& XorFinder::get_stats() const
+inline const XorFinder::Stats &XorFinder::get_stats() const
 {
     return globalStats;
 }
 
-} //end namespace
+} // namespace CMSat

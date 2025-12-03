@@ -23,7 +23,8 @@ THE SOFTWARE.
 #ifndef CCNR_MERSENNE_H
 #define CCNR_MERSENNE_H
 
-namespace CCNR {
+namespace CCNR
+{
 
 class Mersenne
 {
@@ -35,8 +36,8 @@ class Mersenne
     const unsigned int UPPER_MASK = 0x80000000UL;
     const unsigned int LOWER_MASK = 0x7fffffffUL;
 
-   public:
-    Mersenne();         // seed with time-dependent value
+  public:
+    Mersenne(); // seed with time-dependent value
     Mersenne(int seed); // seed with int value; see comments for the seed() method
     Mersenne(unsigned int *array, int count); // seed with array
     Mersenne(const Mersenne &copy);
@@ -44,11 +45,11 @@ class Mersenne
     void seed(int s);
     void seed(unsigned int *array, int len);
     unsigned int next32(); // generates random integer in [0..2^32-1]
-    int next31();          // generates random integer in [0..2^31-1]
-    double nextClosed();   // generates random float in [0..1], 2^53 possible values
+    int next31(); // generates random integer in [0..2^31-1]
+    double nextClosed(); // generates random float in [0..1], 2^53 possible values
     double nextHalfOpen(); // generates random float in [0..1), 2^53 possible values
-    double nextOpen();     // generates random float in (0..1), 2^53 possible values
-    int next(int bound);   // generates random integer in [0..bound), bound < 2^31
+    double nextOpen(); // generates random float in (0..1), 2^53 possible values
+    int next(int bound); // generates random integer in [0..bound), bound < 2^31
 };
 
 //---------------------------
@@ -86,8 +87,7 @@ inline Mersenne::Mersenne(const Mersenne &copy)
 }
 inline Mersenne &Mersenne::operator=(const Mersenne &copy)
 {
-    for (int i = 0; i < N; i++)
-        mt[i] = copy.mt[i];
+    for (int i = 0; i < N; i++) mt[i] = copy.mt[i];
     mti = copy.mti;
     return *this;
 }
@@ -117,8 +117,7 @@ inline void Mersenne::seed(unsigned int *init_key, int key_length)
             mt[0] = mt[N - 1];
             i = 1;
         }
-        if (j >= key_length)
-            j = 0;
+        if (j >= key_length) j = 0;
     }
     for (k = N - 1; k; k--) {
         mt[i] = (mt[i] ^ ((mt[i - 1] ^ (mt[i - 1] >> 30)) * 1566083941UL)) - i;
@@ -185,6 +184,6 @@ inline int Mersenne::next(int bound)
     return (int)(value % bound);
 }
 
-}
+} // namespace CCNR
 
 #endif

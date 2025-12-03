@@ -38,14 +38,14 @@ using std::endl;
 
 using namespace CMSat;
 
-SATSolver* solver = nullptr;
+SATSolver *solver = nullptr;
 DLL_PUBLIC void printVersionInfo()
 {
     cout << "c CryptoMiniSat version " << solver->get_version() << endl;
     cout << "c CryptoMiniSat SHA revision " << solver->get_version_sha1() << endl;
 }
 
-DLL_PUBLIC int start_solve(const char* input)
+DLL_PUBLIC int start_solve(const char *input)
 {
     SolverConf conf;
     conf.max_confl = 500;
@@ -60,7 +60,7 @@ DLL_PUBLIC int start_solve(const char* input)
         printVersionInfo();
     }
 
-    DimacsParser<StreamBuffer<const char*, CH>, SATSolver> parser(solver, nullptr, conf.verbosity);
+    DimacsParser<StreamBuffer<const char *, CH>, SATSolver> parser(solver, nullptr, conf.verbosity);
     if (!parser.parse_DIMACS(input, false)) {
         exit(-1);
     }
@@ -69,12 +69,12 @@ DLL_PUBLIC int start_solve(const char* input)
     lbool ret = solver->simplify();
 
     if (ret == l_True) {
-        cout << "c "<< endl << "c "<< endl;
+        cout << "c " << endl << "c " << endl;
         cout << "s SATISFIABLE" << endl;
         cout << "c conflicts: " << solver->get_sum_conflicts() << endl;
     } else if (ret == l_False) {
-        cout << "c "<< endl << "c "<< endl;
-        cout << "s UNSATISFIABLE"<< endl;
+        cout << "c " << endl << "c " << endl;
+        cout << "s UNSATISFIABLE" << endl;
         cout << "c conflicts: " << solver->get_sum_conflicts() << endl;
     }
 
@@ -93,12 +93,12 @@ DLL_PUBLIC int continue_solve()
     lbool ret = solver->solve();
 
     if (ret == l_True) {
-        cout << "c "<< endl << "c "<< endl;
+        cout << "c " << endl << "c " << endl;
         cout << "s SATISFIABLE" << endl;
         cout << "c conflicts: " << solver->get_sum_conflicts() << endl;
     } else if (ret == l_False) {
-        cout << "c "<< endl << "c "<< endl;
-        cout << "s UNSATISFIABLE"<< endl;
+        cout << "c " << endl << "c " << endl;
+        cout << "s UNSATISFIABLE" << endl;
         cout << "c conflicts: " << solver->get_sum_conflicts() << endl;
     }
 
@@ -124,16 +124,18 @@ DLL_PUBLIC int get_num_conflicts()
 
 extern "C" {
 
-DLL_PUBLIC int cstart_solve(const char *input) {
-  return start_solve(input);
+DLL_PUBLIC int cstart_solve(const char *input)
+{
+    return start_solve(input);
 }
 
-DLL_PUBLIC int ccontinue_solve() {
-  return continue_solve();
+DLL_PUBLIC int ccontinue_solve()
+{
+    return continue_solve();
 }
 
-DLL_PUBLIC int cget_num_conflicts() {
-  return get_num_conflicts();
+DLL_PUBLIC int cget_num_conflicts()
+{
+    return get_num_conflicts();
 }
-
 }

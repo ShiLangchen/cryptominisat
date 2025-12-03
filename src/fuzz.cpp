@@ -24,25 +24,26 @@ THE SOFTWARE.
 #include "cryptominisat.h"
 #include "dimacsparser.h"
 
-struct MyText {
-    const unsigned char* txt = 0;
+struct MyText
+{
+    const unsigned char *txt = 0;
     size_t size = 0;
     size_t at = 0;
 };
 
-typedef size_t(*fread_op_text)(void*, size_t, size_t, MyText&);
+typedef size_t (*fread_op_text)(void *, size_t, size_t, MyText &);
 
 using namespace CMSat;
 
-static size_t text_read(void* buf, size_t num, size_t count, MyText& f)
+static size_t text_read(void *buf, size_t num, size_t count, MyText &f)
 {
     if (f.size == f.at) {
         return EOF;
     }
 
-    size_t toread = num*count;
-    if (toread > f.size-f.at) {
-        toread = f.size-f.at;
+    size_t toread = num * count;
+    if (toread > f.size - f.at) {
+        toread = f.size - f.at;
     }
     memcpy(buf, f.txt + f.at, toread);
     //cout << "read in" << toread << endl;
@@ -51,12 +52,13 @@ static size_t text_read(void* buf, size_t num, size_t count, MyText& f)
     return toread;
 }
 
-extern "C" int LLVMFuzzerTestOneInput(const unsigned char *data, size_t size) {
+extern "C" int LLVMFuzzerTestOneInput(const unsigned char *data, size_t size)
+{
     SATSolver S;
     S.set_verbosity(0);
     //solver->set_num_threads(num_threads);
 
-    DimacsParser<StreamBuffer<MyText, fread_op_text, text_read> > parser(&S, "", 0);
+    DimacsParser<StreamBuffer<MyText, fread_op_text, text_read>> parser(&S, "", 0);
     parser.max_var = 1000;
     MyText t;
     t.at = 0;

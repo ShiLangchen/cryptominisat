@@ -29,28 +29,23 @@ THE SOFTWARE.
 using std::vector;
 using std::deque;
 
-namespace CMSat {
+namespace CMSat
+{
 
 class Solver;
 
 class InTree
 {
-public:
-    InTree(Solver* _solver);
+  public:
+    InTree(Solver *_solver);
     bool intree_probe();
 
     struct QueueElem
     {
-        QueueElem(
-            const Lit _propagated,
-            const Lit _other_lit,
-            const bool _red,
-            const int32_t _ID) :
-            propagated(_propagated),
-            other_lit(_other_lit),
-            red(_red),
-            ID(_ID)
-        {}
+        QueueElem(const Lit _propagated, const Lit _other_lit, const bool _red, const int32_t _ID)
+            : propagated(_propagated), other_lit(_other_lit), red(_red), ID(_ID)
+        {
+        }
 
         Lit propagated;
         Lit other_lit;
@@ -60,10 +55,10 @@ public:
 
     struct ResetReason
     {
-        ResetReason(uint32_t _var_reason_changed, PropBy _orig_propby) :
-            var_reason_changed(_var_reason_changed)
-            , orig_propby(_orig_propby)
-        {}
+        ResetReason(uint32_t _var_reason_changed, PropBy _orig_propby)
+            : var_reason_changed(_var_reason_changed), orig_propby(_orig_propby)
+        {
+        }
 
         uint32_t var_reason_changed;
         PropBy orig_propby;
@@ -71,16 +66,14 @@ public:
 
     double mem_used() const;
 
-private:
-
+  private:
     bool check_timeout_due_to_hyperbin();
     void unmark_all_bins();
-    bool handle_lit_popped_from_queue(
-        const Lit lit, const Lit propagating, const bool red, const int32_t ID);
+    bool handle_lit_popped_from_queue(const Lit lit, const Lit propagating, const bool red, const int32_t ID);
     bool empty_failed_list();
     void fill_roots();
     bool watches_only_contains_nonbin(const Lit lit) const;
-    bool replace_until_fixedpoint(bool& aborted);
+    bool replace_until_fixedpoint(bool &aborted);
     void enqueue(const Lit lit, const Lit other_lit, const bool red_cl, const int32_t ID);
 
     void setup();
@@ -101,23 +94,20 @@ private:
     size_t removedRedBin;
     size_t numCalls = 0;
 
-    Solver* solver;
-    vector<uint32_t>& seen;
+    Solver *solver;
+    vector<uint32_t> &seen;
 };
 
-inline std::ostream& operator<<(std::ostream& os, const InTree::QueueElem& elem)
+inline std::ostream &operator<<(std::ostream &os, const InTree::QueueElem &elem)
 {
     if (elem.propagated == lit_Undef) {
         os << "NONE";
     } else {
-        os << "prop:" << elem.propagated
-        << " other_lit:" << elem.other_lit
-        << " red: " << elem.red
-        << " ID: " << elem.ID;
+        os << "prop:" << elem.propagated << " other_lit:" << elem.other_lit << " red: " << elem.red
+           << " ID: " << elem.ID;
     }
 
     return os;
 }
 
-}
-
+} // namespace CMSat

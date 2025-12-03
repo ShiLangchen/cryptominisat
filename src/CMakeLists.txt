@@ -19,11 +19,10 @@
 # THE SOFTWARE.
 
 include_directories( ${PROJECT_SOURCE_DIR} )
-include_directories( ${BOSPHORUS_INCLUDE_DIRS} )
 include_directories( ${LOUVAIN_COMMUNITIES_INCLUDE_DIRS} )
 include_directories( SYSTEM ${MPI_INCLUDE_PATH} )
 include_directories( SYSTEM ${GMP_INCLUDE_DIR} )
-include_directories( ${CADIBACK_INCLUDE_DIR} )
+include_directories( "${CMAKE_SOURCE_DIR}/../cadiback/include/" )
 
 if (NOT WIN32)
     add_cxx_flag_if_supported("-Wno-bitfield-constant-conversion")
@@ -146,7 +145,6 @@ set(cryptoms_lib_files
     gaussian.cpp
     packedrow.cpp
     matrixfinder.cpp
-    anf_elimination.cpp
     mpicosat/mpicosat.c
     mpicosat/version.c
     oracle/oracle.cpp
@@ -203,13 +201,6 @@ if (MPI_FOUND)
     SET(cryptoms_lib_link_libs ${cryptoms_lib_link_libs} ${MPI_CXX_LIBRARIES})
 endif()
 
-if (BOSPHORUS_LIBRARIES)
-    include_directories( ${BOSPHORUS_INCLUDE_DIRS} )
-
-    SET(cryptoms_lib_files ${cryptoms_lib_files} cms_bosphorus.cpp)
-    SET(cryptoms_lib_link_libs ${cryptoms_lib_link_libs} ${BOSPHORUS_LIBRARIES})
-endif()
-
 if (BREAKID_LIBRARIES)
     include_directories( ${BREAKID_INCLUDE_DIRS} )
 
@@ -247,13 +238,6 @@ set_target_properties(cryptominisat5
     PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 set_property(TARGET cryptominisat5
     PROPERTY CUDA_ARCHITECTURES 35 50 72
-)
-
-GENERATE_EXPORT_HEADER(cryptominisat5
-         BASE_NAME cryptominisat5
-         #EXPORT_MACRO_NAME cryptominisat5_EXPORT
-         #EXPORT_FILE_NAME MyLibrary_Export.h
-         #STATIC_DEFINE MyLibrary_BUILT_AS_STATIC
 )
 
 if (SQLITE3_FOUND AND STATS)
@@ -408,17 +392,17 @@ endif()
 
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
-set_target_properties(cryptominisat5-bin PROPERTIES
-    OUTPUT_NAME cryptominisat5
-    RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}
-    INSTALL_RPATH_USE_LINK_PATH TRUE
-    LINK_FLAGS "-s WASM=1 -s ALLOW_MEMORY_GROWTH=1 -s EXPORTED_RUNTIME_METHODS='[\"callMain\", \"ccall\", \"cwrap\", \"FS\", \"print\"]' -s FORCE_FILESYSTEM=1"
-)
+    set_target_properties(cryptominisat5-bin PROPERTIES
+        OUTPUT_NAME cryptominisat5
+        RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}
+        INSTALL_RPATH_USE_LINK_PATH TRUE
+        LINK_FLAGS "-s WASM=1 -s ALLOW_MEMORY_GROWTH=1 -s EXPORTED_RUNTIME_METHODS='[\"callMain\", \"ccall\", \"cwrap\", \"FS\", \"print\"]' -s FORCE_FILESYSTEM=1"
+    )
 else()
-set_target_properties(cryptominisat5-bin PROPERTIES
-    OUTPUT_NAME cryptominisat5
-    RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}
-    INSTALL_RPATH_USE_LINK_PATH TRUE)
+    set_target_properties(cryptominisat5-bin PROPERTIES
+        OUTPUT_NAME cryptominisat5
+        RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}
+        INSTALL_RPATH_USE_LINK_PATH TRUE)
 endif()
 
 target_link_libraries(cryptominisat5-bin
@@ -428,4 +412,4 @@ install(TARGETS cryptominisat5-bin
     # EXPORT ${CRYPTOMINISAT5_EXPORT_NAME}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
-SET(CPACK_PACKAGE_EXECUTABLES "cryptominisat5")
+SET(CPACK_PACKAGE_EXECUTABLES "cryptominisat5-bin" "cryptominisat5")
