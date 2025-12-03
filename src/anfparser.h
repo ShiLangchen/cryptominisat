@@ -15,6 +15,7 @@
 #include <string>
 #include <vector>
 #include <cassert>
+#include <zlib.h>
 
 using std::vector;
 using std::cerr;
@@ -31,7 +32,7 @@ template<class C, class S> class AnfParser
   public:
     AnfParser(S *solver, unsigned _verbosity);
 
-    template<class T> bool parse_ANF(T input_stpeam, const bool strict_header, uint32_t offset_vars = 0);
+    bool parse_ANF(const string &file_name, const bool strict_header, uint32_t offset_vars = 0);
     uint64_t max_var = numeric_limits<uint64_t>::max();
     const std::string dimacs_spec = "https://github.com/mtrimoska/WDSat/blob/master/README.md";
     const std::string please_read_dimacs =
@@ -185,6 +186,8 @@ ARRANGE_IMPLICATIONS:
     assert(std::is_sorted(monos_vec.begin(), monos_vec.end()));
 
     auto auxiliary_var_start = solver->nVars();
+    solver->set_real_var_num(auxiliary_var_start);
+
     solver->new_vars(monos_vec.size());
 
     assert(solver->nVars() == auxiliary_var_start + monos_vec.size());
@@ -213,7 +216,7 @@ ARRANGE_IMPLICATIONS:
 
         // add equivalence
         eq_clauses_added++;
-        solver->add_eq_clause(aux_lit, mono);
+        solver->add_eq_clause(mono, aux_lit);
     }
     return true;
 }
@@ -229,8 +232,9 @@ template<class C, class S> bool AnfParser<C, S>::scan_anf_clauses(C &in)
     }
     line_num++;
 
-    for (const auto &mono: poly) {
+    for (auto &mono: poly) {
         if (mono.size() <= 1) continue;
+        std::sort(mono.begin(), mono.end());
         monos.insert(mono);
     }
 
@@ -243,9 +247,7 @@ template<class C, class S> bool AnfParser<C, S>::read_anf_clause(C &in)
     uint32_t var;
     std::string str;
     for (;;) {
-        if (!in.parseString(str)) {
-            return false;
-        }
+        in.parseString(str);
 
         bool with_unit_mono = false;
         switch (str[0]) {
@@ -437,21 +439,26 @@ template<class C, class S> bool AnfParser<C, S>::parse_ANF_main(C &in)
 
 
 template<class C, class S>
-template<class T>
-bool AnfParser<C, S>::parse_ANF(T input_stream, const bool _strict_header, uint32_t _offset_vars)
+bool AnfParser<C, S>::parse_ANF(const string &file_name, const bool _strict_header, uint32_t _offset_vars)
 {
     strict_header = _strict_header;
     offset_vars = _offset_vars;
     const uint32_t origNumVars = solver->nVars();
 
-    C in1(input_stream), in2(input_stream);
-
+    gzFile gzf1 = gzopen(file_name.c_str(), "rb");
+    C in1(gzf1);
     // add eq clauses (including those cnf clauses)
     if (!scan_instance(in1)) return false;
+    gzclose(gzf1);
+
+    gzFile gzf2 = gzopen(file_name.c_str(), "rb");
+    C in2(gzf2);
+    // add xor clauses
     if (!parse_ANF_main(in2)) return false;
+    gzclose(gzf2);
 
     if (verbosity) {
-        cout << "c -- clauses added: " << norm_clauses_added << endl
+        cout << "c -- norm clauses added: " << norm_clauses_added << endl
              << "c -- xor clauses added: " << xor_clauses_added << endl
              << "c -- vars added " << (solver->nVars() - origNumVars) << endl;
     }

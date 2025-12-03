@@ -20,7 +20,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
+#include "anfparser.h"
 #include "solvertypesmini.h"
+#include "streambuffer.h"
+#include <zlib.h>
 #define DEBUG_DIMACSPARSER_CMS
 
 #include <ctime>
@@ -91,6 +94,23 @@ void Main::readInAFile(SATSolver *solver2, const string &filename)
 #endif
 }
 
+void Main::readInAANFFile(SATSolver *solver2, const string &filename)
+{
+    if (conf.verbosity) cout << "c Reading ANF file '" << filename << "'" << endl;
+    gzFile in = gzopen(filename.c_str(), "rb");
+    AnfParser<StreamBuffer<gzFile, GZ>, SATSolver> parser(solver2, conf.verbosity);
+    if (in == nullptr) {
+        std::cerr << "ERROR! Could not open file '" << filename << "' for reading: " << strerror(errno) << endl;
+        std::exit(1);
+    }
+
+    bool strict_header = false;
+    if (!parser.parse_ANF(filename, strict_header)) {
+        exit(-1);
+    }
+    gzclose(in);
+}
+
 void Main::readInStandardInput(SATSolver *solver2)
 {
     if (conf.verbosity) cout << "c Reading from standard input... Use '-h' or '--help' for help." << endl;
@@ -126,8 +146,15 @@ void Main::parseInAllFiles(SATSolver *solver2)
 
     //First read normal extra files
     solver->add_sql_tag("stdin", fileNamePresent ? "False" : "True");
-    if (!fileNamePresent) readInStandardInput(solver2);
-    else readInAFile(solver2, input_file);
+    if (!fileNamePresent) {
+        readInStandardInput(solver2);
+    } else {
+        if (input_file.size() > 4 && input_file.substr(input_file.size() - 4) == ".anf") {
+            readInAANFFile(solver2, input_file);
+        } else {
+            readInAFile(solver2, input_file);
+        }
+    }
 
     if (conf.verbosity) {
         if (num_threads > 1) {

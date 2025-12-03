@@ -21,18 +21,24 @@ THE SOFTWARE.
 ***********************************************/
 
 #include "propengine.h"
+#include <cassert>
 #include <cmath>
+#include <optional>
 #include <string.h>
 #include <algorithm>
 #include <limits.h>
+#include <type_traits>
 #include <vector>
 #include <iomanip>
 #include <algorithm>
 
 #include "constants.h"
+#include "eq.h"
+#include "eqwatch.h"
 #include "solver.h"
 #include "clauseallocator.h"
 #include "clause.h"
+#include "solvertypesmini.h"
 #include "time_mem.h"
 #include "varupdatehelper.h"
 #include "watchalgos.h"
@@ -123,6 +129,23 @@ void PropEngine::attach_xor_clause(uint32_t at)
     gwatches[x[1]].push(w);
     x.watched[0] = 0;
     x.watched[1] = 1;
+}
+
+void PropEngine::attach_eq_clause(uint32_t at)
+{
+    Eq &e = eq_clauses[at];
+    const auto &lits = e.get_lits();
+    assert(lits.size() >= 2);
+
+    assert(value(e[0]) == l_Undef);
+    assert(value(e[1]) == l_Undef);
+
+    eq_watches[e[0].var()].push(EqWatched(at));
+    eq_watches[e[1].var()].push(EqWatched(at));
+    e.watched[0] = 0;
+    e.watched[1] = 1;
+
+    aux_to_eid[e.get_aux_lit().var()] = e.get_eid();
 }
 
 /**
@@ -277,6 +300,124 @@ PropBy PropEngine::gauss_jordan_elim(const Lit p, const uint32_t currLevel)
         }
     }
     return PropBy();
+}
+
+void PropEngine::eq_elim(const Lit p)
+{
+    VERBOSE_PRINT("PropEngine::eq_elim called, declev: " << decisionLevel() << " lit to prop: " << p);
+
+    const uint32_t pv = p.var();
+
+    if (value(pv) == l_Undef) {
+        if (!is_aux_var(pv)) {
+            vec<EqWatched> &ws = eq_watches[pv];
+            const EqWatched *end = ws.end();
+            for (EqWatched *i = ws.begin(); i != end; i++) {
+                const auto at = i->eid;
+                auto &eq = eq_clauses[at];
+                const Lit aux_lit = eq.get_aux_lit();
+                const int aux_lit_int = aux_lit.toInt();
+
+                bool which;
+                if (eq[eq.watched[0]].var() == pv) {
+                    which = 0;
+                } else {
+                    which = 1;
+                    assert(eq[eq.watched[1]].var() == pv);
+                }
+
+                const Lit other = eq[eq.watched[!which]];
+                if (value(other) == l_Undef) {
+                    alias[aux_lit_int] = std::nullopt;
+                } else { // value(other) != l_Undef
+                    if (value(aux_lit) == l_Undef && value(other) == l_True) {
+                        alias[aux_lit_int] = eq[eq.watched[which]];
+                    }
+                }
+            }
+        } else {
+            auto &eq = eq_clauses[aux_to_eid[pv]];
+            assert(eq.get_eid() == aux_to_eid[pv]);
+            const int aux_lit_int = eq.get_aux_lit().toInt();
+            if (value(eq[eq.watched[0]]) == l_Undef && value(eq[eq.watched[1]]) == l_Undef) {
+                alias[aux_lit_int] = std::nullopt;
+            } else if (value(eq[eq.watched[0]]) == l_Undef && value(eq[eq.watched[1]]) == l_True) {
+                alias[aux_lit_int] = eq[eq.watched[0]];
+            } else if (value(eq[eq.watched[1]]) == l_Undef && value(eq[eq.watched[0]]) == l_True) {
+                alias[aux_lit_int] = eq[eq.watched[1]];
+            } else {
+                assert(alias[aux_lit_int] == std::nullopt);
+            }
+        }
+        return;
+    }
+
+    if (is_aux_var(pv)) {
+        const auto &eq = eq_clauses[aux_to_eid[pv]];
+        const int aux_lit_int = eq.get_aux_lit().toInt();
+        alias[aux_lit_int] = std::nullopt;
+        return;
+    }
+
+    vec<EqWatched> &ws = eq_watches[pv];
+    EqWatched *i = ws.begin();
+    EqWatched *j = i;
+    const EqWatched *end = ws.end();
+
+    for (; i != end; i++) {
+        auto at = i->eid;
+        auto &eq = eq_clauses[at];
+
+        bool which;
+        if (eq[eq.watched[0]].var() == pv) {
+            which = 0;
+        } else {
+            which = 1;
+            assert(eq[eq.watched[1]].var() == pv);
+        }
+
+        const Lit the_other_watched = eq[eq.watched[!which]];
+        const Lit aux_lit = eq.get_aux_lit();
+        const int aux_lit_int = aux_lit.toInt();
+
+        if (value(eq[eq.watched[which]]) == l_False) {
+            alias[aux_lit_int] = std::nullopt;
+            *j++ = *i;
+            goto next;
+        }
+
+        if (value(the_other_watched) == l_False) {
+            // no need to do some replace,
+            assert(alias[aux_lit_int] == std::nullopt);
+            *j++ = *i;
+            goto next;
+        }
+
+        for (uint32_t i2 = 0; i2 < eq.size(); i2++) {
+            if (i2 == eq.watched[0] || i2 == eq.watched[1]) {
+                continue;
+            }
+            const Lit &l2 = eq[i2];
+            if (value(l2) != l_True) {
+                eq.watched[which] = i2;
+                eq_watches[l2.var()].push(EqWatched(at));
+                goto next;
+            }
+        }
+
+        // now, all the literals except the_other_watched are TRUE
+        // if the_other_watched and aux_lit are both UNDEF, they are eq.
+        if (value(the_other_watched) == l_Undef && value(aux_lit) == l_Undef) {
+            alias[aux_lit_int] = the_other_watched;
+        } else {
+            alias[aux_lit_int] = std::nullopt;
+        }
+        *j++ = *i;
+
+    next:;
+    }
+    for (; i != end; i++) *j++ = *i;
+    ws.shrink(i - j);
 }
 
 lbool PropEngine::bnn_prop(const uint32_t bnn_idx, uint32_t level, Lit /*l*/, BNNPropType prop_t)
@@ -666,6 +807,8 @@ template<bool inprocess, bool red_also, bool distill_use> PropBy PropEngine::pro
         varData[p.var()].propagated = true;
         watch_subarray ws = watches[~p];
         uint32_t currLevel = trail[qhead].lev;
+
+        eq_elim(p);
 
         Watched *i = ws.begin();
         Watched *j = i;

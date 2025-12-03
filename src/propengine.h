@@ -23,7 +23,9 @@ THE SOFTWARE.
 #pragma once
 
 // #define VERBOSE_DEBUG
+#include <cstdint>
 #include <cstdio>
+#include <optional>
 #include <string.h>
 #include <stack>
 #include <set>
@@ -278,6 +280,7 @@ class PropEngine : public CNF
     lbool bnn_prop(const uint32_t bnn_idx, uint32_t level, Lit l, BNNPropType prop_t);
     void attachClause(const Clause &c, const bool checkAttach = true);
     void attach_xor_clause(uint32_t at);
+    void attach_eq_clause(uint32_t at);
 
     void detach_bin_clause(Lit lit1,
                            Lit lit2,
@@ -332,6 +335,7 @@ class PropEngine : public CNF
     template<bool bin_only = true> PropBy propagate_light();
     template<bool inprocess> PropResult prop_normal_helper(Clause &c, ClOffset offset, Watched *&j, const Lit p);
     template<bool inprocess> PropResult handle_normal_prop_fail(Clause &c, ClOffset offset, PropBy &confl);
+    void eq_elim(const Lit p);
 
   private:
     Solver *solver;

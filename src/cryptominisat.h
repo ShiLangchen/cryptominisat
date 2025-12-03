@@ -305,6 +305,9 @@ class SATSolver
     void set_opt_sampl_vars(const std::vector<uint32_t> &vars);
     bool get_opt_sampl_vars_set() const;
 
+    void set_real_var_num(const uint32_t rvn);
+    uint32_t get_real_var_num() const;
+
   private:
     void set_lit_weight_internal(const Lit lit, double val);
 
