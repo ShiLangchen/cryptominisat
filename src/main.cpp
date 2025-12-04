@@ -38,6 +38,7 @@ THE SOFTWARE.
 #include "main.h"
 #include "time_mem.h"
 #include "dimacsparser.h"
+#include "anfparser.h"
 #include "cryptominisat.h"
 #include "signalcode.h"
 #include "argparse.hpp"
@@ -125,6 +126,23 @@ void Main::readInStandardInput(SATSolver* solver2)
     #endif
 }
 
+void Main::readInAANFFile(SATSolver* solver2, const string& filename)
+{
+    if (conf.verbosity) cout << "c Reading ANF file '" << filename << "'" << endl;
+    gzFile in = gzopen(filename.c_str(), "rb");
+    AnfParser<StreamBuffer<gzFile, GZ>, SATSolver> parser(solver2, conf.verbosity);
+    if (in == nullptr) {
+        std::cerr << "ERROR! Could not open file '" << filename << "' for reading: " << strerror(errno) << endl;
+        std::exit(1);
+    }
+
+    bool strict_header = false;
+    if (!parser.parse_ANF(filename, strict_header)) {
+        exit(-1);
+    }
+    gzclose(in);
+}
+
 void Main::parseInAllFiles(SATSolver* solver2)
 {
     const double my_timeTotal = cpuTimeTotal();
@@ -132,8 +150,17 @@ void Main::parseInAllFiles(SATSolver* solver2)
 
     //First read normal extra files
     solver->add_sql_tag("stdin", fileNamePresent ? "False" : "True");
-    if (!fileNamePresent) readInStandardInput(solver2);
-    else readInAFile(solver2, input_file);
+    if (!fileNamePresent) {
+        readInStandardInput(solver2);
+    } else {
+        // Use ANF parser only if --anf option is enabled
+        // This allows explicit control over ANF parsing and future ANF-Elim reasoning
+        if (enable_anf) {
+            readInAANFFile(solver2, input_file);
+        } else {
+            readInAFile(solver2, input_file);
+        }
+    }
 
     if (conf.verbosity) {
         if (num_threads > 1) {
@@ -259,6 +286,10 @@ void Main::add_supported_options() {
         .action([&](const auto& a) {conf.doFindAndReplaceEqLits = std::atoi(a.c_str());})
         .default_value(conf.doFindAndReplaceEqLits)
         .help("Find equivalent literals through SCC and replace them");
+    program.add_argument("--anf")
+        .flag()
+        .action([&](const auto&) {enable_anf = true;})
+        .help("Enable ANF (Algebraic Normal Form) parsing and ANF-Elim reasoning. Use this option to parse .anf files or mixed ANF/CNF files.");
 
     #ifdef STATS_NEEDED
     program.add_argument("--clid")
