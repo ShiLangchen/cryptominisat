@@ -23,6 +23,8 @@ THE SOFTWARE.
 #include "propengine.h"
 #include <cassert>
 #include <cmath>
+#include <functional>
+#include <numeric>
 #include <optional>
 #include <string.h>
 #include <algorithm>
@@ -35,6 +37,7 @@ THE SOFTWARE.
 #include "constants.h"
 #include "eq.h"
 #include "eqwatch.h"
+#include "gausswatched.h"
 #include "solver.h"
 #include "clauseallocator.h"
 #include "clause.h"
@@ -127,16 +130,17 @@ void PropEngine::attach_xor_clause(uint32_t at)
     auto w = GaussWatched::plain_xor(at);
     gwatches[x[0]].push(w);
     gwatches[x[1]].push(w);
-    x.watched[0] = 0;
-    x.watched[1] = 1;
+    x.watched[0] = x[0];
+    x.watched[1] = x[1];
 
     x.parity.resize(real_var_num);
-    for (const uint32_t v: x.get_vars()) {
-        if (!is_aux_var(v)) {
-            assert(v < x.parity.size());
-            x.parity[v] = 1;
+    for (const uint32_t inv: x.get_vars()) {
+        const uint32_t outv = solver->map_inter_to_outer(inv);
+        if (!is_aux_var(inv)) {
+            assert(outv < x.parity.size());
+            x.parity[outv] = 1;
         } else {
-            aux_to_xors[v].push_back(at);
+            aux_to_xors[inv].push_back(at);
         }
     }
 }
@@ -458,7 +462,9 @@ void PropEngine::cancel_alias(const Lit aux_lit)
     const Lit old_alias_lit = alias[aux_lit.toInt()].value();
     for (const auto xor_at: aux_to_xors[aux_lit.var()]) {
         Xor &x = xorclauses[xor_at];
-        x.parity[old_alias_lit.var()] ^= 1;
+        const uint32_t outv = solver->map_inter_to_outer(old_alias_lit.var());
+        assert(outv < x.parity.size());
+        x.parity[outv] ^= 1;
         if (old_alias_lit.sign()) x.rhs2 ^= 1;
     }
     alias[aux_lit.toInt()] = std::nullopt;
@@ -469,15 +475,123 @@ void PropEngine::add_alias(const Lit aux_lit, const Lit new_alias)
 {
     for (const auto xor_at: aux_to_xors[aux_lit.var()]) {
         Xor &x = xorclauses[xor_at];
-        x.parity[new_alias.var()] ^= 1;
+        const uint32_t outv = solver->map_inter_to_outer(new_alias.var());
+        assert(outv < x.parity.size());
+        x.parity[outv] ^= 1;
         if (new_alias.sign()) x.rhs2 ^= 1;
     }
     alias[aux_lit.toInt()] = new_alias;
 }
 
-void PropEngine::update_xor_watch(uint32_t at)
+void PropEngine::update_xor_watches(uint32_t at)
 {
     Xor &x = xorclauses[at];
+
+    auto delete_old_watch = [&](uint32_t wrong_watched_var) {
+        //delete old watch
+        vec<GaussWatched> &ws = gwatches[wrong_watched_var];
+        GaussWatched *i = ws.begin();
+        GaussWatched *end = ws.end();
+        GaussWatched &last = ws.last();
+        for (; i != end; i++) {
+            if (i->matrix_num == 1000 && i->row_n == at) {
+                break;
+            }
+        }
+        std::swap(*i, last);
+        ws.pop();
+    };
+
+    std::function<bool(uint32_t &)> update_xor_watch = [&](uint32_t &wrong_watched_var) {
+        std::optional<uint32_t> assigned_var = std::nullopt;
+
+        for (uint32_t outv = 0; outv < real_var_num; outv++) {
+            const auto intv = solver->map_outer_to_inter(outv);
+            if (intv == x.watched[1] || intv == x.watched[0]) continue;
+            if (could_be_watch(x, intv)) {
+                if (value(intv) == l_Undef) {
+                    const auto old_watched = wrong_watched_var;
+                    delete_old_watch(old_watched);
+
+                    wrong_watched_var = intv;
+                    gwatches[intv].push(GaussWatched::plain_xor(at));
+
+                    goto SUCCESS_FIND;
+                } else {
+                    if (!assigned_var.has_value()) {
+                        assigned_var = intv;
+                    } else if (varData[intv].level > varData[assigned_var.value()].level) {
+                        assigned_var = intv;
+                    }
+                }
+            }
+        }
+        for (const auto intv: x.get_vars()) {
+            if (intv == x.watched[1] || intv == x.watched[0]) continue;
+            if (!is_aux_var(intv)) continue;
+            if (could_be_watch(x, intv)) {
+                if (value(intv) == l_Undef) {
+                    const auto old_watched = wrong_watched_var;
+                    delete_old_watch(old_watched);
+
+                    wrong_watched_var = intv;
+                    gwatches[intv].push(GaussWatched::plain_xor(at));
+
+                    goto SUCCESS_FIND;
+                } else {
+                    if (!assigned_var.has_value()) {
+                        assigned_var = intv;
+                    } else if (varData[intv].level > varData[assigned_var.value()].level) {
+                        assigned_var = intv;
+                    }
+                }
+            }
+        }
+        if (assigned_var.has_value()) {
+            const auto old_watched = wrong_watched_var;
+            delete_old_watch(old_watched);
+
+            wrong_watched_var = assigned_var.value();
+            gwatches[assigned_var.value()].push(GaussWatched::plain_xor(at));
+
+            goto SUCCESS_FIND;
+        }
+        return false;
+    SUCCESS_FIND:
+        return true;
+    };
+    if (!could_be_watch(x, x.watched[0])) {
+        bool success = update_xor_watch(x.watched[0]);
+        x.watched_enabled[0] = success;
+    }
+
+    if (!could_be_watch(x, x.watched[1])) {
+        bool success = update_xor_watch(x.watched[1]);
+        x.watched_enabled[1] = success;
+    }
+
+    int enabled_watches = std::accumulate(x.watched_enabled, x.watched_enabled + 2, 0);
+    switch (enabled_watches) {
+        case 2:
+            // all assigned (check conflict)
+
+            // one assigned, one unassigned (propagate)
+
+            // all unassigned (do nothing)
+            break;
+        case 1:
+            // assigned (check conflict)
+
+            // unassigned (propagate)
+
+            break;
+        case 0:
+            // check conflict (rhs)
+
+            break;
+        default:
+            assert(false);
+    }
 }
 
 
