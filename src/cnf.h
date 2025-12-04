@@ -306,7 +306,8 @@ class CNF
     uint32_t real_var_num;
     // alias
     std::vector<std::optional<Lit>> alias;
-    std::map<uint32_t, int32_t> aux_to_eid;
+    std::vector<int32_t> aux_to_eid;
+    std::vector<std::vector<uint32_t>> aux_to_xors;
 
     vector<uint32_t> outer_to_interMain;
     vector<uint32_t> inter_to_outerMain;

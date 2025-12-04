@@ -3024,9 +3024,10 @@ template<bool do_insert_var_order, bool inprocess> void Searcher::cancelUntil(ui
                 if (do_insert_var_order) insert_var_order(var);
             }
         }
+        vector<uint32_t> changed_auxs;
         while (trail.size() > j) {
             const Lit lit = trail.back().lit;
-            eq_elim(lit);
+            eq_elim(lit, changed_auxs);
             trail.pop_back();
         }
         qhead = trail_lim[blevel];

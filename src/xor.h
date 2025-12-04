@@ -83,6 +83,7 @@ class Xor
     size_t size() const { return vars.size(); }
 
     bool rhs = false;
+    bool rhs2 = false;
     uint8_t prop_confl_watch = 0; // which watch is propagating?
             // if it's CONFL, then it's 2 + (0/1)
     vector<uint32_t> vars;
@@ -91,6 +92,8 @@ class Xor
     uint32_t watched[2] = {0, 0};
     uint32_t in_matrix = 1000;
     int32_t xid = 0;
+
+    vector<uint8_t> parity;
 };
 
 inline std::ostream &operator<<(std::ostream &os, const Xor &x)

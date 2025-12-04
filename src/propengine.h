@@ -335,7 +335,13 @@ class PropEngine : public CNF
     template<bool bin_only = true> PropBy propagate_light();
     template<bool inprocess> PropResult prop_normal_helper(Clause &c, ClOffset offset, Watched *&j, const Lit p);
     template<bool inprocess> PropResult handle_normal_prop_fail(Clause &c, ClOffset offset, PropBy &confl);
-    void eq_elim(const Lit p);
+
+    // alias for eq elimination
+    void eq_elim(const Lit p, std::vector<uint32_t> &changed_aux);
+    void set_alias(const Lit aux_lit, const std::optional<Lit> new_alias, std::vector<uint32_t> &changed_auxs);
+    void cancel_alias(const Lit aux_lit);
+    void add_alias(const Lit aux_lit, const Lit new_alias);
+    void update_xor_watch(uint32_t at);
 
   private:
     Solver *solver;

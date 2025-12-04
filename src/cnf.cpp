@@ -129,6 +129,8 @@ void CNF::enlarge_nonminimial_datastructs(size_t n)
 {
     assigns.insert(assigns.end(), n, l_Undef);
     alias.insert(alias.end(), 2 * n, std::nullopt);
+    aux_to_eid.insert(aux_to_eid.end(), n, -1);
+    aux_to_xors.insert(aux_to_xors.end(), n, std::vector<uint32_t>());
     unit_cl_IDs.insert(unit_cl_IDs.end(), n, 0);
     unit_cl_XIDs.insert(unit_cl_XIDs.end(), n, 0);
     for (uint32_t i = 0; i < n; i++) {
@@ -231,6 +233,8 @@ void CNF::update_vars(const vector<uint32_t> &outer_to_inter,
     updateArray(varData, inter_to_outer);
     updateArray(assigns, inter_to_outer);
     updateArray(alias, inter_to_outer);
+    updateArray(aux_to_eid, inter_to_outer);
+    updateArray(aux_to_xors, inter_to_outer);
 
     updateArray(unit_cl_IDs, inter_to_outer);
     updateArray(unit_cl_XIDs, inter_to_outer);
