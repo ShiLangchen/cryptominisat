@@ -1018,6 +1018,10 @@ void Main::add_supported_options() {
         .action([&](const auto& a) {conf.gaussconf.min_usefulness_cutoff = std::atof(a.c_str());})
         .default_value(conf.gaussconf.min_usefulness_cutoff)
         .help("Turn off Gauss if less than this many usefulenss ratio is recorded");
+    program.add_argument("--nomatrix")
+        .flag()
+        .action([&](const auto&) {conf.gaussconf.doMatrixFind = false;})
+        .help("Disable Gaussian matrix finding, use XOR clauses as individual clauses (useful for ANF-Elim testing)");
     program.add_argument("--dumpresult")
         .action([&](const auto& a) {result_fname = a;})
         .help("Write solution(s) to this file");

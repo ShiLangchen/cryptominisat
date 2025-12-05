@@ -91,6 +91,11 @@ class Xor
     uint32_t watched[2] = {0, 0};
     uint32_t in_matrix = 1000;
     int32_t xid = 0;
+    
+    // ANF-Elim: bitset for tracking parity of resolved variables
+    // active_resolved_vars: set of variables (after alias resolution) that appear odd times
+    // These are the variables that contribute to the XOR parity (x⊕x=0 elimination)
+    set<uint32_t> active_resolved_vars;
 };
 
 inline std::ostream &operator<<(std::ostream &os, const Xor &x)

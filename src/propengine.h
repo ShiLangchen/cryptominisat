@@ -281,6 +281,8 @@ class PropEngine : public CNF
     void attachClause(const Clause &c, const bool checkAttach = true);
     void attach_xor_clause(uint32_t at);
     void attach_eq_clause(uint32_t at);
+    void update_xor_active_vars(uint32_t at); // ANF-Elim: Update active_resolved_vars for XOR clause
+    void update_xor_active_vars_for_var(uint32_t var); // ANF-Elim: Update active_resolved_vars for all XOR clauses containing var
 
     void detach_bin_clause(Lit lit1,
                            Lit lit2,

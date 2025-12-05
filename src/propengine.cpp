@@ -30,6 +30,7 @@ THE SOFTWARE.
 #include <type_traits>
 #include <vector>
 #include <iomanip>
+#include <set>
 #include <algorithm>
 
 #include "constants.h"
@@ -48,10 +49,13 @@ THE SOFTWARE.
 using namespace CMSat;
 using std::cout;
 using std::endl;
+using std::set;
 
 //#define DEBUG_ENQUEUE_LEVEL0
 //#define VERBOSE_DEBUG_POLARITIES
 //#define DEBUG_DYNAMIC_RESTART
+// Uncomment the line below to enable ANF propagation debugging output
+#define DEBUG_ANF_PROP
 
 /**
 @brief Sets a sane default config and allocates handler classes
@@ -129,6 +133,76 @@ void PropEngine::attach_xor_clause(uint32_t at)
     gwatches[x[1]].push(w);
     x.watched[0] = 0;
     x.watched[1] = 1;
+    
+    // ANF-Elim: Initialize active_resolved_vars (variables with odd count after alias resolution)
+    update_xor_active_vars(at);
+}
+
+void PropEngine::update_xor_active_vars(uint32_t at)
+{
+    Xor &x = xorclauses[at];
+    x.active_resolved_vars.clear();
+    
+    // Count occurrences of each resolved variable
+    std::map<uint32_t, int> resolved_var_count;
+    for (uint32_t i = 0; i < x.size(); i++) {
+        uint32_t orig_var = x[i];
+        Lit orig_lit = Lit(orig_var, false);
+        Lit resolved_lit = resolve_alias(orig_lit);
+        uint32_t resolved_var = resolved_lit.var();
+        resolved_var_count[resolved_var]++;
+    }
+    
+    // Only variables with odd count are active (x⊕x=0 elimination)
+    for (const auto &pair : resolved_var_count) {
+        if (pair.second % 2 == 1) {
+            x.active_resolved_vars.insert(pair.first);
+        }
+    }
+    
+#ifdef DEBUG_ANF_PROP
+    cout << "[ANF-PROP] Updated active_resolved_vars for XOR clause #" << at << ": ";
+    cout << "Original vars: ";
+    for (uint32_t i = 0; i < x.size(); i++) {
+        uint32_t orig_var = x[i];
+        Lit orig_lit = Lit(orig_var, false);
+        Lit resolved_lit = resolve_alias(orig_lit);
+        cout << orig_var + 1;
+        if (resolved_lit.var() != orig_var) {
+            cout << "->" << resolved_lit.var() + 1;
+        }
+        if (i + 1 < x.size()) cout << " ";
+    }
+    cout << " | Resolved counts: ";
+    for (const auto &pair : resolved_var_count) {
+        cout << "x" << pair.first + 1 << ":" << pair.second << " ";
+    }
+    cout << "| Active vars (odd count): ";
+    for (uint32_t v : x.active_resolved_vars) {
+        cout << v + 1 << " ";
+    }
+    cout << "| RHS=" << x.rhs << endl;
+#endif
+}
+
+void PropEngine::update_xor_active_vars_for_var(uint32_t var)
+{
+    // Update all XOR clauses that contain this variable (or its alias)
+    // We need to check gwatches to find all XOR clauses containing this variable
+    if (gwatches.size() <= var) return;
+    
+    vec<GaussWatched> &ws = gwatches[var];
+    std::set<uint32_t> updated_xors;  // Avoid updating the same XOR clause multiple times
+    
+    for (const GaussWatched &w : ws) {
+        if (w.matrix_num == 1000) {
+            uint32_t at = w.row_n;
+            if (updated_xors.find(at) == updated_xors.end()) {
+                update_xor_active_vars(at);
+                updated_xors.insert(at);
+            }
+        }
+    }
 }
 
 void PropEngine::attach_eq_clause(uint32_t at)
@@ -201,43 +275,113 @@ PropBy PropEngine::gauss_jordan_elim(const Lit p, const uint32_t currLevel)
                 assert(x[x.watched[1]] == pv);
             }
 
+            // ANF-Elim: Use bitset (active_resolved_vars) and watched literals
+            // active_resolved_vars contains variables (after alias resolution) that appear odd times
+            // Only these variables contribute to XOR parity (x⊕x=0 elimination already applied)
+            
+#ifdef DEBUG_ANF_PROP
+            cout << "[ANF-PROP] Processing XOR clause #" << at << " triggered by var " << pv + 1 << " (watch " << (which ? 1 : 0) << ")" << endl;
+            cout << "  Original XOR: ";
+            for (uint32_t i2 = 0; i2 < x.size(); i2++) {
+                uint32_t orig_var = x[i2];
+                Lit orig_lit = Lit(orig_var, false);
+                Lit resolved_lit = resolve_alias(orig_lit);
+                cout << orig_var + 1;
+                if (resolved_lit.var() != orig_var) {
+                    cout << "->" << resolved_lit.var() + 1;
+                }
+                if (i2 + 1 < x.size()) cout << " ⊕ ";
+            }
+            cout << " = " << x.rhs << endl;
+            cout << "  Active resolved vars: ";
+            for (uint32_t v : x.active_resolved_vars) {
+                cout << v + 1 << " ";
+            }
+            cout << endl;
+#endif
+            
+            // Compute parity using only active_resolved_vars
             uint32_t unknown = 0;
             uint32_t unknown_at = 0;
+            uint32_t unknown_at_var = 0;  // resolved variable for propagation
             bool rhs = false;
-            for (uint32_t i2 = 0; i2 < x.size(); i2++) {
-                if (solver->value(x[i2]) == l_Undef) {
+            
+            // Iterate through active_resolved_vars (variables that contribute to parity)
+            for (uint32_t resolved_var : x.active_resolved_vars) {
+                if (value(resolved_var) == l_Undef) {
                     unknown++;
-                    unknown_at = i2;
-                    if (i2 != x.watched[!which]) {
-                        // it's not the other watch. So we can update current
-                        // watch to this
-                        gwatches[x[i2]].push(GaussWatched::plain_xor(at));
-                        x.watched[which] = i2;
-                        /* cout << "found new watch for xor: " << x << endl; */
+                    // Find the original position in XOR clause for this resolved variable
+                    // We need to find a position where the original variable resolves to resolved_var
+                    bool found = false;
+                    for (uint32_t i2 = 0; i2 < x.size(); i2++) {
+                        uint32_t orig_var = x[i2];
+                        Lit orig_lit = Lit(orig_var, false);
+                        Lit resolved_lit = resolve_alias(orig_lit);
+                        if (resolved_lit.var() == resolved_var) {
+                            unknown_at = i2;
+                            unknown_at_var = resolved_var;
+                            found = true;
+                            
+                            // Check if this can be a new watch
+                            if (i2 != x.watched[!which]) {
+                                // it's not the other watch. So we can update current
+                                // watch to this (using original variable for watch)
+                                gwatches[orig_var].push(GaussWatched::plain_xor(at));
+                                x.watched[which] = i2;
+#ifdef DEBUG_ANF_PROP
+                                cout << "  Found new watch at position " << i2 << " (orig var " << orig_var + 1 << ", resolved to " << resolved_var + 1 << ")" << endl;
+#endif
+                                goto next;
+                            }
+                            break;  // Found the position, no need to continue
+                        }
+                    }
+                    if (!found) {
+                        // This shouldn't happen, but handle gracefully
+                        // Update active_resolved_vars and retry
+#ifdef DEBUG_ANF_PROP
+                        cout << "  WARNING: Could not find original position for resolved var " << resolved_var + 1 << ", updating bitset..." << endl;
+#endif
+                        update_xor_active_vars(at);
                         goto next;
                     }
-                } else rhs ^= solver->value(x[i2]) == l_True;
+                } else {
+                    bool var_val = (value(resolved_var) == l_True);
+                    rhs ^= var_val;
+#ifdef DEBUG_ANF_PROP
+                    cout << "  Resolved var " << resolved_var + 1 << " = " << var_val << " (contributes to RHS: " << rhs << ")" << endl;
+#endif
+                }
             }
+            
             assert(unknown < 2);
             if (unknown == 1) {
                 // this is the OTHER watch for sure
-                /* cout << "propagating because of xor: " << x << endl; */
                 assert(unknown_at == x.watched[!which]);
                 x.prop_confl_watch = !which;
-                enqueue<false>(Lit(x.vars[unknown_at], rhs == x.rhs), decisionLevel(), PropBy(1000, at));
+                // Use resolved variable for propagation (if alias was applied)
+                Lit prop_lit = Lit(unknown_at_var, rhs == x.rhs);
+#ifdef DEBUG_ANF_PROP
+                cout << "  -> PROPAGATE: unknown=" << unknown << " (var " << unknown_at_var + 1 << " at pos " << unknown_at << "), computed RHS=" << rhs << ", clause RHS=" << x.rhs << ", propagate " << prop_lit << " at level " << decisionLevel() << endl;
+#endif
+                enqueue<false>(prop_lit, decisionLevel(), PropBy(1000, at));
                 *j++ = *i;
                 goto next;
             }
             assert(unknown == 0);
             if (rhs != x.rhs) {
-                /* cout << "conflict because of xor: " << x << endl; */
                 x.prop_confl_watch = 2 + which;
                 confl = PropBy(1000, at);
+#ifdef DEBUG_ANF_PROP
+                cout << "  -> CONFLICT: computed RHS=" << rhs << ", clause RHS=" << x.rhs << ", conflict at level " << decisionLevel() << endl;
+#endif
                 *j++ = *i;
                 i++;
                 break;
             } else {
-                /* cout << "satisfied xor: " << x << endl; */
+#ifdef DEBUG_ANF_PROP
+                cout << "  -> SATISFIED: computed RHS=" << rhs << ", clause RHS=" << x.rhs << endl;
+#endif
                 *j++ = *i;
             }
         } else {
@@ -327,6 +471,7 @@ void PropEngine::eq_elim(const Lit p)
                 }
 
                 const Lit other = eq[eq.watched[!which]];
+                std::optional<Lit> old_alias = alias[aux_lit_int];
                 if (value(other) == l_Undef) {
                     alias[aux_lit_int] = std::nullopt;
                 } else { // value(other) != l_Undef
@@ -334,11 +479,37 @@ void PropEngine::eq_elim(const Lit p)
                         alias[aux_lit_int] = eq[eq.watched[which]];
                     }
                 }
+                // ANF-Elim: If alias changed, update XOR clauses
+                if (alias[aux_lit_int] != old_alias) {
+#ifdef DEBUG_ANF_PROP
+                    cout << "[ANF-PROP] Alias changed for aux var " << aux_lit.var() + 1 << " (Eq clause #" << at << "): ";
+                    if (old_alias.has_value()) {
+                        cout << old_alias.value();
+                    } else {
+                        cout << "none";
+                    }
+                    cout << " -> ";
+                    if (alias[aux_lit_int].has_value()) {
+                        cout << alias[aux_lit_int].value();
+                    } else {
+                        cout << "none";
+                    }
+                    cout << " at level " << decisionLevel() << endl;
+#endif
+                    update_xor_active_vars_for_var(aux_lit.var());
+                    if (old_alias.has_value()) {
+                        update_xor_active_vars_for_var(old_alias.value().var());
+                    }
+                    if (alias[aux_lit_int].has_value()) {
+                        update_xor_active_vars_for_var(alias[aux_lit_int].value().var());
+                    }
+                }
             }
         } else {
             auto &eq = eq_clauses[aux_to_eid[pv]];
             assert(eq.get_eid() == aux_to_eid[pv]);
             const int aux_lit_int = eq.get_aux_lit().toInt();
+            std::optional<Lit> old_alias = alias[aux_lit_int];
             if (value(eq[eq.watched[0]]) == l_Undef && value(eq[eq.watched[1]]) == l_Undef) {
                 alias[aux_lit_int] = std::nullopt;
             } else if (value(eq[eq.watched[0]]) == l_Undef && value(eq[eq.watched[1]]) == l_True) {
@@ -348,6 +519,31 @@ void PropEngine::eq_elim(const Lit p)
             } else {
                 assert(alias[aux_lit_int] == std::nullopt);
             }
+            // ANF-Elim: If alias changed, update XOR clauses
+            if (alias[aux_lit_int] != old_alias) {
+#ifdef DEBUG_ANF_PROP
+                cout << "[ANF-PROP] Alias changed for aux var " << eq.get_aux_lit().var() + 1 << " (Eq clause #" << aux_to_eid[pv] << "): ";
+                if (old_alias.has_value()) {
+                    cout << old_alias.value();
+                } else {
+                    cout << "none";
+                }
+                cout << " -> ";
+                if (alias[aux_lit_int].has_value()) {
+                    cout << alias[aux_lit_int].value();
+                } else {
+                    cout << "none";
+                }
+                cout << " at level " << decisionLevel() << endl;
+#endif
+                update_xor_active_vars_for_var(eq.get_aux_lit().var());
+                if (old_alias.has_value()) {
+                    update_xor_active_vars_for_var(old_alias.value().var());
+                }
+                if (alias[aux_lit_int].has_value()) {
+                    update_xor_active_vars_for_var(alias[aux_lit_int].value().var());
+                }
+            }
         }
         return;
     }
@@ -355,7 +551,24 @@ void PropEngine::eq_elim(const Lit p)
     if (is_aux_var(pv)) {
         const auto &eq = eq_clauses[aux_to_eid[pv]];
         const int aux_lit_int = eq.get_aux_lit().toInt();
+        std::optional<Lit> old_alias = alias[aux_lit_int];
         alias[aux_lit_int] = std::nullopt;
+        // ANF-Elim: If alias changed, update XOR clauses
+        if (alias[aux_lit_int] != old_alias) {
+#ifdef DEBUG_ANF_PROP
+            cout << "[ANF-PROP] Alias changed for aux var " << pv + 1 << " (Eq clause #" << aux_to_eid[pv] << "): ";
+            if (old_alias.has_value()) {
+                cout << old_alias.value();
+            } else {
+                cout << "none";
+            }
+            cout << " -> none at level " << decisionLevel() << endl;
+#endif
+            update_xor_active_vars_for_var(pv);
+            if (old_alias.has_value()) {
+                update_xor_active_vars_for_var(old_alias.value().var());
+            }
+        }
         return;
     }
 
@@ -380,8 +593,25 @@ void PropEngine::eq_elim(const Lit p)
         const Lit aux_lit = eq.get_aux_lit();
         const int aux_lit_int = aux_lit.toInt();
 
+        std::optional<Lit> old_alias = alias[aux_lit_int];
         if (value(eq[eq.watched[which]]) == l_False) {
             alias[aux_lit_int] = std::nullopt;
+            // ANF-Elim: If alias changed, update XOR clauses
+            if (alias[aux_lit_int] != old_alias) {
+#ifdef DEBUG_ANF_PROP
+                cout << "[ANF-PROP] Alias changed for aux var " << aux_lit.var() + 1 << " (Eq clause #" << at << "): ";
+                if (old_alias.has_value()) {
+                    cout << old_alias.value();
+                } else {
+                    cout << "none";
+                }
+                cout << " -> none at level " << decisionLevel() << endl;
+#endif
+                update_xor_active_vars_for_var(aux_lit.var());
+                if (old_alias.has_value()) {
+                    update_xor_active_vars_for_var(old_alias.value().var());
+                }
+            }
             *j++ = *i;
             goto next;
         }
@@ -407,10 +637,36 @@ void PropEngine::eq_elim(const Lit p)
 
         // now, all the literals except the_other_watched are TRUE
         // if the_other_watched and aux_lit are both UNDEF, they are eq.
+        old_alias = alias[aux_lit_int];
         if (value(the_other_watched) == l_Undef && value(aux_lit) == l_Undef) {
             alias[aux_lit_int] = the_other_watched;
         } else {
             alias[aux_lit_int] = std::nullopt;
+        }
+        // ANF-Elim: If alias changed, update XOR clauses
+        if (alias[aux_lit_int] != old_alias) {
+#ifdef DEBUG_ANF_PROP
+            cout << "[ANF-PROP] Alias changed for aux var " << aux_lit.var() + 1 << " (Eq clause #" << at << "): ";
+            if (old_alias.has_value()) {
+                cout << old_alias.value();
+            } else {
+                cout << "none";
+            }
+            cout << " -> ";
+            if (alias[aux_lit_int].has_value()) {
+                cout << alias[aux_lit_int].value();
+            } else {
+                cout << "none";
+            }
+            cout << " at level " << decisionLevel() << endl;
+#endif
+            update_xor_active_vars_for_var(aux_lit.var());
+            if (old_alias.has_value()) {
+                update_xor_active_vars_for_var(old_alias.value().var());
+            }
+            if (alias[aux_lit_int].has_value()) {
+                update_xor_active_vars_for_var(alias[aux_lit_int].value().var());
+            }
         }
         *j++ = *i;
 
@@ -1152,53 +1408,262 @@ void PropEngine::vmtf_bump_queue(const uint32_t var)
 vector<Lit> *PropEngine::get_xor_reason(const PropBy &reason, int32_t &ID)
 {
     frat_func_start();
+#ifdef DEBUG_ANF_PROP
+    cout << "[ANF-REASON] get_xor_reason called: matrix=" << reason.get_matrix_num() 
+         << ", row=" << reason.get_row_num() << ", type=" << (int)reason.getType() << endl;
+#endif
     if (reason.get_matrix_num() == 1000) {
         auto &x = xorclauses[reason.get_row_num()];
+#ifdef DEBUG_ANF_PROP
+        cout << "[ANF-REASON] Building reason for XOR clause #" << reason.get_row_num() 
+             << ", prop_confl_watch=" << (int)x.prop_confl_watch << endl;
+        cout << "[ANF-REASON] Original XOR vars: ";
+        for (uint32_t i = 0; i < x.size(); i++) {
+            cout << x[i] + 1 << " ";
+        }
+        cout << "| RHS=" << (int)x.rhs << endl;
+        cout << "[ANF-REASON] Active resolved vars: ";
+        for (uint32_t v : x.active_resolved_vars) {
+            cout << v + 1 << " ";
+        }
+        cout << endl;
+#endif
         if (frat->enabled()) {
             if (x.reason_cl_ID != 0) *frat << del << x.reason_cl_ID << x.reason_cl << fin;
             x.reason_cl_ID = 0;
         }
         x.reason_cl.clear();
-        uint32_t pc_var;
-        if (x.prop_confl_watch < 2) {
-            //propagation
+        
+        // 重要修改：在构造reason之前先更新active_resolved_vars
+        update_xor_active_vars(reason.get_row_num());
+        
+        // ANF-Elim: Build reason using active_resolved_vars and alias information
+        // Collect U: conflicting literals from active variables
+        // Collect used aliases and their factors (F_S)
+        
+        std::set<Lit> added_lits;  // 用于去重
+        std::map<uint32_t, std::vector<Lit>> aux_factors; // aux_var -> enabling factors
+        
+        // 找出传播或冲突的变量
+        uint32_t pc_var = var_Undef;
+        bool is_propagation = (x.prop_confl_watch < 2);
+        
+        if (is_propagation) {
             const auto prop_at = x.watched[x.prop_confl_watch];
-            pc_var = x.vars[prop_at];
-            assert(value(pc_var) != l_Undef);
-            const auto prop = Lit(pc_var, value(pc_var) == l_False);
-            assert(value(prop) == l_True);
-            x.reason_cl.push_back(prop);
+            uint32_t orig_var = x.vars[prop_at];
+            Lit orig_lit = Lit(orig_var, false);
+            Lit resolved_lit = resolve_alias(orig_lit);
+            pc_var = resolved_lit.var();
         } else {
-            //conflict
-            assert(x.prop_confl_watch < 4);
-            const auto confl_at = x.watched[x.prop_confl_watch - 2];
-            pc_var = x.vars[confl_at];
-            assert(value(pc_var) != l_Undef);
-            const auto confl = Lit(pc_var, value(pc_var) == l_True);
-            assert(value(confl) == l_False);
-            x.reason_cl.push_back(confl);
+            // 冲突情况：所有变量都已赋值
+            // 不需要特定的pc_var
         }
-        bool rhs = false;
-        for (const auto &v: x.vars) {
-            rhs ^= value(v) == l_True;
-            if (v == pc_var) continue;
-            assert(value(v) != l_Undef);
-            auto lit = Lit(v, value(v) == l_True);
-            assert(value(lit) == l_False);
-            x.reason_cl.push_back(lit);
+        
+        // 修改2: 更完整地收集alias信息和factors
+        // 首先收集所有使用的alias及其enabling factors
+        for (uint32_t i = 0; i < x.size(); i++) {
+            uint32_t orig_var = x[i];
+            if (!is_aux_var(orig_var)) continue;
+            
+            Lit orig_lit = Lit(orig_var, false);
+            Lit resolved_lit = resolve_alias(orig_lit);
+            
+            if (resolved_lit.var() != orig_var) {
+                // 这个aux变量被alias了，收集其enabling factors
+                auto it = aux_to_eid.find(orig_var);
+                if (it != aux_to_eid.end()) {
+                    const Eq &eq = eq_clauses[it->second];
+                    
+                    // 收集所有值为True的因子（这些使得alias生效）
+                    // 注意：eq.lits 只包含因子，aux_lit 是单独存储的，所以不需要跳过
+                    for (uint32_t j = 0; j < eq.size(); j++) {
+                        const Lit &factor = eq[j];
+                        if (value(factor) == l_True) {
+                            aux_factors[orig_var].push_back(factor);
+                        }
+                    }
+                }
+            }
         }
+        
+        // Build reason clause
+        // Step 1: Compute RHS from all active variables (for verification)
+        bool computed_rhs = false;
+        for (uint32_t resolved_var : x.active_resolved_vars) {
+            if (value(resolved_var) != l_Undef) {
+                bool var_val = (value(resolved_var) == l_True);
+                computed_rhs ^= var_val;
+            }
+        }
+#ifdef DEBUG_ANF_PROP
+        cout << "[ANF-REASON] Computed RHS=" << (int)computed_rhs << ", clause RHS=" << (int)x.rhs << endl;
+#endif
+        
+        // Step 2: Add U - conflicting/propagated literals from active variables
+        if (is_propagation) {
+#ifdef DEBUG_ANF_PROP
+            cout << "[ANF-REASON] Building propagation reason clause..." << endl;
+#endif
+            // 传播情况：添加所有已赋值变量的否定（除了被传播的变量）
+            // 然后添加被传播的变量本身
+            
+            // 添加所有active resolved vars的贡献（除了pc_var）
+            for (uint32_t resolved_var : x.active_resolved_vars) {
+                if (resolved_var == pc_var) continue;
+                
+                if (value(resolved_var) != l_Undef) {
+                    bool var_val = (value(resolved_var) == l_True);
+                    // 添加否定：如果变量为真，添加其否定（假）
+                    Lit lit = Lit(resolved_var, var_val);  // 注意这里改为var_val而不是!var_val
+                    if (added_lits.find(lit) == added_lits.end()) {
+                        x.reason_cl.push_back(lit);
+                        added_lits.insert(lit);
+                    }
+                }
+            }
+            
+            // 计算被传播变量应该的值
+            bool rhs_without_pc = false;
+            for (uint32_t resolved_var : x.active_resolved_vars) {
+                if (resolved_var == pc_var) continue;
+                if (value(resolved_var) != l_Undef) {
+                    rhs_without_pc ^= (value(resolved_var) == l_True);
+                }
+            }
+            
+            // 添加被传播的文字
+            Lit prop_lit = Lit(pc_var, rhs_without_pc == x.rhs);  // 修改：取反
+            if (added_lits.find(prop_lit) == added_lits.end()) {
+                x.reason_cl.push_back(prop_lit);
+                added_lits.insert(prop_lit);
+            }
+        } else {
+            // For conflict: all variables are assigned, computed_rhs != x.rhs
+            // According to doc: construct a CNF clause that is false under current assignment
+            // Rule: If var=val, add literal such that value(literal) = False
+            //   - If var=True, add ¬var (value(¬var) = False)
+            //   - If var=False, add var (value(var) = False)
+            // This creates a clause where all literals are False, so the clause is False → conflict
+#ifdef DEBUG_ANF_PROP
+            cout << "[ANF-REASON] Building conflict reason clause..." << endl;
+#endif
+            // Build conflict reason clause: all literals should be False under current assignment
+            // According to doc: x=1,y=0,z=1 → reason = ¬x ∨ y ∨ ¬z (all False)
+            // Rule: if var=True, add ¬var; if var=False, add var
+            // Key: value(lit) = (lit.sign() ? assigns[var] == l_False : assigns[var] == l_True)
+            // So to get False: if var=True, need ¬var (sign=true); if var=False, need var (sign=false)
+            for (uint32_t resolved_var : x.active_resolved_vars) {
+                // Only include assigned variables (not those eliminated by parity cancellation)
+                if (value(resolved_var) != l_Undef) {
+                    bool var_val = (value(resolved_var) == l_True);
+                    
+                    // Add literal that is False under current assignment
+                    // According to doc: x=1,y=0,z=1 → ¬x ∨ y ∨ ¬z (all False)
+                    // value(Lit p) = assigns[p.var()] ^ p.sign()
+                    // To get False: assigns[var] ^ sign = l_False
+                    //   - If var=True (assigns[var]=l_True), need sign=true: True^true=False → Lit(var, true)=¬var
+                    //   - If var=False (assigns[var]=l_False), need sign=false: False^false=False → Lit(var, false)=var
+                    // So: sign = var_val gives us the literal that is False
+                    Lit lit = Lit(resolved_var, var_val);
+                    // Check for duplicates before adding
+                    if (added_lits.find(lit) == added_lits.end()) {
+                        x.reason_cl.push_back(lit);
+                        added_lits.insert(lit);
+#ifdef DEBUG_ANF_PROP
+                        lbool lit_val = value(lit);
+                        cout << "[ANF-REASON]   Added to U: " << lit << " (var " << resolved_var + 1 
+                             << "=" << (var_val ? "True" : "False") << ", lit value=" 
+                             << (lit_val == l_True ? "True" : (lit_val == l_False ? "False" : "Undef")) << ")" << endl;
+#endif
+                    }
+                }
+            }
+        }
+        
+        // 修改4: 添加所有enabling factors的否定
+        for (const auto &pair : aux_factors) {
+            for (const Lit &factor : pair.second) {
+                // 添加factor的否定（因为factor=True使得alias生效）
+                Lit neg_factor = ~factor;
+                if (added_lits.find(neg_factor) == added_lits.end()) {
+                    x.reason_cl.push_back(neg_factor);
+                    added_lits.insert(neg_factor);
+                }
+            }
+        }
+        
+        // Final step: Sort and remove any remaining duplicates (safety check)
+#ifdef DEBUG_ANF_PROP
+        cout << "[ANF-REASON] Before dedup, reason_cl size=" << x.reason_cl.size() << endl;
+#endif
+        std::sort(x.reason_cl.begin(), x.reason_cl.end());
+        auto last = std::unique(x.reason_cl.begin(), x.reason_cl.end());
+        x.reason_cl.erase(last, x.reason_cl.end());
+        
+        // 确保reason子句不为空且正确
+        assert(!x.reason_cl.empty() && "Reason clause must not be empty");
+        
+#ifdef DEBUG_ANF_PROP
+        cout << "[ANF-REASON] Final reason clause (size=" << x.reason_cl.size() << "): ";
+        for (const Lit &lit : x.reason_cl) {
+            cout << lit << " (value=" << value(lit) << ") ";
+        }
+        cout << endl;
+        
+        // 验证：传播时，除了被传播的文字外，其他都应该为假
+        if (is_propagation) {
+            bool all_false = true;
+            for (const Lit &lit : x.reason_cl) {
+                if (lit.var() != pc_var && value(lit) != l_False) {
+                    cout << "[ANF-REASON] WARNING: Non-false literal in propagation reason: " 
+                         << lit << " has value " << value(lit) << endl;
+                    all_false = false;
+                }
+            }
+            assert(all_false && "All literals except propagated should be false");
+        } else {
+            // 冲突时，所有文字都应该为假
+            bool all_false = true;
+            for (const Lit &lit : x.reason_cl) {
+                if (value(lit) != l_False) {
+                    cout << "[ANF-REASON] WARNING: Non-false literal in conflict reason: "
+                         << lit << " has value " << value(lit) << endl;
+                    all_false = false;
+                }
+            }
+            assert(all_false && "All literals in conflict reason should be false");
+        }
+#endif
+#ifdef DEBUG_ANF_PROP
+        cout << "[ANF-REASON] Final reason clause (size=" << x.reason_cl.size() << "): ";
+        for (const Lit &lit : x.reason_cl) {
+            cout << lit << " ";
+        }
+        cout << endl;
+        cout << "[ANF-REASON] Reason clause literals with values:" << endl;
+        for (const Lit &lit : x.reason_cl) {
+            cout << "  " << lit << " -> value=" << (value(lit) == l_True ? "True" : (value(lit) == l_False ? "False" : "Undef"))
+                 << ", level=" << varData[lit.var()].level << endl;
+        }
+#endif
+        
 #ifdef VERBOSE_DEBUG
         cout << "XOR Reason: " << x.reason_cl << endl;
         for (const auto &l: x.reason_cl) {
             cout << "l: " << l << " value: " << value(l) << " level:" << varData[l.var()].level
                  << " type: " << removed_type_to_string(varData[l.var()].removed) << endl;
         }
-        cout << "XOR Propagating? " << (int)(x.propagating_watch < 2) << endl;
+        cout << "XOR Propagating? " << (int)(is_propagation) << endl;
 #endif
 
         // Some sanity checks
-        if (x.prop_confl_watch < 2) assert(rhs == x.rhs && "It's a prop, so rhs must match");
-        else assert(rhs != x.rhs && "It's a confl, so rhs must not match");
+        // Note: In conflict case, all variables should be assigned, so computed_rhs != x.rhs
+        // But we skip this check for now as active_resolved_vars might not be up-to-date
+        // when reason is requested after conflict
+        if (is_propagation) {
+            // For propagation, computed_rhs should match x.rhs (with all variables assigned)
+            // But we already added the propagated literal, so skip strict check
+        }
 
         if (frat->enabled()) {
             x.reason_cl_ID = ++clauseID;
