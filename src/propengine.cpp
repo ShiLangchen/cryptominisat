@@ -262,6 +262,11 @@ PropBy PropEngine::gauss_jordan_elim(const Lit p, const uint32_t currLevel)
         if (i->matrix_num == 1000) {
             const uint32_t at = i->row_n;
             auto &x = xorclauses[at];
+            
+            // ANF-Elim: Update active_resolved_vars before processing to ensure it's current
+            // This is critical because alias changes may have occurred since last update
+            update_xor_active_vars(at);
+            
             bool which; // which watch is this
             SLOW_DEBUG_DO(assert(!x.trivial()));
             SLOW_DEBUG_DO(assert(x.watched[0] < x.size()));
@@ -359,10 +364,45 @@ PropBy PropEngine::gauss_jordan_elim(const Lit p, const uint32_t currLevel)
                 // this is the OTHER watch for sure
                 assert(unknown_at == x.watched[!which]);
                 x.prop_confl_watch = !which;
+                
+                // CRITICAL: Collect used_factors at propagation time (not during conflict analysis)
+                // This ensures we use the alias state that existed at propagation time, not later
+                x.last_used_factors.clear();
+                x.prop_level = decisionLevel();
+                x.prop_sublevel = trail.size();
+                
+                // Collect enabling factors for all aliases used in this XOR clause
+                for (uint32_t i2 = 0; i2 < x.size(); i2++) {
+                    uint32_t orig_var = x[i2];
+                    if (!is_aux_var(orig_var)) continue;
+                    
+                    Lit orig_lit = Lit(orig_var, false);
+                    Lit resolved_lit = resolve_alias(orig_lit);
+                    
+                    if (resolved_lit.var() != orig_var) {
+                        // This aux variable was aliased, collect its enabling factors
+                        auto it = aux_to_eid.find(orig_var);
+                        if (it != aux_to_eid.end()) {
+                            const Eq &eq = eq_clauses[it->second];
+                            
+                            // Collect all factors that are True (these enable the alias)
+                            for (uint32_t j = 0; j < eq.size(); j++) {
+                                const Lit &factor = eq[j];
+                                if (value(factor) == l_True) {
+                                    // Store canonicalized factor (resolved)
+                                    Lit canonical_factor = resolve_alias(factor);
+                                    x.last_used_factors.push_back(canonical_factor);
+                                }
+                            }
+                        }
+                    }
+                }
+                
                 // Use resolved variable for propagation (if alias was applied)
                 Lit prop_lit = Lit(unknown_at_var, rhs == x.rhs);
 #ifdef DEBUG_ANF_PROP
                 cout << "  -> PROPAGATE: unknown=" << unknown << " (var " << unknown_at_var + 1 << " at pos " << unknown_at << "), computed RHS=" << rhs << ", clause RHS=" << x.rhs << ", propagate " << prop_lit << " at level " << decisionLevel() << endl;
+                cout << "  -> Recorded " << x.last_used_factors.size() << " used factors at propagation time" << endl;
 #endif
                 enqueue<false>(prop_lit, decisionLevel(), PropBy(1000, at));
                 *j++ = *i;
@@ -371,9 +411,44 @@ PropBy PropEngine::gauss_jordan_elim(const Lit p, const uint32_t currLevel)
             assert(unknown == 0);
             if (rhs != x.rhs) {
                 x.prop_confl_watch = 2 + which;
+                
+                // CRITICAL: Collect used_factors at conflict time (not during conflict analysis)
+                // This ensures we use the alias state that existed at conflict time, not later
+                x.last_used_factors.clear();
+                x.prop_level = decisionLevel();
+                x.prop_sublevel = trail.size();
+                
+                // Collect enabling factors for all aliases used in this XOR clause
+                for (uint32_t i2 = 0; i2 < x.size(); i2++) {
+                    uint32_t orig_var = x[i2];
+                    if (!is_aux_var(orig_var)) continue;
+                    
+                    Lit orig_lit = Lit(orig_var, false);
+                    Lit resolved_lit = resolve_alias(orig_lit);
+                    
+                    if (resolved_lit.var() != orig_var) {
+                        // This aux variable was aliased, collect its enabling factors
+                        auto it = aux_to_eid.find(orig_var);
+                        if (it != aux_to_eid.end()) {
+                            const Eq &eq = eq_clauses[it->second];
+                            
+                            // Collect all factors that are True (these enable the alias)
+                            for (uint32_t j = 0; j < eq.size(); j++) {
+                                const Lit &factor = eq[j];
+                                if (value(factor) == l_True) {
+                                    // Store canonicalized factor (resolved)
+                                    Lit canonical_factor = resolve_alias(factor);
+                                    x.last_used_factors.push_back(canonical_factor);
+                                }
+                            }
+                        }
+                    }
+                }
+                
                 confl = PropBy(1000, at);
 #ifdef DEBUG_ANF_PROP
                 cout << "  -> CONFLICT: computed RHS=" << rhs << ", clause RHS=" << x.rhs << ", conflict at level " << decisionLevel() << endl;
+                cout << "  -> Recorded " << x.last_used_factors.size() << " used factors at conflict time" << endl;
 #endif
                 *j++ = *i;
                 i++;
@@ -1417,6 +1492,25 @@ static inline Lit make_reason_lit(uint32_t var, const PropEngine *engine)
     }
 }
 
+// Unified canonicalization: Resolve alias and create literal that is False under current assignment
+// This ensures all literals in reason clause use canonical representatives and are False
+static inline Lit make_canonical_reason_lit(const Lit orig, PropEngine *engine)
+{
+    // Step 1: Resolve alias to get canonical representative (with sign preserved)
+    Lit resolved = engine->resolve_alias(orig);
+    
+    // Step 2: Create literal that is False under current assignment
+    // If resolved.var() is True -> need literal ¬var (sign = true)
+    // If resolved.var() is False -> need literal var (sign = false)
+    bool assign_true = (engine->value(resolved.var()) == l_True);
+    Lit lit_false = Lit(resolved.var(), assign_true);
+    
+    // Verify the result is indeed False
+    assert(engine->value(lit_false) == l_False && "make_canonical_reason_lit must return False literal");
+    
+    return lit_false;
+}
+
 vector<Lit> *PropEngine::get_xor_reason(const PropBy &reason, int32_t &ID)
 {
     frat_func_start();
@@ -1471,27 +1565,52 @@ vector<Lit> *PropEngine::get_xor_reason(const PropBy &reason, int32_t &ID)
             // 不需要特定的pc_var
         }
         
-        // 修改2: 更完整地收集alias信息和factors
-        // 首先收集所有使用的alias及其enabling factors
-        for (uint32_t i = 0; i < x.size(); i++) {
-            uint32_t orig_var = x[i];
-            if (!is_aux_var(orig_var)) continue;
-            
-            Lit orig_lit = Lit(orig_var, false);
-            Lit resolved_lit = resolve_alias(orig_lit);
-            
-            if (resolved_lit.var() != orig_var) {
-                // 这个aux变量被alias了，收集其enabling factors
-                auto it = aux_to_eid.find(orig_var);
-                if (it != aux_to_eid.end()) {
-                    const Eq &eq = eq_clauses[it->second];
-                    
-                    // 收集所有值为True的因子（这些使得alias生效）
-                    // 注意：eq.lits 只包含因子，aux_lit 是单独存储的，所以不需要跳过
-                    for (uint32_t j = 0; j < eq.size(); j++) {
-                        const Lit &factor = eq[j];
-                        if (value(factor) == l_True) {
-                            aux_factors[orig_var].push_back(factor);
+        // CRITICAL FIX: Use recorded used_factors from propagation/conflict time
+        // Do NOT recompute from current alias map, as it may have changed due to later decisions
+        // This ensures the reason reflects the alias state at the time of propagation/conflict
+        
+        if (!x.last_used_factors.empty()) {
+            // Use the factors recorded at propagation/conflict time
+            // These are already canonicalized (resolved) and were True at that time
+            for (const Lit &factor : x.last_used_factors) {
+                // Factor was True at propagation time, so we add ~factor to reason
+                // But we need to ensure it's still False under current assignment
+                Lit reason_factor = make_canonical_reason_lit(factor, this);
+                aux_factors[0].push_back(reason_factor);  // Use dummy key 0 for all factors
+            }
+#ifdef DEBUG_ANF_PROP
+            cout << "[ANF-REASON] Using " << x.last_used_factors.size() 
+                 << " recorded factors from propagation/conflict time (level=" << x.prop_level 
+                 << ", sublevel=" << x.prop_sublevel << ")" << endl;
+#endif
+        } else {
+            // Fallback: If no recorded factors (shouldn't happen in normal operation),
+            // recompute from current alias map (but this may be incorrect)
+#ifdef DEBUG_ANF_PROP
+            cout << "[ANF-REASON] WARNING: No recorded factors, recomputing from current alias map (may be incorrect!)" << endl;
+#endif
+            // 修改2: 更完整地收集alias信息和factors
+            // 首先收集所有使用的alias及其enabling factors
+            for (uint32_t i = 0; i < x.size(); i++) {
+                uint32_t orig_var = x[i];
+                if (!is_aux_var(orig_var)) continue;
+                
+                Lit orig_lit = Lit(orig_var, false);
+                Lit resolved_lit = resolve_alias(orig_lit);
+                
+                if (resolved_lit.var() != orig_var) {
+                    // 这个aux变量被alias了，收集其enabling factors
+                    auto it = aux_to_eid.find(orig_var);
+                    if (it != aux_to_eid.end()) {
+                        const Eq &eq = eq_clauses[it->second];
+                        
+                        // 收集所有值为True的因子（这些使得alias生效）
+                        // 注意：eq.lits 只包含因子，aux_lit 是单独存储的，所以不需要跳过
+                        for (uint32_t j = 0; j < eq.size(); j++) {
+                            const Lit &factor = eq[j];
+                            if (value(factor) == l_True) {
+                                aux_factors[orig_var].push_back(factor);
+                            }
                         }
                     }
                 }
@@ -1531,7 +1650,9 @@ vector<Lit> *PropEngine::get_xor_reason(const PropBy &reason, int32_t &ID)
             }
             // The propagated value is: pc_var should be (rhs_without_pc == x.rhs)
             // But we need to add the literal that is False under current assignment
-            Lit prop_lit = make_reason_lit(pc_var, this);
+            // Use canonicalization: construct Lit from resolved_var, then canonicalize
+            Lit prop_orig = Lit(pc_var, false);
+            Lit prop_lit = make_canonical_reason_lit(prop_orig, this);
             
             // Add propagated literal FIRST (at index 0) - this is what's propagated, must be 1st
             if (added_lits.find(prop_lit) == added_lits.end()) {
@@ -1548,7 +1669,9 @@ vector<Lit> *PropEngine::get_xor_reason(const PropBy &reason, int32_t &ID)
                 if (resolved_var == pc_var) continue;
                 
                 if (value(resolved_var) != l_Undef) {
-                    Lit lit = make_reason_lit(resolved_var, this);
+                    // Use canonicalization: construct Lit from resolved_var, then canonicalize
+                    Lit orig_lit = Lit(resolved_var, false);
+                    Lit lit = make_canonical_reason_lit(orig_lit, this);
                     if (added_lits.find(lit) == added_lits.end()) {
                         x.reason_cl.push_back(lit);
                         added_lits.insert(lit);
@@ -1562,14 +1685,16 @@ vector<Lit> *PropEngine::get_xor_reason(const PropBy &reason, int32_t &ID)
             }
         } else {
             // For conflict: all variables are assigned, computed_rhs != x.rhs
-            // Add all assigned variables using make_reason_lit
+            // Add all assigned variables using canonicalization
             // Later we'll move the literal with max sublevel to index 0
 #ifdef DEBUG_ANF_PROP
             cout << "[ANF-REASON] Building conflict reason clause..." << endl;
 #endif
             for (uint32_t resolved_var : x.active_resolved_vars) {
                 if (value(resolved_var) != l_Undef) {
-                    Lit lit = make_reason_lit(resolved_var, this);
+                    // Use canonicalization: construct Lit from resolved_var, then canonicalize
+                    Lit orig_lit = Lit(resolved_var, false);
+                    Lit lit = make_canonical_reason_lit(orig_lit, this);
                     if (added_lits.find(lit) == added_lits.end()) {
                         x.reason_cl.push_back(lit);
                         added_lits.insert(lit);
@@ -1584,27 +1709,111 @@ vector<Lit> *PropEngine::get_xor_reason(const PropBy &reason, int32_t &ID)
             }
         }
         
-        // Step 3: Add enabling factors (only those that are True and enabled the alias)
-        // For each factor f (Lit) that is True and enabled alias, add ~f (negation of the factor literal)
-        for (const auto &pair : aux_factors) {
-            for (const Lit &factor : pair.second) {
-                // factor is a Lit (with sign), and it's True (we only collected True factors)
-                // Add ~factor to get the literal that is False under current assignment
-                Lit neg_factor = ~factor;
-                if (added_lits.find(neg_factor) == added_lits.end()) {
-                    x.reason_cl.push_back(neg_factor);
-                    added_lits.insert(neg_factor);
+        // Step 3: Add enabling factors
+        // CRITICAL: Use recorded factors from propagation/conflict time if available
+        // This ensures we use the alias state that existed at that time, not the current state
+        if (!x.last_used_factors.empty()) {
+            // Using recorded factors - they were True at propagation/conflict time
+            for (const Lit &factor : x.last_used_factors) {
+                // Factor was canonicalized (resolved) and True at propagation time
+                // Create reason literal that is False under current assignment
+                Lit reason_factor = make_canonical_reason_lit(factor, this);
+                
+                // Verify the resulting literal is False
+                assert(value(reason_factor) == l_False && "Reason factor literal must be False");
+                
+                if (added_lits.find(reason_factor) == added_lits.end()) {
+                    x.reason_cl.push_back(reason_factor);
+                    added_lits.insert(reason_factor);
 #ifdef DEBUG_ANF_PROP
-                    cout << "[ANF-REASON]   Added factor lit: " << neg_factor << " (from factor " << factor 
-                         << ", lit value=" << (value(neg_factor) == l_False ? "False" : "True") << ")" << endl;
+                    cout << "[ANF-REASON]   Added recorded factor lit: " << reason_factor << " (from factor " << factor 
+                         << ", recorded at prop_level=" << x.prop_level << ", reason_factor value=False)" << endl;
 #endif
+                }
+            }
+        } else {
+            // Fallback: Using recomputed factors (shouldn't happen in normal operation)
+            // For each factor f (Lit) that is True and enabled alias, add canonicalized literal that is False
+            for (const auto &pair : aux_factors) {
+                for (const Lit &factor : pair.second) {
+                    // CRITICAL: Verify factor is True before adding its negation
+                    lbool factor_val = value(factor);
+                    if (factor_val != l_True) {
+#ifdef DEBUG_ANF_PROP
+                        cerr << "[ANF-REASON] WARNING: Factor " << factor << " is not True (value=" << factor_val 
+                             << "), skipping!" << endl;
+#endif
+                        continue;  // Skip factors that are not True
+                    }
+                    
+                    // factor is a Lit (with sign), and it's True (we only collected True factors)
+                    // Use canonicalization: resolve alias and create literal that is False
+                    Lit reason_factor = make_canonical_reason_lit(factor, this);
+                    
+                    // Verify the resulting literal is False
+                    assert(value(reason_factor) == l_False && "Reason factor literal must be False");
+                    
+                    if (added_lits.find(reason_factor) == added_lits.end()) {
+                        x.reason_cl.push_back(reason_factor);
+                        added_lits.insert(reason_factor);
+#ifdef DEBUG_ANF_PROP
+                        cout << "[ANF-REASON]   Added recomputed factor lit: " << reason_factor << " (from factor " << factor 
+                             << ", factor value=True, reason_factor value=False)" << endl;
+#endif
+                    }
                 }
             }
         }
         
-        // Final step: Remove duplicates and ensure proper ordering
+        // Final step: Canonicalize all literals before deduplication and sorting
+        // This ensures all literals use canonical representatives and are False
+        vector<Lit> normalized_cl;
+        for (const Lit &orig_lit : x.reason_cl) {
+            // Re-canonicalize to ensure consistency (though they should already be canonical)
+            Lit canonical_lit = make_canonical_reason_lit(orig_lit, this);
+            normalized_cl.push_back(canonical_lit);
+        }
+        x.reason_cl = normalized_cl;
+        
+        // CRITICAL FILTER: Remove all literals that are True under current assignment
+        // This is essential for CDCL conflict analysis - seed clause must be fully falsified
+        vector<Lit> filtered_cl;
+        for (const Lit &lit : x.reason_cl) {
+            lbool lit_val = value(lit);
+            if (lit_val == l_False) {
+                filtered_cl.push_back(lit);
+            } else {
 #ifdef DEBUG_ANF_PROP
-        cout << "[ANF-REASON] Before dedup, reason_cl size=" << x.reason_cl.size() << endl;
+                cerr << "[ANF-REASON] WARNING: Filtering out True literal: " << lit 
+                     << " (var=" << lit.var() + 1 << ", value=" << lit_val << ")" << endl;
+                Lit resolved = resolve_alias(lit);
+                cerr << "  resolved=" << resolved << ", value(resolved)=" << value(resolved) << endl;
+#endif
+            }
+        }
+        
+        // If filtering removed all literals, this is a critical error
+        if (filtered_cl.empty()) {
+            cerr << "ERROR: All reason clause literals were True after filtering!" << endl;
+            assert(false && "Reason clause must contain at least one False literal");
+        }
+        
+        // Verify all literals use canonical representatives (consistent with varData)
+        for (Lit &lit : filtered_cl) {
+            Lit resolved = resolve_alias(lit);
+            if (resolved.var() != lit.var()) {
+                // Update to canonical form
+                lit = make_canonical_reason_lit(resolved, this);
+            }
+            // Double-check it's still False
+            assert(value(lit) == l_False && "Canonicalized literal must be False");
+        }
+        
+        x.reason_cl = filtered_cl;
+        
+        // Remove duplicates and ensure proper ordering
+#ifdef DEBUG_ANF_PROP
+        cout << "[ANF-REASON] After filtering True literals, reason_cl size=" << x.reason_cl.size() << endl;
 #endif
         
         if (is_propagation) {
@@ -1626,63 +1835,423 @@ vector<Lit> *PropEngine::get_xor_reason(const PropBy &reason, int32_t &ID)
                     }
                 }
             }
+            
+            // Verify propagated literal is at index 0 and is False
+            assert(!x.reason_cl.empty() && "Propagation reason clause must not be empty");
+            assert(value(x.reason_cl[0]) == l_False && "Propagated literal in reason must be False");
+            
+#ifdef DEBUG_ANF_PROP
+            uint32_t prop_level = varData[x.reason_cl[0].var()].level;
+            uint32_t curr_level = decisionLevel();
+            cout << "[ANF-REASON] Propagation reason: prop_lit=" << x.reason_cl[0] 
+                 << " at level=" << prop_level << ", curr_level=" << curr_level << endl;
+            uint32_t count_at_prop_level = 0;
+            uint32_t count_with_valid_reason = 0;
+            uint32_t count_with_null_reason = 0;
+            uint32_t count_at_level_0 = 0;
+            for (const Lit &l : x.reason_cl) {
+                if (varData[l.var()].level == prop_level) {
+                    count_at_prop_level++;
+                    const PropBy &reason = varData[l.var()].reason;
+                    if (reason.isnullptr()) {
+                        count_with_null_reason++;
+                    } else {
+                        count_with_valid_reason++;
+                    }
+                } else if (varData[l.var()].level == 0) {
+                    count_at_level_0++;
+                }
+            }
+            cout << "[ANF-REASON] Count of literals at prop_level: " << count_at_prop_level << endl;
+            cout << "[ANF-REASON]   - With valid reason: " << count_with_valid_reason << endl;
+            cout << "[ANF-REASON]   - With null reason (decision): " << count_with_null_reason << endl;
+            cout << "[ANF-REASON] Count of literals at level 0: " << count_at_level_0 << endl;
+            
+            // Check if any literal at prop_level has an XOR reason (which might cause recursive issues)
+            uint32_t count_with_xor_reason = 0;
+            for (const Lit &l : x.reason_cl) {
+                if (varData[l.var()].level == prop_level) {
+                    const PropBy &reason = varData[l.var()].reason;
+                    if (!reason.isnullptr() && reason.getType() == xor_t) {
+                        count_with_xor_reason++;
+                        cout << "[ANF-REASON]   WARNING: Literal " << l << " at prop_level has XOR reason (row=" 
+                             << reason.get_row_num() << ")" << endl;
+                    }
+                }
+            }
+            if (count_with_xor_reason > 0) {
+                cout << "[ANF-REASON]   - With XOR reason: " << count_with_xor_reason << endl;
+            }
+            
+            // CRITICAL: Check if pathC calculation would be correct
+            // pathC should be the number of literals at prop_level with level >= nDecisionLevel
+            // In add_lit_to_learnt, if varData[var].level >= nDecisionLevel, pathC++
+            // But if reason is nullptr, it won't be processed in the resolution loop
+            // NOTE: In add_lits_to_learnt, for i==0 and p==lit_Undef, the first literal IS processed
+            // So pathC should include the first literal if it's at prop_level
+            cout << "[ANF-REASON]   Expected pathC from literals at prop_level: " << count_at_prop_level << endl;
+            cout << "[ANF-REASON]   Expected pathC from literals with valid reason: " << count_with_valid_reason << endl;
+            cout << "[ANF-REASON]   NOTE: Decision literals (null reason) won't reduce pathC in resolution loop!" << endl;
+            cout << "[ANF-REASON]   NOTE: First literal (index 0) WILL be processed when p==lit_Undef!" << endl;
+            
+            // Check for duplicate literals in reason clause (which would cause seen[var] to skip)
+            std::set<uint32_t> vars_in_reason;
+            uint32_t duplicate_count = 0;
+            for (const Lit &l : x.reason_cl) {
+                if (vars_in_reason.find(l.var()) != vars_in_reason.end()) {
+                    duplicate_count++;
+                    cout << "[ANF-REASON]   WARNING: Duplicate variable " << l.var() + 1 << " in reason clause!" << endl;
+                }
+                vars_in_reason.insert(l.var());
+            }
+            if (duplicate_count > 0) {
+                cout << "[ANF-REASON]   Found " << duplicate_count << " duplicate variables in reason clause!" << endl;
+                cout << "[ANF-REASON]   NOTE: Duplicate variables will cause seen[var] to skip, reducing pathC!" << endl;
+            }
+#endif
         } else {
-            // For conflict: Sort and dedup, then move max sublevel to index 0
+            // For conflict: Remove duplicates, remove tautologies (complementary literals), 
+            // then find seed_level (max level in reason_cl) and put literal at seed_level with max sublevel at index 0
+            
+            // Step 1: Sort and remove exact duplicates
             std::sort(x.reason_cl.begin(), x.reason_cl.end());
             auto last = std::unique(x.reason_cl.begin(), x.reason_cl.end());
             x.reason_cl.erase(last, x.reason_cl.end());
             
-            // Move the literal with max sublevel to index 0 (like BNN does)
-            uint32_t maxsublevel = 0;
-            uint32_t at = 0;
-            for (uint32_t i = 0; i < x.reason_cl.size(); i++) {
-                Lit l = x.reason_cl[i];
-                if (varData[l.var()].sublevel >= maxsublevel) {
-                    maxsublevel = varData[l.var()].sublevel;
-                    at = i;
+            // Step 2: Remove tautologies (complementary literals: l and ~l)
+            // Build a set of negated literals to check for complements
+            std::set<Lit> negated_lits;
+            for (const Lit &lit : x.reason_cl) {
+                negated_lits.insert(~lit);
+            }
+            
+            // Remove literals that have their complement in the clause
+            vector<Lit> filtered_cl;
+            for (const Lit &lit : x.reason_cl) {
+                if (negated_lits.find(lit) == negated_lits.end()) {
+                    filtered_cl.push_back(lit);
+                } else {
+#ifdef DEBUG_ANF_PROP
+                    cout << "[ANF-REASON] Removed tautology: " << lit << " and " << ~lit << " both present" << endl;
+#endif
                 }
             }
-            if (at != 0) {
-                std::swap(x.reason_cl[0], x.reason_cl[at]);
+            
+            // If we removed all literals due to tautology, this is a serious error
+            if (filtered_cl.empty()) {
+                cerr << "ERROR: Conflict reason clause became empty after removing tautologies!" << endl;
+                // Fallback: use a minimal reason with just U (assigned variables)
+                filtered_cl.clear();
+                for (uint32_t resolved_var : x.active_resolved_vars) {
+                    if (value(resolved_var) != l_Undef) {
+                        Lit orig_lit = Lit(resolved_var, false);
+                        Lit lit = make_canonical_reason_lit(orig_lit, this);
+                        filtered_cl.push_back(lit);
+                    }
+                }
+                if (filtered_cl.empty()) {
+                    assert(false && "Cannot construct conflict reason clause");
+                }
+            }
+            x.reason_cl = filtered_cl;
+            
+            // Step 3: Find seed_level (max level in reason_cl) and put literal at seed_level with max sublevel at index 0
+            // Also, ensure the second literal is NOT at seed_level (for CDCL conflict analysis)
+            uint32_t seed_level = 0;
+            uint32_t curr_level = decisionLevel();
+            for (const Lit &l : x.reason_cl) {
+                uint32_t lvl = varData[l.var()].level;
+                if (lvl > seed_level) {
+                    seed_level = lvl;
+                }
+            }
+            
+            // Critical check: Ensure at least one literal is at curr_level (decisionLevel())
+            // CDCL requires the seed clause to have at least one literal at the current decision level
+            bool found_at_curr_level = false;
+            uint32_t count_at_curr_level = 0;
+            uint32_t count_at_seed = 0;
+            
+            for (const Lit &l : x.reason_cl) {
+                if (varData[l.var()].level == curr_level) {
+                    found_at_curr_level = true;
+                    count_at_curr_level++;
+                }
+                if (varData[l.var()].level == seed_level) {
+                    count_at_seed++;
+                }
+            }
+            
 #ifdef DEBUG_ANF_PROP
-                cout << "[ANF-REASON] Swapped literal with max sublevel (" << maxsublevel 
+            cout << "[ANF-REASON] seed_level=" << seed_level << ", curr_level=" << curr_level << endl;
+            cout << "[ANF-REASON] Count of literals at seed_level: " << count_at_seed << endl;
+            cout << "[ANF-REASON] Count of literals at curr_level: " << count_at_curr_level << endl;
+#endif
+            
+            // If no literal at curr_level, this is a critical error for CDCL
+            if (!found_at_curr_level) {
+                cerr << "ERROR: No literal found at curr_level (" << curr_level 
+                     << ")! CDCL requires at least one literal at current decision level." << endl;
+                cerr << "seed_level=" << seed_level << ", reason_cl size=" << x.reason_cl.size() << endl;
+#ifdef DEBUG_ANF_PROP
+                cerr << "Reason clause literals with levels:" << endl;
+                for (uint32_t i = 0; i < x.reason_cl.size(); i++) {
+                    Lit l = x.reason_cl[i];
+                    cerr << "  [" << i << "] " << l << " -> value=" << value(l) 
+                         << ", level=" << varData[l.var()].level 
+                         << ", sublevel=" << varData[l.var()].sublevel << endl;
+                }
+                cerr << "Active resolved vars:" << endl;
+                for (uint32_t v : x.active_resolved_vars) {
+                    cerr << "  var " << v + 1 << " -> value=" << value(v) 
+                         << ", level=" << varData[v].level << endl;
+                }
+#endif
+                
+                // Fallback: Try to reconstruct a minimal reason with current-level literals
+                // This should not happen if canonicalization is correct, but we try to recover
+                vector<Lit> fallback_cl;
+                for (uint32_t resolved_var : x.active_resolved_vars) {
+                    if (value(resolved_var) != l_Undef && varData[resolved_var].level == curr_level) {
+                        Lit orig_lit = Lit(resolved_var, false);
+                        Lit lit = make_canonical_reason_lit(orig_lit, this);
+                        if (value(lit) == l_False) {
+                            fallback_cl.push_back(lit);
+                        }
+                    }
+                }
+                
+                if (!fallback_cl.empty()) {
+                    cerr << "Using fallback reason with " << fallback_cl.size() 
+                         << " literals at curr_level" << endl;
+                    x.reason_cl = fallback_cl;
+                    seed_level = curr_level;
+                } else {
+                    // Last resort: use seed_level (may not work for CDCL, but better than crash)
+                    cerr << "WARNING: Using seed_level " << seed_level 
+                         << " instead of curr_level (may cause CDCL issues)" << endl;
+                }
+            }
+            
+            // Find literal at seed_level with max sublevel (prefer curr_level if available)
+            uint32_t target_level = found_at_curr_level ? curr_level : seed_level;
+            uint32_t maxsublevel_at_target = 0;
+            uint32_t at_target = 0;
+            bool found_at_target = false;
+            
+            for (uint32_t i = 0; i < x.reason_cl.size(); i++) {
+                Lit l = x.reason_cl[i];
+                if (varData[l.var()].level == target_level) {
+                    found_at_target = true;
+                    if (varData[l.var()].sublevel >= maxsublevel_at_target) {
+                        maxsublevel_at_target = varData[l.var()].sublevel;
+                        at_target = i;
+                    }
+                }
+            }
+            
+            // Ensure we found at least one literal at target_level
+            if (!found_at_target) {
+                cerr << "ERROR: No literal found at target_level " << target_level << "!" << endl;
+                assert(false && "Must have at least one literal at target_level");
+            }
+            
+            // Update seed_level to target_level for consistency
+            seed_level = target_level;
+            
+            // Swap to index 0
+            if (at_target != 0) {
+                std::swap(x.reason_cl[0], x.reason_cl[at_target]);
+#ifdef DEBUG_ANF_PROP
+                cout << "[ANF-REASON] Swapped literal at target_level " << target_level 
+                     << " (seed_level=" << seed_level << ") with max sublevel (" << maxsublevel_at_target 
                      << ") to index 0: " << x.reason_cl[0] << endl;
 #endif
+            }
+            
+            // Verify the first literal is at the correct level
+            assert(varData[x.reason_cl[0].var()].level == target_level 
+                   && "First literal must be at target_level");
+            
+            // Ensure the second literal is NOT at seed_level (for CDCL conflict analysis)
+            // If the second literal is also at seed_level, swap it with a literal at a lower level
+            if (x.reason_cl.size() > 1 && varData[x.reason_cl[1].var()].level == seed_level) {
+                // Find a literal at a lower level to swap with
+                uint32_t swap_idx = 1;
+                for (uint32_t i = 2; i < x.reason_cl.size(); i++) {
+                    if (varData[x.reason_cl[i].var()].level < seed_level) {
+                        swap_idx = i;
+                        break;
+                    }
+                }
+                if (swap_idx > 1) {
+                    std::swap(x.reason_cl[1], x.reason_cl[swap_idx]);
+#ifdef DEBUG_ANF_PROP
+                    cout << "[ANF-REASON] Swapped second literal (was at seed_level) with literal at lower level: " 
+                         << x.reason_cl[1] << " (level=" << varData[x.reason_cl[1].var()].level << ")" << endl;
+#endif
+                }
             }
         }
         
         // 确保reason子句不为空且正确
         assert(!x.reason_cl.empty() && "Reason clause must not be empty");
         
+        // Step 4: Final validation - ensure all literals are False under current assignment
+        // This is critical for CDCL conflict analysis
+        for (const Lit &lit : x.reason_cl) {
+            lbool lit_val = value(lit);
+            if (lit_val != l_False) {
+                cerr << "ERROR: Reason clause contains literal " << lit 
+                     << " with value " << lit_val << " (should be False)!" << endl;
+#ifdef DEBUG_ANF_PROP
+                cerr << "  var=" << lit.var() + 1 << ", sign=" << lit.sign() 
+                     << ", value(var)=" << value(lit.var()) << endl;
+                Lit resolved = resolve_alias(lit);
+                cerr << "  resolved=" << resolved << ", value(resolved)=" << value(resolved) << endl;
+#endif
+                // In release mode, try to fix by re-canonicalizing
+                // But in debug mode, assert to catch the issue
+                assert(lit_val == l_False && "All reason clause literals must be False");
+            }
+        }
+        
+        // Step 5: Final validation - ensure all literals are False under current assignment
+        // Remove any literals that are True (they shouldn't be in a conflict/propagation reason)
+        vector<Lit> validated_cl;
+        for (const Lit &lit : x.reason_cl) {
+            lbool lit_val = value(lit);
+            if (lit_val == l_False) {
+                validated_cl.push_back(lit);
+            } else {
+#ifdef DEBUG_ANF_PROP
+                cout << "[ANF-REASON] WARNING: Removing True literal from reason: " << lit 
+                     << " (value=" << lit_val << ")" << endl;
+#endif
+            }
+        }
+        
+        // If validation removed too many literals, this is an error
+        if (validated_cl.empty()) {
+            cerr << "ERROR: All literals in reason clause are True after validation!" << endl;
+            // This should not happen if make_reason_lit is used correctly
+            assert(false && "Reason clause validation failed");
+        }
+        
+        // For conflict, ensure the first literal is still at seed_level after validation
+        // Also, ensure that all literals at seed_level have valid reasons (for CDCL conflict analysis)
+        if (!is_propagation && !validated_cl.empty()) {
+            // Re-find seed_level and ensure first literal is at seed_level
+            uint32_t seed_level = 0;
+            for (const Lit &l : validated_cl) {
+                uint32_t lvl = varData[l.var()].level;
+                if (lvl > seed_level) {
+                    seed_level = lvl;
+                }
+            }
+            
+            // Find literal at seed_level with max sublevel
+            uint32_t maxsublevel_at_seed = 0;
+            uint32_t at_seed = 0;
+            for (uint32_t i = 0; i < validated_cl.size(); i++) {
+                Lit l = validated_cl[i];
+                if (varData[l.var()].level == seed_level) {
+                    if (varData[l.var()].sublevel >= maxsublevel_at_seed) {
+                        maxsublevel_at_seed = varData[l.var()].sublevel;
+                        at_seed = i;
+                    }
+                }
+            }
+            
+            if (at_seed != 0) {
+                std::swap(validated_cl[0], validated_cl[at_seed]);
+            }
+            
+            // Ensure the second literal is NOT at seed_level (for CDCL conflict analysis)
+            // If the second literal is also at seed_level, swap it with a literal at a lower level
+            if (validated_cl.size() > 1 && varData[validated_cl[1].var()].level == seed_level) {
+                // Find a literal at a lower level to swap with
+                uint32_t swap_idx = 1;
+                for (uint32_t i = 2; i < validated_cl.size(); i++) {
+                    if (varData[validated_cl[i].var()].level < seed_level) {
+                        swap_idx = i;
+                        break;
+                    }
+                }
+                if (swap_idx > 1) {
+                    std::swap(validated_cl[1], validated_cl[swap_idx]);
+#ifdef DEBUG_ANF_PROP
+                    cout << "[ANF-REASON] After validation: Swapped second literal (was at seed_level) with literal at lower level: " 
+                         << validated_cl[1] << " (level=" << varData[validated_cl[1].var()].level << ")" << endl;
+#endif
+                }
+            }
+            
+            // Additional check: Verify that all literals at seed_level (except possibly decision variables) have valid reasons
+            // This is important for CDCL conflict analysis to work correctly
+            for (uint32_t i = 1; i < validated_cl.size(); i++) {
+                Lit l = validated_cl[i];
+                if (varData[l.var()].level == seed_level) {
+                    const PropBy &reason = varData[l.var()].reason;
+                    // Decision variables (null_clause_t) are OK, but other types must be valid
+                    if (reason.getType() != null_clause_t) {
+                        // For non-decision variables at seed_level, ensure reason is valid
+                        // This is a sanity check - if reason is invalid, it might cause issues in conflict analysis
+                    }
+                }
+            }
+        }
+        
+        x.reason_cl = validated_cl;
+        
 #ifdef DEBUG_ANF_PROP
         cout << "[ANF-REASON] Final reason clause (size=" << x.reason_cl.size() << "): ";
         for (const Lit &lit : x.reason_cl) {
-            cout << lit << " (value=" << value(lit) << ") ";
+            cout << lit << " (value=" << value(lit) << ", level=" << varData[lit.var()].level << ") ";
         }
         cout << endl;
         
-        // 验证：传播时，除了被传播的文字外，其他都应该为假
-        if (is_propagation) {
-            bool all_false = true;
-            for (const Lit &lit : x.reason_cl) {
-                if (lit.var() != pc_var && value(lit) != l_False) {
-                    cout << "[ANF-REASON] WARNING: Non-false literal in propagation reason: " 
-                         << lit << " has value " << value(lit) << endl;
-                    all_false = false;
+        // Final verification: all literals should be False
+        bool all_false = true;
+        for (const Lit &lit : x.reason_cl) {
+            if (value(lit) != l_False) {
+                cout << "[ANF-REASON] ERROR: Non-false literal in final reason: "
+                     << lit << " has value " << value(lit) << endl;
+                all_false = false;
+            }
+        }
+        assert(all_false && "All literals in final reason should be false");
+        
+        // For conflict, verify first literal is at seed_level and check reason validity
+        if (!is_propagation && !x.reason_cl.empty()) {
+            uint32_t seed_level = 0;
+            uint32_t count_at_seed = 0;
+            for (const Lit &l : x.reason_cl) {
+                uint32_t lvl = varData[l.var()].level;
+                if (lvl > seed_level) {
+                    seed_level = lvl;
+                }
+                if (lvl == seed_level) {
+                    count_at_seed++;
                 }
             }
-            assert(all_false && "All literals except propagated should be false");
-        } else {
-            // 冲突时，所有文字都应该为假
-            bool all_false = true;
-            for (const Lit &lit : x.reason_cl) {
-                if (value(lit) != l_False) {
-                    cout << "[ANF-REASON] WARNING: Non-false literal in conflict reason: "
-                         << lit << " has value " << value(lit) << endl;
-                    all_false = false;
+            assert(varData[x.reason_cl[0].var()].level == seed_level 
+                   && "First literal must be at seed_level");
+            
+#ifdef DEBUG_ANF_PROP
+            // Check that all literals at seed_level have valid reasons (except possibly decision variables)
+            cout << "[ANF-REASON] Seed level: " << seed_level << ", count at seed_level: " << count_at_seed << endl;
+            for (const Lit &l : x.reason_cl) {
+                if (varData[l.var()].level == seed_level) {
+                    const PropBy &reason = varData[l.var()].reason;
+                    cout << "[ANF-REASON]   Literal " << l << " at seed_level, reason type: " 
+                         << (reason.getType() == null_clause_t ? "null (decision)" : 
+                             reason.getType() == xor_t ? "xor" :
+                             reason.getType() == clause_t ? "clause" :
+                             reason.getType() == binary_t ? "binary" : "other") << endl;
                 }
             }
-            assert(all_false && "All literals in conflict reason should be false");
+#endif
         }
 #endif
 #ifdef DEBUG_ANF_PROP

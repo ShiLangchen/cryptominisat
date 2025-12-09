@@ -96,6 +96,12 @@ class Xor
     // active_resolved_vars: set of variables (after alias resolution) that appear odd times
     // These are the variables that contribute to the XOR parity (x⊕x=0 elimination)
     set<uint32_t> active_resolved_vars;
+    
+    // CRITICAL: Record used factors at propagation/conflict time to avoid temporal aliasing issues
+    // These must be recorded when propagation/conflict occurs, not recomputed during conflict analysis
+    vector<Lit> last_used_factors;  // Canonicalized literals (resolved) that were True at propagation time
+    uint32_t prop_level = 0;        // Decision level when propagation/conflict occurred
+    uint32_t prop_sublevel = 0;     // Sublevel when propagation/conflict occurred (for sanity checks)
 };
 
 inline std::ostream &operator<<(std::ostream &os, const Xor &x)
