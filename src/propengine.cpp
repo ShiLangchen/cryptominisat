@@ -1405,6 +1405,18 @@ void PropEngine::vmtf_bump_queue(const uint32_t var)
 }
 
 
+// Helper function: Create a literal for reason clause that is False under current assignment
+// Rule: if value(v)==True, return ¬v; if value(v)==False, return v
+static inline Lit make_reason_lit(uint32_t var, const PropEngine *engine)
+{
+    lbool var_val = engine->value(var);
+    if (var_val == l_True) {
+        return Lit(var, true);  // ¬v, which is False when v=True
+    } else {
+        return Lit(var, false); // v, which is False when v=False
+    }
+}
+
 vector<Lit> *PropEngine::get_xor_reason(const PropBy &reason, int32_t &ID)
 {
     frat_func_start();
@@ -1499,30 +1511,17 @@ vector<Lit> *PropEngine::get_xor_reason(const PropBy &reason, int32_t &ID)
         cout << "[ANF-REASON] Computed RHS=" << (int)computed_rhs << ", clause RHS=" << (int)x.rhs << endl;
 #endif
         
-        // Step 2: Add U - conflicting/propagated literals from active variables
+        // Step 2: Build reason clause according to CDCL rules
+        // Rule: All literals in reason clause must be False under current assignment
+        // lit_for_reason(v) = (value(v)==True ? ¬v : v)
+        
         if (is_propagation) {
 #ifdef DEBUG_ANF_PROP
             cout << "[ANF-REASON] Building propagation reason clause..." << endl;
 #endif
-            // 传播情况：添加所有已赋值变量的否定（除了被传播的变量）
-            // 然后添加被传播的变量本身
+            // For propagation: Add propagated variable l' FIRST (at index 0), then U (assigned variables except propagated one)
             
-            // 添加所有active resolved vars的贡献（除了pc_var）
-            for (uint32_t resolved_var : x.active_resolved_vars) {
-                if (resolved_var == pc_var) continue;
-                
-                if (value(resolved_var) != l_Undef) {
-                    bool var_val = (value(resolved_var) == l_True);
-                    // 添加否定：如果变量为真，添加其否定（假）
-                    Lit lit = Lit(resolved_var, var_val);  // 注意这里改为var_val而不是!var_val
-                    if (added_lits.find(lit) == added_lits.end()) {
-                        x.reason_cl.push_back(lit);
-                        added_lits.insert(lit);
-                    }
-                }
-            }
-            
-            // 计算被传播变量应该的值
+            // First, compute the propagated literal
             bool rhs_without_pc = false;
             for (uint32_t resolved_var : x.active_resolved_vars) {
                 if (resolved_var == pc_var) continue;
@@ -1530,75 +1529,127 @@ vector<Lit> *PropEngine::get_xor_reason(const PropBy &reason, int32_t &ID)
                     rhs_without_pc ^= (value(resolved_var) == l_True);
                 }
             }
+            // The propagated value is: pc_var should be (rhs_without_pc == x.rhs)
+            // But we need to add the literal that is False under current assignment
+            Lit prop_lit = make_reason_lit(pc_var, this);
             
-            // 添加被传播的文字
-            Lit prop_lit = Lit(pc_var, rhs_without_pc == x.rhs);  // 修改：取反
+            // Add propagated literal FIRST (at index 0) - this is what's propagated, must be 1st
             if (added_lits.find(prop_lit) == added_lits.end()) {
                 x.reason_cl.push_back(prop_lit);
                 added_lits.insert(prop_lit);
+#ifdef DEBUG_ANF_PROP
+                cout << "[ANF-REASON]   Added propagated lit (at index 0): " << prop_lit << " (var " << pc_var + 1 
+                     << ", lit value=" << (value(prop_lit) == l_False ? "False" : "True") << ")" << endl;
+#endif
+            }
+            
+            // Add U: all assigned variables except pc_var
+            for (uint32_t resolved_var : x.active_resolved_vars) {
+                if (resolved_var == pc_var) continue;
+                
+                if (value(resolved_var) != l_Undef) {
+                    Lit lit = make_reason_lit(resolved_var, this);
+                    if (added_lits.find(lit) == added_lits.end()) {
+                        x.reason_cl.push_back(lit);
+                        added_lits.insert(lit);
+#ifdef DEBUG_ANF_PROP
+                        cout << "[ANF-REASON]   Added to U: " << lit << " (var " << resolved_var + 1 
+                             << "=" << (value(resolved_var) == l_True ? "True" : "False") 
+                             << ", lit value=" << (value(lit) == l_False ? "False" : "True") << ")" << endl;
+#endif
+                    }
+                }
             }
         } else {
             // For conflict: all variables are assigned, computed_rhs != x.rhs
-            // According to doc: construct a CNF clause that is false under current assignment
-            // Rule: If var=val, add literal such that value(literal) = False
-            //   - If var=True, add ¬var (value(¬var) = False)
-            //   - If var=False, add var (value(var) = False)
-            // This creates a clause where all literals are False, so the clause is False → conflict
+            // Add all assigned variables using make_reason_lit
+            // Later we'll move the literal with max sublevel to index 0
 #ifdef DEBUG_ANF_PROP
             cout << "[ANF-REASON] Building conflict reason clause..." << endl;
 #endif
-            // Build conflict reason clause: all literals should be False under current assignment
-            // According to doc: x=1,y=0,z=1 → reason = ¬x ∨ y ∨ ¬z (all False)
-            // Rule: if var=True, add ¬var; if var=False, add var
-            // Key: value(lit) = (lit.sign() ? assigns[var] == l_False : assigns[var] == l_True)
-            // So to get False: if var=True, need ¬var (sign=true); if var=False, need var (sign=false)
             for (uint32_t resolved_var : x.active_resolved_vars) {
-                // Only include assigned variables (not those eliminated by parity cancellation)
                 if (value(resolved_var) != l_Undef) {
-                    bool var_val = (value(resolved_var) == l_True);
-                    
-                    // Add literal that is False under current assignment
-                    // According to doc: x=1,y=0,z=1 → ¬x ∨ y ∨ ¬z (all False)
-                    // value(Lit p) = assigns[p.var()] ^ p.sign()
-                    // To get False: assigns[var] ^ sign = l_False
-                    //   - If var=True (assigns[var]=l_True), need sign=true: True^true=False → Lit(var, true)=¬var
-                    //   - If var=False (assigns[var]=l_False), need sign=false: False^false=False → Lit(var, false)=var
-                    // So: sign = var_val gives us the literal that is False
-                    Lit lit = Lit(resolved_var, var_val);
-                    // Check for duplicates before adding
+                    Lit lit = make_reason_lit(resolved_var, this);
                     if (added_lits.find(lit) == added_lits.end()) {
                         x.reason_cl.push_back(lit);
                         added_lits.insert(lit);
 #ifdef DEBUG_ANF_PROP
                         lbool lit_val = value(lit);
                         cout << "[ANF-REASON]   Added to U: " << lit << " (var " << resolved_var + 1 
-                             << "=" << (var_val ? "True" : "False") << ", lit value=" 
-                             << (lit_val == l_True ? "True" : (lit_val == l_False ? "False" : "Undef")) << ")" << endl;
+                             << "=" << (value(resolved_var) == l_True ? "True" : "False") 
+                             << ", lit value=" << (lit_val == l_False ? "False" : "True") << ")" << endl;
 #endif
                     }
                 }
             }
         }
         
-        // 修改4: 添加所有enabling factors的否定
+        // Step 3: Add enabling factors (only those that are True and enabled the alias)
+        // For each factor f (Lit) that is True and enabled alias, add ~f (negation of the factor literal)
         for (const auto &pair : aux_factors) {
             for (const Lit &factor : pair.second) {
-                // 添加factor的否定（因为factor=True使得alias生效）
+                // factor is a Lit (with sign), and it's True (we only collected True factors)
+                // Add ~factor to get the literal that is False under current assignment
                 Lit neg_factor = ~factor;
                 if (added_lits.find(neg_factor) == added_lits.end()) {
                     x.reason_cl.push_back(neg_factor);
                     added_lits.insert(neg_factor);
+#ifdef DEBUG_ANF_PROP
+                    cout << "[ANF-REASON]   Added factor lit: " << neg_factor << " (from factor " << factor 
+                         << ", lit value=" << (value(neg_factor) == l_False ? "False" : "True") << ")" << endl;
+#endif
                 }
             }
         }
         
-        // Final step: Sort and remove any remaining duplicates (safety check)
+        // Final step: Remove duplicates and ensure proper ordering
 #ifdef DEBUG_ANF_PROP
         cout << "[ANF-REASON] Before dedup, reason_cl size=" << x.reason_cl.size() << endl;
 #endif
-        std::sort(x.reason_cl.begin(), x.reason_cl.end());
-        auto last = std::unique(x.reason_cl.begin(), x.reason_cl.end());
-        x.reason_cl.erase(last, x.reason_cl.end());
+        
+        if (is_propagation) {
+            // For propagation: Keep propagated literal at index 0, sort and dedup the rest
+            if (x.reason_cl.size() > 1) {
+                Lit prop_lit = x.reason_cl[0];  // Save propagated literal
+                // Sort and dedup the rest (from index 1 onwards)
+                std::sort(x.reason_cl.begin() + 1, x.reason_cl.end());
+                auto last = std::unique(x.reason_cl.begin() + 1, x.reason_cl.end());
+                x.reason_cl.erase(last, x.reason_cl.end());
+                // Ensure propagated literal is still at index 0
+                if (x.reason_cl[0] != prop_lit) {
+                    // Find prop_lit and swap it to index 0
+                    for (uint32_t i = 1; i < x.reason_cl.size(); i++) {
+                        if (x.reason_cl[i] == prop_lit) {
+                            std::swap(x.reason_cl[0], x.reason_cl[i]);
+                            break;
+                        }
+                    }
+                }
+            }
+        } else {
+            // For conflict: Sort and dedup, then move max sublevel to index 0
+            std::sort(x.reason_cl.begin(), x.reason_cl.end());
+            auto last = std::unique(x.reason_cl.begin(), x.reason_cl.end());
+            x.reason_cl.erase(last, x.reason_cl.end());
+            
+            // Move the literal with max sublevel to index 0 (like BNN does)
+            uint32_t maxsublevel = 0;
+            uint32_t at = 0;
+            for (uint32_t i = 0; i < x.reason_cl.size(); i++) {
+                Lit l = x.reason_cl[i];
+                if (varData[l.var()].sublevel >= maxsublevel) {
+                    maxsublevel = varData[l.var()].sublevel;
+                    at = i;
+                }
+            }
+            if (at != 0) {
+                std::swap(x.reason_cl[0], x.reason_cl[at]);
+#ifdef DEBUG_ANF_PROP
+                cout << "[ANF-REASON] Swapped literal with max sublevel (" << maxsublevel 
+                     << ") to index 0: " << x.reason_cl[0] << endl;
+#endif
+            }
+        }
         
         // 确保reason子句不为空且正确
         assert(!x.reason_cl.empty() && "Reason clause must not be empty");
