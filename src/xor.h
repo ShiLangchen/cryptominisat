@@ -92,10 +92,8 @@ class Xor
     uint32_t in_matrix = 1000;
     int32_t xid = 0;
     
-    // ANF-Elim: bitset for tracking parity of resolved variables
-    // active_resolved_vars: set of variables (after alias resolution) that appear odd times
-    // These are the variables that contribute to the XOR parity (x⊕x=0 elimination)
-    set<uint32_t> active_resolved_vars;
+    // ANF-Elim: variables (after alias resolution) that appear odd times (sorted)
+    vector<uint32_t> active_resolved_vars;
     
     // CRITICAL: Record used factors at propagation/conflict time to avoid temporal aliasing issues
     // These must be recorded when propagation/conflict occurs, not recomputed during conflict analysis
@@ -103,13 +101,6 @@ class Xor
     uint32_t prop_level = 0;        // Decision level when propagation/conflict occurred
     uint32_t prop_sublevel = 0;     // Sublevel when propagation/conflict occurred (for sanity checks)
     
-    // SNAPSHOT: Complete snapshot of propagation/conflict state to avoid temporal aliasing
-    // These must be recorded at propagation/conflict time and never recomputed during conflict analysis
-    bool has_snapshot = false;                          // Whether snapshot is valid
-    vector<uint32_t> snap_active_resolved_vars;         // Active resolved vars at propagation time (only odd count)
-    vector<int8_t> snap_active_vals;                    // Parallel array: -1=undef, 0=false, 1=true at propagation time
-    vector<uint32_t> snap_orig_pos;                     // Optional: original clause positions for snap_active_resolved_vars
-    int8_t snap_rhs = -1;                               // Computed XOR parity (rhs) at propagation time (-1 if not recorded)
 };
 
 inline std::ostream &operator<<(std::ostream &os, const Xor &x)

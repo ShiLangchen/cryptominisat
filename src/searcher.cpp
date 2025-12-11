@@ -253,7 +253,7 @@ void Searcher::normalClMinim()
             }
 
             case xor_t: {
-                auto cl = get_xor_reason(reason, id);
+                auto cl = get_xor_reason(reason, id, learnt_clause[i]);
                 lits = cl->data();
                 size = cl->size() - 1;
                 sumAntecedentsLits += size;
@@ -445,7 +445,7 @@ template<bool inprocess> void Searcher::add_lits_to_learnt(const PropBy confl, c
         }
 
         case xor_t: {
-            auto cl = get_xor_reason(confl, id);
+            auto cl = get_xor_reason(confl, id, p);
             lits = cl->data();
             size = cl->size();
             sumAntecedentsLits += size;
@@ -808,7 +808,7 @@ void Searcher::simple_create_learnt_clause(PropBy confl, vector<Lit> &out_learnt
                 } else {
                     int32_t ID;
                     assert(confl.getType() == xor_t);
-                    auto cl = get_xor_reason(confl, ID);
+                    auto cl = get_xor_reason(confl, ID, p);
                     lits = cl->data();
                     size = cl->size();
                 }
@@ -1022,7 +1022,7 @@ bool Searcher::litRedundant(const Lit p, uint32_t abstract_levels)
             }
 
             case xor_t: {
-                auto cl = get_xor_reason(reason, ID);
+                auto cl = get_xor_reason(reason, ID, p_analyze);
                 lits = cl->data();
                 size = cl->size() - 1;
                 break;
@@ -1177,7 +1177,7 @@ void Searcher::analyze_final_confl_with_assumptions(const Lit p, vector<Lit> &ou
                     }
 
                     case xor_t: {
-                        auto cl = get_xor_reason(reason, ID);
+                        auto cl = get_xor_reason(reason, ID, trail[i].lit);
                         assert(value((*cl)[0]) == l_True);
                         for (const Lit lit: *cl) {
                             if (varData[lit.var()].level > 0) seen[lit.var()] = 1;
@@ -2945,7 +2945,7 @@ template<bool inprocess, bool red_also, bool distill_use> PropBy Searcher::propa
             int32_t id;
             for (size_t i = last_trail; i < trail.size(); i++) {
                 const auto propby = varData[trail[i].lit.var()].reason;
-                if (propby.getType() == PropByType::xor_t) get_xor_reason(propby, id);
+                if (propby.getType() == PropByType::xor_t) get_xor_reason(propby, id, trail[i].lit);
             }
             if (ret.getType() == PropByType::xor_t) get_xor_reason(ret, id);
             // We need this check, because apparently GJ can set unsat during prop
