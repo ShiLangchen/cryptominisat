@@ -3024,12 +3024,17 @@ template<bool do_insert_var_order, bool inprocess> void Searcher::cancelUntil(ui
                 if (do_insert_var_order) insert_var_order(var);
             }
         }
-        vector<uint32_t> changed_auxs;
+        vector<uint32_t> changed_xors;
         while (trail.size() > j) {
             const Lit lit = trail.back().lit;
-            eq_elim(lit, changed_auxs);
+            eq_elim(lit, changed_xors);
             trail.pop_back();
         }
+        for (size_t ii = 0; ii < changed_xors.size(); ii++) {
+            if (changed_xors[ii] == 0) continue;
+            update_xor_watches(ii);
+        }
+
         qhead = trail_lim[blevel];
         trail_lim.resize(blevel);
     }
