@@ -102,6 +102,14 @@ class Xor
     vector<Lit> last_used_factors;  // Canonicalized literals (resolved) that were True at propagation time
     uint32_t prop_level = 0;        // Decision level when propagation/conflict occurred
     uint32_t prop_sublevel = 0;     // Sublevel when propagation/conflict occurred (for sanity checks)
+    
+    // SNAPSHOT: Complete snapshot of propagation/conflict state to avoid temporal aliasing
+    // These must be recorded at propagation/conflict time and never recomputed during conflict analysis
+    bool has_snapshot = false;                          // Whether snapshot is valid
+    vector<uint32_t> snap_active_resolved_vars;         // Active resolved vars at propagation time (only odd count)
+    vector<int8_t> snap_active_vals;                    // Parallel array: -1=undef, 0=false, 1=true at propagation time
+    vector<uint32_t> snap_orig_pos;                     // Optional: original clause positions for snap_active_resolved_vars
+    int8_t snap_rhs = -1;                               // Computed XOR parity (rhs) at propagation time (-1 if not recorded)
 };
 
 inline std::ostream &operator<<(std::ostream &os, const Xor &x)

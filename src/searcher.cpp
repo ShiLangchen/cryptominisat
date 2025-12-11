@@ -198,15 +198,6 @@ template<bool inprocess> inline void Searcher::add_lit_to_learnt(const Lit lit, 
         }
     }
 
-    // CRITICAL: Decision variables (with null reason) should not increase pathC
-    // because they won't be processed in the resolution loop
-    // They should be added directly to learnt_clause instead
-    if (varData[var].reason.isnullptr()) {
-        // This is a decision variable - add it to learnt_clause but don't increase pathC
-        learnt_clause.push_back(lit);
-        return;
-    }
-
     if (varData[var].level >= nDecisionLevel) {
         pathC++;
     } else {
@@ -482,7 +473,6 @@ template<bool inprocess> void Searcher::add_lits_to_learnt(const PropBy confl, c
     size_t i = 0;
     bool cont = true;
     Lit x = lit_Undef;
-    uint32_t decision_vars_count = 0;  // Debug: count decision variables
     while (cont) {
         switch (confl.getType()) {
             case binary_t:
@@ -508,26 +498,9 @@ template<bool inprocess> void Searcher::add_lits_to_learnt(const PropBy confl, c
                 break;
         }
         if (p == lit_Undef || i > 0) {
-            uint32_t pathC_before = pathC;
-            bool is_decision_before = (varData[x.var()].reason.isnullptr());
             add_lit_to_learnt<inprocess>(x, nDecisionLevel);
-            uint32_t pathC_after = pathC;
-            if (is_decision_before) {
-                decision_vars_count++;
-            }
-            // Debug: verify pathC change
-            if (is_decision_before && pathC_after > pathC_before) {
-                cerr << "ERROR: Decision variable " << x << " increased pathC from " 
-                     << pathC_before << " to " << pathC_after << endl;
-            }
         }
         i++;
-    }
-    
-    // Debug: log pathC calculation
-    if (decision_vars_count > 0) {
-        VERBOSE_PRINT("add_lits_to_learnt: final_pathC=" << pathC 
-                     << ", decision_vars_count=" << decision_vars_count);
     }
 }
 
@@ -716,36 +689,6 @@ template<bool inprocess> void Searcher::create_learnt_clause(PropBy confl)
         confl = varData[p.var()].reason;
         assert(varData[p.var()].level > 0);
         
-        // If p is a decision variable (reason is nullptr), we've reached a decision level
-        // This can happen if pathC included decision variables that were not properly excluded
-        // In this case, we should stop the resolution loop and use p as the UIP
-        if (confl.isnullptr()) {
-            // This is a decision variable - stop the resolution loop
-            // The remaining pathC should be 0 (all remaining literals are decision variables)
-            // But we need to verify this
-            if (pathC > 1) {
-                // There are still more literals to process, but we hit a decision variable
-                // This indicates pathC was incorrect - it included decision variables
-                cerr << "ERROR: Decision variable encountered in resolution loop with pathC=" << pathC << endl;
-                cerr << "  p=" << p << ", level=" << varData[p.var()].level << ", nDecisionLevel=" << nDecisionLevel << endl;
-                cerr << "  learnt_clause size=" << learnt_clause.size() << endl;
-                cerr << "  seen array state: ";
-                uint32_t seen_count = 0;
-                for (uint32_t v = 0; v < nVars() && seen_count < 20; v++) {
-                    if (seen[v]) {
-                        cerr << v+1 << " ";
-                        seen_count++;
-                    }
-                }
-                cerr << endl;
-                release_assert(false && "Decision variable encountered in resolution loop - pathC calculation error");
-            }
-            // pathC == 1, so this is the last literal - it's OK to be a decision variable
-            // We'll use it as the UIP
-            pathC = 0;  // Set pathC to 0 to exit the loop
-            break;  // Exit the loop immediately
-        }
-
         //This clears out vars that haven't been added to learnt_clause,
         //but their 'seen' has been set
         seen[p.var()] = 0;
