@@ -249,6 +249,12 @@ class PropEngine : public CNF
     vector<uint8_t> xor_count;
     vector<uint32_t> xor_touched;
 
+    // Dirty tracking for XOR active-resolved rebuilds
+    vector<uint64_t> xor_active_gen;
+    uint64_t xor_dirty_epoch = 1;
+
+    void mark_xor_dirty_for_var(uint32_t var);
+
     //Clause activities
     double max_cl_act = 0.0;
 

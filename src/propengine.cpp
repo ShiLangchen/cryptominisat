@@ -76,6 +76,7 @@ void PropEngine::new_var(const bool bva, uint32_t orig_outer, const bool insert_
     vmtf_links.insert(vmtf_links.end(), 1, Link());
     xor_occurs_by_var.emplace_back();
     xor_count.emplace_back(0);
+    xor_active_gen.emplace_back(0);
 }
 
 void PropEngine::new_vars(size_t n)
@@ -87,6 +88,7 @@ void PropEngine::new_vars(size_t n)
     vmtf_links.insert(vmtf_links.end(), n, Link());
     xor_occurs_by_var.insert(xor_occurs_by_var.end(), n, vector<uint32_t>());
     xor_count.insert(xor_count.end(), n, 0);
+    xor_active_gen.insert(xor_active_gen.end(), n, 0);
 }
 
 void PropEngine::save_on_var_memory()
@@ -145,6 +147,8 @@ void PropEngine::attach_xor_clause(uint32_t at)
         }
         xor_occurs_by_var[v].push_back(at);
     }
+    if (at >= xor_active_gen.size()) xor_active_gen.resize(at + 1, 0);
+    xor_active_gen[at] = 0; // mark dirty initially
 
     // ANF-Elim: Initialize active_resolved_vars (variables with odd count after alias resolution)
     update_xor_active_vars(at);
@@ -153,6 +157,12 @@ void PropEngine::attach_xor_clause(uint32_t at)
 void PropEngine::update_xor_active_vars(uint32_t at)
 {
     Xor &x = xorclauses[at];
+
+    // Skip if up to date
+    if (at < xor_active_gen.size() && xor_active_gen[at] == xor_dirty_epoch) {
+        return;
+    }
+
     x.active_resolved_vars.clear();
 
     // Ensure scratch space is large enough
@@ -179,6 +189,9 @@ void PropEngine::update_xor_active_vars(uint32_t at)
 
     // Keep active vars sorted for binary_search membership checks
     std::sort(x.active_resolved_vars.begin(), x.active_resolved_vars.end());
+
+    if (at >= xor_active_gen.size()) xor_active_gen.resize(at + 1, 0);
+    xor_active_gen[at] = xor_dirty_epoch;
     
 #ifdef DEBUG_ANF_PROP
     cout << "[ANF-PROP] Updated active_resolved_vars for XOR clause #" << at << ": ";
@@ -203,31 +216,24 @@ void PropEngine::update_xor_active_vars(uint32_t at)
 
 void PropEngine::update_xor_active_vars_for_var(uint32_t var)
 {
-    // CRITICAL FIX: Update all XOR clauses that contain this variable (or its alias)
-    // We need to check gwatches to find all XOR clauses containing this variable
-    // Also need to check all XOR clauses to see if they contain this variable after alias resolution
-    if (gwatches.size() <= var) return;
-    
-    vec<GaussWatched> &ws = gwatches[var];
-    std::set<uint32_t> updated_xors;  // Avoid updating the same XOR clause multiple times
-    
-    // First, update XOR clauses that have this variable in their watch list
-    for (const GaussWatched &w : ws) {
-        if (w.matrix_num == 1000) {
-            uint32_t at = w.row_n;
-            if (updated_xors.find(at) == updated_xors.end()) {
-                update_xor_active_vars(at);
-                updated_xors.insert(at);
+    mark_xor_dirty_for_var(var);
+}
+
+void PropEngine::mark_xor_dirty_for_var(uint32_t var)
+{
+    // Mark XOR clauses that contain this variable (watch or occur) as dirty
+    if (var < gwatches.size()) {
+        for (const GaussWatched &w : gwatches[var]) {
+            if (w.matrix_num == 1000) {
+                uint32_t at = w.row_n;
+                if (at < xor_active_gen.size()) xor_active_gen[at] = 0;
             }
         }
     }
 
-    // Next, update XOR clauses where this original variable occurs
     if (var < xor_occurs_by_var.size()) {
         for (uint32_t at : xor_occurs_by_var[var]) {
-            if (updated_xors.find(at) != updated_xors.end()) continue;
-            update_xor_active_vars(at);
-            updated_xors.insert(at);
+            if (at < xor_active_gen.size()) xor_active_gen[at] = 0;
         }
     }
 }
