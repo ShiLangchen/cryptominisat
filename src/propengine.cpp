@@ -345,33 +345,33 @@ void PropEngine::eq_elim(const Lit p, vector<uint32_t> &changed_xors)
                 if (value(other) == l_Undef) {
                     set_alias(aux, std::nullopt, changed_xors);
                 } else { // value(other) != l_Undef
-                    if (value(aux) == l_Undef && value(other) == l_True) {
-                        set_alias(aux, eq[eq.watched[which]], changed_xors);
-                    }
+                    // if (value(aux) == l_Undef && value(other) == l_True) {
+                    //     set_alias(aux, eq[eq.watched[which]], changed_xors);
+                    // }
                 }
             }
         } else {
-            auto &eq = eq_clauses[aux_to_eid[pv]];
-            assert(eq.get_eid() == aux_to_eid[pv]);
-            const Lit aux = eq.get_aux_lit();
-            const int aux_lit_int = eq.get_aux_lit().toInt();
-            if (value(eq[eq.watched[0]]) == l_Undef && value(eq[eq.watched[1]]) == l_Undef) {
-                set_alias(aux, std::nullopt, changed_xors);
-            } else if (value(eq[eq.watched[0]]) == l_Undef && value(eq[eq.watched[1]]) == l_True) {
-                set_alias(aux, eq[eq.watched[0]], changed_xors);
-            } else if (value(eq[eq.watched[1]]) == l_Undef && value(eq[eq.watched[0]]) == l_True) {
-                set_alias(aux, eq[eq.watched[1]], changed_xors);
-            } else {
-                assert(alias[aux_lit_int] == std::nullopt);
-            }
+            // auto &eq = eq_clauses[aux_to_eid[pv]];
+            // assert(eq.get_eid() == aux_to_eid[pv]);
+            // const Lit aux = eq.get_aux_lit();
+            // const int aux_lit_int = eq.get_aux_lit().toInt();
+            // if (value(eq[eq.watched[0]]) == l_Undef && value(eq[eq.watched[1]]) == l_Undef) {
+            //     set_alias(aux, std::nullopt, changed_xors);
+            // } else if (value(eq[eq.watched[0]]) == l_Undef && value(eq[eq.watched[1]]) == l_True) {
+            //     set_alias(aux, eq[eq.watched[0]], changed_xors);
+            // } else if (value(eq[eq.watched[1]]) == l_Undef && value(eq[eq.watched[0]]) == l_True) {
+            //     set_alias(aux, eq[eq.watched[1]], changed_xors);
+            // } else {
+            //     assert(alias[aux_lit_int] == std::nullopt);
+            // }
         }
         return;
     }
 
     if (is_aux_var(pv)) {
-        const auto &eq = eq_clauses[aux_to_eid[pv]];
-        const Lit aux = eq.get_aux_lit();
-        set_alias(aux, std::nullopt, changed_xors);
+        // const auto &eq = eq_clauses[aux_to_eid[pv]];
+        // const Lit aux = eq.get_aux_lit();
+        // set_alias(aux, std::nullopt, changed_xors);
         return;
     }
 
@@ -397,17 +397,17 @@ void PropEngine::eq_elim(const Lit p, vector<uint32_t> &changed_xors)
         const int aux_lit_int = aux_lit.toInt();
 
         if (value(eq[eq.watched[which]]) == l_False) {
-            set_alias(aux_lit, std::nullopt, changed_xors);
+            // set_alias(aux_lit, std::nullopt, changed_xors);
             *j++ = *i;
             goto next;
         }
 
-        if (value(the_other_watched) == l_False) {
-            // no need to do some replace,
-            assert(alias[aux_lit_int] == std::nullopt);
-            *j++ = *i;
-            goto next;
-        }
+        // if (value(the_other_watched) == l_False) {
+        //     // no need to do some replace,
+        //     // assert(alias[aux_lit_int] == std::nullopt);
+        //     *j++ = *i;
+        //     goto next;
+        // }
 
         for (uint32_t i2 = 0; i2 < eq.size(); i2++) {
             if (i2 == eq.watched[0] || i2 == eq.watched[1]) {
@@ -422,12 +422,11 @@ void PropEngine::eq_elim(const Lit p, vector<uint32_t> &changed_xors)
         }
 
         // now, all the literals except the_other_watched are TRUE
-        // if the_other_watched and aux_lit are both UNDEF, they are eq.
-        if (value(the_other_watched) == l_Undef && value(aux_lit) == l_Undef) {
-            set_alias(aux_lit, the_other_watched, changed_xors);
-        } else {
-            set_alias(aux_lit, std::nullopt, changed_xors);
-        }
+        // if (value(the_other_watched) == l_Undef && value(aux_lit) == l_Undef) {
+        set_alias(aux_lit, the_other_watched, changed_xors);
+        // } else {
+        //     set_alias(aux_lit, std::nullopt, changed_xors);
+        // }
         *j++ = *i;
 
     next:;
