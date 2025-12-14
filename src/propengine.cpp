@@ -130,10 +130,16 @@ void PropEngine::attach_xor_clause(uint32_t at)
     assert(value(x[0]) == l_Undef);
     assert(value(x[1]) == l_Undef);
     auto w = GaussWatched::plain_xor(at);
+
     gwatches[x[0]].push(w);
     gwatches[x[1]].push(w);
-    x.watched[0] = x[0];
-    x.watched[1] = x[1];
+    x.watched[0] = 0;
+    x.watched[1] = 1;
+
+    my_gwatches[x[0]].push(w);
+    my_gwatches[x[1]].push(w);
+    x.my_watched[0] = x[0];
+    x.my_watched[1] = x[1];
 
     x.parity.resize(real_var_num);
     for (const uint32_t inv: x.get_vars()) {
@@ -489,7 +495,7 @@ PropBy PropEngine::prop_after_update_xor_watches(uint32_t at)
     Xor &x = xorclauses[at];
 
     PropBy confl;
-    int enabled_watches = std::accumulate(std::begin(x.watched_enabled), std::end(x.watched_enabled), 0);
+    int enabled_watches = std::accumulate(std::begin(x.my_watched_enabled), std::end(x.my_watched_enabled), 0);
     switch (enabled_watches) {
         case 2: {
             // all assigned (check conflict)
@@ -550,7 +556,7 @@ PropBy PropEngine::prop_after_update_xor_watches(uint32_t at)
             break;
         }
         case 1: {
-            bool which = x.watched_enabled[0] ? 0 : 1;
+            bool which = x.my_watched_enabled[0] ? 0 : 1;
             // assigned (check conflict)
             if (value(x.watched[which]) != l_Undef) {
                 uint8_t left = 0;
@@ -634,7 +640,7 @@ void PropEngine::update_xor_watches(uint32_t at)
 
     auto delete_old_watch = [&](uint32_t wrong_watched_var) {
         //delete old watch
-        vec<GaussWatched> &ws = gwatches[wrong_watched_var];
+        vec<GaussWatched> &ws = my_gwatches[wrong_watched_var];
         GaussWatched *i = ws.begin();
         GaussWatched *end = ws.end();
         GaussWatched &last = ws.last();
@@ -652,15 +658,14 @@ void PropEngine::update_xor_watches(uint32_t at)
 
         for (uint32_t outv = 0; outv < real_var_num; outv++) {
             const auto intv = solver->map_outer_to_inter(outv);
-            if (intv == x.watched[1] || intv == x.watched[0]) continue;
+            if (intv == x.my_watched[1] || intv == x.my_watched[0]) continue;
             if (could_be_watch(x, intv)) {
                 if (value(intv) == l_Undef) {
                     const auto old_watched = wrong_watched_var;
                     delete_old_watch(old_watched);
 
                     wrong_watched_var = intv;
-                    gwatches[intv].push(GaussWatched::plain_xor(at));
-
+                    my_gwatches[intv].push(GaussWatched::plain_xor(at));
                     goto SUCCESS_FIND;
                 } else {
                     if (!assigned_var.has_value()) {
@@ -672,7 +677,7 @@ void PropEngine::update_xor_watches(uint32_t at)
             }
         }
         for (const auto intv: x.get_vars()) {
-            if (intv == x.watched[1] || intv == x.watched[0]) continue;
+            if (intv == x.my_watched[1] || intv == x.my_watched[0]) continue;
             if (!is_aux_var(intv)) continue;
             if (could_be_watch(x, intv)) {
                 if (value(intv) == l_Undef) {
@@ -680,7 +685,7 @@ void PropEngine::update_xor_watches(uint32_t at)
                     delete_old_watch(old_watched);
 
                     wrong_watched_var = intv;
-                    gwatches[intv].push(GaussWatched::plain_xor(at));
+                    my_gwatches[intv].push(GaussWatched::plain_xor(at));
 
                     goto SUCCESS_FIND;
                 } else {
@@ -697,7 +702,7 @@ void PropEngine::update_xor_watches(uint32_t at)
             delete_old_watch(old_watched);
 
             wrong_watched_var = assigned_var.value();
-            gwatches[assigned_var.value()].push(GaussWatched::plain_xor(at));
+            my_gwatches[assigned_var.value()].push(GaussWatched::plain_xor(at));
 
             goto SUCCESS_FIND;
         }
@@ -706,14 +711,14 @@ void PropEngine::update_xor_watches(uint32_t at)
         return true;
     };
 
-    if (!could_be_watch(x, x.watched[0])) {
-        bool success = update_xor_watch(x.watched[0]);
-        x.watched_enabled[0] = success;
+    if (!could_be_watch(x, x.my_watched[0]) || !x.my_watched_enabled[0]) {
+        bool success = update_xor_watch(x.my_watched[0]);
+        x.my_watched_enabled[0] = success;
     }
 
-    if (!could_be_watch(x, x.watched[1])) {
-        bool success = update_xor_watch(x.watched[1]);
-        x.watched_enabled[1] = success;
+    if (!could_be_watch(x, x.my_watched[1]) || !x.my_watched_enabled[1]) {
+        bool success = update_xor_watch(x.my_watched[1]);
+        x.my_watched_enabled[1] = success;
     }
 }
 

@@ -92,6 +92,7 @@ class CNF
 
     watch_array watches;
     vec<vec<GaussWatched>> gwatches;
+    vec<vec<GaussWatched>> my_gwatches;
     vec<vec<EqWatched>> eq_watches;
 
     uint32_t num_sls_called = 0;
