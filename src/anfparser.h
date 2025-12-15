@@ -17,15 +17,16 @@
 #include <cassert>
 #include <zlib.h>
 
+namespace CMSat
+{
+// Move using declarations inside namespace to avoid global namespace pollution
 using std::vector;
+using std::string;
 using std::cerr;
 using std::cout;
 using std::endl;
 using std::map;
 using std::unique_ptr;
-
-namespace CMSat
-{
 
 template<class C, class S> class AnfParser
 {
@@ -174,8 +175,20 @@ template<class C, class S> bool AnfParser<C, S>::scan_instance(C &in)
                 ++in;
                 scan_anf_clauses(in);
                 break;
+            case 'c':
+                // Comment line - skip it during scanning
+                in.skipLine();
+                line_num++;
+                break;
             default:
-                assert(0);
+                // During scanning phase, we only expect 'x' lines (ANF clauses)
+                // Other lines (CNF clauses, etc.) will be handled in parse_ANF_main
+                // Skip unexpected characters during scan phase
+                if (verbosity >= 2) {
+                    cout << "c [SCAN] Line " << line_num << ": Skipping non-ANF line during scan phase" << endl;
+                }
+                in.skipLine();
+                line_num++;
                 break;
         }
     }
@@ -188,16 +201,32 @@ ARRANGE_IMPLICATIONS:
     auto auxiliary_var_start = solver->nVars();
     solver->set_real_var_num(auxiliary_var_start);
 
+    if (verbosity >= 2) {
+        cout << "c [ANF] Found " << monos_vec.size() << " unique product terms (monomials)" << endl;
+    }
+
     solver->new_vars(monos_vec.size());
 
     assert(solver->nVars() == auxiliary_var_start + monos_vec.size());
 
+    size_t mono_idx = 0;
     for (const auto &mono: monos_vec) {
         Lit aux_lit = Lit(auxiliary_var_start++, false);
         const size_t mono_size = mono.size();
         // aux_lit <-> (mono[0] & mono[1] & ... )
         // which is equivalent to:
         // (!aux_lit v mono[0]) & (!aux_lit v mono[1]) & ... & (!aux_lit v mono[mono_size - 1]) & (aux_lit v !mono[0] v !mono[1] v ... v !mono[mono_size - 1])
+
+        if (verbosity >= 3) {
+            cout << "c [ANF] Monomial " << mono_idx << ": y_" << aux_lit.var() + 1 
+                 << " = ";
+            for (size_t i = 0; i < mono_size; i++) {
+                if (i > 0) cout << " & ";
+                cout << "x_" << mono[i].var() + 1;
+                if (mono[i].sign()) cout << "'";
+            }
+            cout << endl;
+        }
 
         // add clauses
         for (auto lit: mono) {
@@ -217,6 +246,12 @@ ARRANGE_IMPLICATIONS:
         // add equivalence
         eq_clauses_added++;
         solver->add_eq_clause(mono, aux_lit);
+        mono_idx++;
+    }
+
+    if (verbosity >= 2) {
+        cout << "c [ANF] Created " << monos_vec.size() << " auxiliary variables ("
+             << auxiliary_var_start - monos_vec.size() << " to " << auxiliary_var_start - 1 << ")" << endl;
     }
     return true;
 }
@@ -232,10 +267,28 @@ template<class C, class S> bool AnfParser<C, S>::scan_anf_clauses(C &in)
     }
     line_num++;
 
+    size_t new_monos = 0;
     for (auto &mono: poly) {
         if (mono.size() <= 1) continue;
         std::sort(mono.begin(), mono.end());
-        monos.insert(mono);
+        auto result = monos.insert(mono);
+        if (result.second) {
+            new_monos++;
+            if (verbosity >= 3) {
+                cout << "c [SCAN] Line " << line_num - 1 << ": Found new product term: ";
+                for (size_t i = 0; i < mono.size(); i++) {
+                    if (i > 0) cout << " & ";
+                    cout << "x_" << mono[i].var() + 1;
+                    if (mono[i].sign()) cout << "'";
+                }
+                cout << endl;
+            }
+        }
+    }
+
+    if (verbosity >= 2 && new_monos > 0) {
+        cout << "c [SCAN] Line " << line_num - 1 << ": Added " << new_monos 
+             << " new product term(s), total unique: " << monos.size() << endl;
     }
 
     return true;
@@ -341,6 +394,17 @@ template<class C, class S> bool AnfParser<C, S>::parse_and_add_clause(C &in)
         return false;
     }
     line_num++;
+    
+    if (verbosity >= 3) {
+        cout << "c [CNF] Line " << line_num - 1 << ": Adding CNF clause: ";
+        for (size_t i = 0; i < lits.size(); i++) {
+            if (i > 0) cout << " ";
+            if (lits[i].sign()) cout << "-";
+            cout << lits[i].var() + 1;
+        }
+        cout << " 0" << endl;
+    }
+    
     solver->add_clause(lits);
     norm_clauses_added++;
     return true;
@@ -375,6 +439,30 @@ template<class C, class S> bool AnfParser<C, S>::parse_and_add_anf_clause(C &in)
     // now add the anf clause. Monomials(degree >= 2) will be replaced by corresponding auxiliary variables
     lits.clear();
     bool with_unit_mono = false;
+    
+    if (verbosity >= 3) {
+        cout << "c [ANF] Line " << line_num - 1 << ": Parsing ANF clause:" << endl;
+        cout << "c [ANF]   Original terms: ";
+        for (size_t i = 0; i < poly.size(); i++) {
+            if (i > 0) cout << " XOR ";
+            if (poly[i].size() == 0) {
+                cout << "1";
+            } else if (poly[i].size() == 1) {
+                cout << "x_" << poly[i][0].var() + 1;
+                if (poly[i][0].sign()) cout << "'";
+            } else {
+                cout << "(";
+                for (size_t j = 0; j < poly[i].size(); j++) {
+                    if (j > 0) cout << " & ";
+                    cout << "x_" << poly[i][j].var() + 1;
+                    if (poly[i][j].sign()) cout << "'";
+                }
+                cout << ")";
+            }
+        }
+        cout << endl;
+    }
+    
     for (const auto &mono: poly) {
         switch (mono.size()) {
             case 0: {
@@ -399,7 +487,24 @@ template<class C, class S> bool AnfParser<C, S>::parse_and_add_anf_clause(C &in)
         }
     }
 
-    solver->add_xor_clause(lits, !with_unit_mono);
+    bool rhs = !with_unit_mono;
+    
+    if (verbosity >= 3) {
+        cout << "c [ANF]   Converted to XOR clause: ";
+        for (size_t i = 0; i < lits.size(); i++) {
+            if (i > 0) cout << " XOR ";
+            if (lits[i].var() >= solver->nVars() - monos_vec.size()) {
+                // This is an auxiliary variable
+                cout << "y_" << lits[i].var() + 1;
+            } else {
+                cout << "x_" << lits[i].var() + 1;
+            }
+            if (lits[i].sign()) cout << "'";
+        }
+        cout << " = " << (rhs ? "1" : "0") << endl;
+    }
+
+    solver->add_xor_clause(lits, rhs);
     xor_clauses_added++;
     return true;
 }
@@ -409,16 +514,53 @@ template<class C, class S> bool AnfParser<C, S>::parse_ANF_main(C &in)
     std::string str;
     for (;;) {
         in.skipWhitespace();
-        switch (*in) {
-            case EOF:
-                return true;
+        char c = *in;
+        
+        // Check for EOF first
+        if (c == EOF) {
+            return true;
+        }
+        
+        // Check if it's a CNF clause (starts with digit or minus sign)
+        // CNF clauses start with a literal (digit or '-' followed by digit)
+        if ((c >= '0' && c <= '9') || c == '-') {
+            if (verbosity >= 3) {
+                cout << "c [PARSE] Line " << line_num << ": CNF clause detected" << endl;
+            }
+            // Try to parse as CNF clause
+            // read_clause will handle the parsing and return false if it fails
+            if (!parse_and_add_clause(in)) {
+                // If parsing failed, it might not be a CNF clause
+                // Check if it's actually an ANF clause or other format
+                // For now, we'll let the error propagate up
+                return false;
+            }
+            continue;
+        }
+        
+        // Handle other cases with switch
+        switch (c) {
             case 'p':
+                if (verbosity >= 3) {
+                    cout << "c [PARSE] Line " << line_num << ": Header line (skipping)" << endl;
+                }
                 in.skipLine();
                 line_num++;
                 break;
             case 'x':
+                if (verbosity >= 3) {
+                    cout << "c [PARSE] Line " << line_num << ": ANF clause detected" << endl;
+                }
                 ++in;
                 if (!parse_and_add_anf_clause(in)) return false;
+                break;
+            case 'c':
+                // Comment line - skip it
+                if (verbosity >= 3) {
+                    cout << "c [PARSE] Line " << line_num << ": Comment line" << endl;
+                }
+                in.skipLine();
+                line_num++;
                 break;
             case '\n':
                 if (verbosity) {
@@ -429,7 +571,14 @@ template<class C, class S> bool AnfParser<C, S>::parse_ANF_main(C &in)
                 line_num++;
                 break;
             default:
-                assert(0);
+                // Unknown character - could be an error or we should skip
+                if (verbosity) {
+                    cout << "c WARNING: Unexpected character '" << c 
+                         << "' (hex: 0x" << std::hex << (int)(unsigned char)c << std::dec
+                         << ") at line " << line_num << ". Skipping line." << endl;
+                }
+                in.skipLine();
+                line_num++;
                 break;
         }
     }
@@ -457,10 +606,34 @@ bool AnfParser<C, S>::parse_ANF(const string &file_name, const bool _strict_head
     if (!parse_ANF_main(in2)) return false;
     gzclose(gzf2);
 
-    if (verbosity) {
-        cout << "c -- norm clauses added: " << norm_clauses_added << endl
-             << "c -- xor clauses added: " << xor_clauses_added << endl
-             << "c -- vars added " << (solver->nVars() - origNumVars) << endl;
+    if (verbosity >= 1) {
+        cout << "c ========== ANF Parsing Summary ==========" << endl;
+        cout << "c Normal CNF clauses added: " << norm_clauses_added << endl;
+        cout << "c XOR clauses added: " << xor_clauses_added << endl;
+        cout << "c Equivalence clauses added: " << eq_clauses_added << endl;
+        cout << "c Total variables added: " << (solver->nVars() - origNumVars) << endl;
+        cout << "c   - Original variables: " << origNumVars << endl;
+        cout << "c   - Auxiliary variables: " << monos_vec.size() << endl;
+        cout << "c   - Total variables: " << solver->nVars() << endl;
+        
+        if (verbosity >= 2) {
+            cout << "c Product terms (monomials) found: " << monos_vec.size() << endl;
+            if (monos_vec.size() > 0 && verbosity >= 3) {
+                cout << "c Auxiliary variable mapping:" << endl;
+                uint32_t aux_start = solver->nVars() - monos_vec.size();
+                for (size_t i = 0; i < monos_vec.size(); i++) {
+                    const auto &mono = monos_vec[i];
+                    cout << "c   y_" << (aux_start + i + 1) << " = ";
+                    for (size_t j = 0; j < mono.size(); j++) {
+                        if (j > 0) cout << " & ";
+                        cout << "x_" << mono[j].var() + 1;
+                        if (mono[j].sign()) cout << "'";
+                    }
+                    cout << endl;
+                }
+            }
+        }
+        cout << "c ==========================================" << endl;
     }
 
     return true;

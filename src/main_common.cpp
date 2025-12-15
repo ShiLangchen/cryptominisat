@@ -59,7 +59,10 @@ uint32_t MainCommon::print_model(CMSat::SATSolver *solver, std::ostream *os, con
     size_t line_size = 2;
     size_t num_undef = 0;
 
+    const uint32_t real_vars = solver->get_real_var_num();
     auto fun = [&](uint32_t var) {
+        // Skip auxiliary/internal variables
+        if (var >= real_vars) return;
         if (solver->get_model()[var] != CMSat::l_Undef) {
             const bool value_is_positive = (solver->get_model()[var] == CMSat::l_True);
             const size_t this_var_size = std::ceil(std::log10(var + 1)) + 1 + !value_is_positive;

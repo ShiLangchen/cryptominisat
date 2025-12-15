@@ -105,6 +105,9 @@ class Main : public MainCommon
     bool fileNamePresent;
     string result_fname;
     string input_file;
+    
+    //ANF support
+    bool enable_anf = false;  // Enable ANF parsing and ANF-Elim reasoning
     std::ofstream *resultfile = nullptr;
 
     //Drat checker

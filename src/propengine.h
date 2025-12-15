@@ -213,7 +213,7 @@ class PropEngine : public CNF
     template<bool inprocess> void enqueue(const Lit p);
     void enqueue_light(const Lit p);
     void new_decision_level();
-    vector<Lit> *get_xor_reason(const PropBy &reason, int32_t &ID);
+    vector<Lit> *get_xor_reason(const PropBy &reason, int32_t &ID, Lit target_lit = lit_Undef);
 
     /////////////////////
     // Branching
@@ -241,6 +241,19 @@ class PropEngine : public CNF
     uint32_t vmtf_pick_var();
     vector<Link> vmtf_links; ///< Indexed by variable number. table of vmtf_links for decision queue.
     double max_vsids_act = 0.0;
+
+    // Occurrence list of XOR clauses per (original) variable
+    vector<vector<uint32_t>> xor_occurs_by_var;
+
+    // Scratch space for XOR parity counting
+    vector<uint8_t> xor_count;
+    vector<uint32_t> xor_touched;
+
+    // Dirty tracking for XOR active-resolved rebuilds
+    vector<uint64_t> xor_active_gen;
+    uint64_t xor_dirty_epoch = 1;
+
+    void mark_xor_dirty_for_var(uint32_t var);
 
     //Clause activities
     double max_cl_act = 0.0;
@@ -281,6 +294,8 @@ class PropEngine : public CNF
     void attachClause(const Clause &c, const bool checkAttach = true);
     void attach_xor_clause(uint32_t at);
     void attach_eq_clause(uint32_t at);
+    void update_xor_active_vars(uint32_t at); // ANF-Elim: Update active_resolved_vars for XOR clause
+    void update_xor_active_vars_for_var(uint32_t var); // ANF-Elim: Update active_resolved_vars for all XOR clauses containing var
 
     void detach_bin_clause(Lit lit1,
                            Lit lit2,
@@ -527,7 +542,7 @@ void PropEngine::enqueue(const Lit p, const uint32_t level, const PropBy from, b
 
             if (from.getType() == PropByType::xor_t) {
                 int32_t tmp_ID;
-                get_xor_reason(from, tmp_ID);
+                get_xor_reason(from, tmp_ID, p);
             }
 
             *frat << add << id << p << fin;

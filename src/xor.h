@@ -91,6 +91,16 @@ class Xor
     uint32_t watched[2] = {0, 0};
     uint32_t in_matrix = 1000;
     int32_t xid = 0;
+    
+    // ANF-Elim: variables (after alias resolution) that appear odd times (sorted)
+    vector<uint32_t> active_resolved_vars;
+    
+    // CRITICAL: Record used factors at propagation/conflict time to avoid temporal aliasing issues
+    // These must be recorded when propagation/conflict occurs, not recomputed during conflict analysis
+    vector<Lit> last_used_factors;  // Canonicalized literals (resolved) that were True at propagation time
+    uint32_t prop_level = 0;        // Decision level when propagation/conflict occurred
+    uint32_t prop_sublevel = 0;     // Sublevel when propagation/conflict occurred (for sanity checks)
+    
 };
 
 inline std::ostream &operator<<(std::ostream &os, const Xor &x)

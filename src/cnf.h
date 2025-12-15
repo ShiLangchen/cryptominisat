@@ -298,6 +298,40 @@ class CNF
         return out_var >= (uint32_t)real_var_num;
     }
 
+    /**
+     * @brief Resolve alias for a literal
+     * 
+     * Returns the alias of a literal if it exists, otherwise returns the original literal.
+     * This is used for ANF-Elim propagation where product terms (y) can be aliased
+     * to original variables (x) when some factors are assigned.
+     * 
+     * @param lit The literal to resolve
+     * @return The aliased literal if alias exists, otherwise the original literal
+     * 
+     * Note: In our design, aliases only point to original variables, not other
+     *       auxiliary variables, so there's no chain to follow (single lookup only).
+     * 
+     * Example:
+     *   If alias[y] = x, then resolve_alias(y) = x
+     *   If no alias exists, then resolve_alias(y) = y
+     */
+    Lit resolve_alias(Lit lit) const
+    {
+        const int lit_int = lit.toInt();
+        
+        // Check bounds
+        if (lit_int < 0 || static_cast<size_t>(lit_int) >= alias.size()) {
+            return lit;
+        }
+        
+        // If alias exists, return it; otherwise return original literal
+        if (alias[lit_int].has_value()) {
+            return alias[lit_int].value();
+        }
+        
+        return lit;
+    }
+
   protected:
     virtual void new_var(const bool bva, const uint32_t orig_outer, const bool insert_varorder = true);
     virtual void new_vars(const size_t n);

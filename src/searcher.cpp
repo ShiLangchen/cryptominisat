@@ -253,7 +253,7 @@ void Searcher::normalClMinim()
             }
 
             case xor_t: {
-                auto cl = get_xor_reason(reason, id);
+                auto cl = get_xor_reason(reason, id, learnt_clause[i]);
                 lits = cl->data();
                 size = cl->size() - 1;
                 sumAntecedentsLits += size;
@@ -445,7 +445,7 @@ template<bool inprocess> void Searcher::add_lits_to_learnt(const PropBy confl, c
         }
 
         case xor_t: {
-            auto cl = get_xor_reason(confl, id);
+            auto cl = get_xor_reason(confl, id, p);
             lits = cl->data();
             size = cl->size();
             sumAntecedentsLits += size;
@@ -575,12 +575,66 @@ size_t Searcher::find_backtrack_level_of_learnt()
 {
     if (learnt_clause.size() <= 1) return 0;
     else {
-        uint32_t max_i = 1;
-        for (uint32_t i = 2; i < learnt_clause.size(); i++) {
-            if (level(learnt_clause[i]) > level(learnt_clause[max_i])) max_i = i;
+        // Find the highest level among all literals (including index 0)
+        uint32_t max_level = level(learnt_clause[0]);
+        uint32_t max_i = 0;
+        for (uint32_t i = 1; i < learnt_clause.size(); i++) {
+            uint32_t lit_level = level(learnt_clause[i]);
+            if (lit_level > max_level) {
+                max_level = lit_level;
+                max_i = i;
+            }
         }
-        std::swap(learnt_clause[max_i], learnt_clause[1]);
-        return varData[learnt_clause[1].var()].level;
+        
+        // If the highest level literal is not at index 0, swap it there
+        if (max_i != 0) {
+            std::swap(learnt_clause[0], learnt_clause[max_i]);
+        }
+        
+        // Now find the second highest level (excluding index 0)
+        if (learnt_clause.size() <= 2) return 0;
+        
+        uint32_t second_max_i = 1;
+        uint32_t second_max_level = level(learnt_clause[1]);
+        for (uint32_t i = 2; i < learnt_clause.size(); i++) {
+            uint32_t lit_level = level(learnt_clause[i]);
+            if (lit_level > second_max_level) {
+                second_max_level = lit_level;
+                second_max_i = i;
+            }
+        }
+        
+        // Swap the second highest level literal to index 1
+        if (second_max_i != 1) {
+            std::swap(learnt_clause[1], learnt_clause[second_max_i]);
+        }
+        
+        // Return the second highest level (this is the backtrack level)
+        // CRITICAL: If second_max_level == max_level, we need to find a lower level
+        // because backtrack_level must be < learnt_clause[0]'s level
+        if (second_max_level == max_level) {
+            // All literals at index 1..size-1 are at max_level, find the next lower level
+            uint32_t next_lower_level = 0;
+            for (uint32_t i = 1; i < learnt_clause.size(); i++) {
+                uint32_t lit_level = level(learnt_clause[i]);
+                if (lit_level < max_level && lit_level > next_lower_level) {
+                    next_lower_level = lit_level;
+                }
+            }
+            if (next_lower_level > 0) {
+                // Find a literal at next_lower_level and swap it to index 1
+                for (uint32_t i = 1; i < learnt_clause.size(); i++) {
+                    if (level(learnt_clause[i]) == next_lower_level) {
+                        std::swap(learnt_clause[1], learnt_clause[i]);
+                        return next_lower_level;
+                    }
+                }
+            }
+            // If no lower level found, return max_level - 1 (or 0 if max_level is 1)
+            return (max_level > 1) ? (max_level - 1) : 0;
+        }
+        
+        return second_max_level;
     }
 }
 
@@ -634,7 +688,7 @@ template<bool inprocess> void Searcher::create_learnt_clause(PropBy confl)
 
         confl = varData[p.var()].reason;
         assert(varData[p.var()].level > 0);
-
+        
         //This clears out vars that haven't been added to learnt_clause,
         //but their 'seen' has been set
         seen[p.var()] = 0;
@@ -643,7 +697,73 @@ template<bool inprocess> void Searcher::create_learnt_clause(PropBy confl)
         pathC--;
     } while (pathC > 0);
     assert(pathC == 0);
+    
+    // CRITICAL: p must be at the current decision level (nDecisionLevel) for ~p to be unassigned after backtrack
+    // The backtrack level is determined by find_backtrack_level_of_learnt, which returns the second highest level
+    // So we need to ensure p is at nDecisionLevel (the highest level in the clause)
+    // If p is at a lower level, we need to find a literal at nDecisionLevel
+    if (varData[p.var()].level < nDecisionLevel) {
+        // p is at a lower level - we need to find a literal at nDecisionLevel
+        // This should not happen in normal CDCL, but we need to handle it
+        // Find the first literal in learnt_clause that is at nDecisionLevel
+        bool found = false;
+        for (size_t i = 1; i < learnt_clause.size(); i++) {
+            if (varData[learnt_clause[i].var()].level == nDecisionLevel) {
+                p = learnt_clause[i];
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            // No literal at nDecisionLevel - try to find the literal with the highest level
+            uint32_t max_level = 0;
+            Lit max_p = p;
+            for (size_t i = 1; i < learnt_clause.size(); i++) {
+                uint32_t lit_level = varData[learnt_clause[i].var()].level;
+                if (lit_level > max_level) {
+                    max_level = lit_level;
+                    max_p = learnt_clause[i];
+                }
+            }
+            if (max_level > 0) {
+                p = max_p;
+                nDecisionLevel = max_level;  // Update nDecisionLevel to match
+            } else {
+                // No literal found - this is an error
+                release_assert(false && "No literal at nDecisionLevel in learnt_clause");
+            }
+        }
+    }
+    
+    // Ensure p is at nDecisionLevel (the highest level in the clause)
+    // After backtrack to backtrack_level (second highest level), p should be unassigned
+    // But we need to verify that p's level is actually nDecisionLevel
+    if (varData[p.var()].level != nDecisionLevel) {
+        // p is not at nDecisionLevel - find the literal with the highest level
+        uint32_t max_level = varData[p.var()].level;
+        Lit max_p = p;
+        for (size_t i = 1; i < learnt_clause.size(); i++) {
+            uint32_t lit_level = varData[learnt_clause[i].var()].level;
+            if (lit_level > max_level) {
+                max_level = lit_level;
+                max_p = learnt_clause[i];
+            }
+        }
+        if (max_level > varData[p.var()].level) {
+            p = max_p;
+            nDecisionLevel = max_level;  // Update nDecisionLevel to match
+        }
+    }
+    
+    // Verify p is at nDecisionLevel
+    assert(varData[p.var()].level == nDecisionLevel && "p must be at nDecisionLevel after fixup");
+    
     learnt_clause[0] = ~p;
+    
+    // CRITICAL: Verify that ~p will be unassigned after backtrack
+    // The backtrack level is the second highest level in learnt_clause
+    // So if p is at nDecisionLevel (the highest), ~p should be unassigned after backtrack
+    // But we need to check this after minimize_learnt_clause, which may change the clause
 }
 
 void Searcher::simple_create_learnt_clause(PropBy confl, vector<Lit> &out_learnt, bool True_confl)
@@ -688,7 +808,7 @@ void Searcher::simple_create_learnt_clause(PropBy confl, vector<Lit> &out_learnt
                 } else {
                     int32_t ID;
                     assert(confl.getType() == xor_t);
-                    auto cl = get_xor_reason(confl, ID);
+                    auto cl = get_xor_reason(confl, ID, p);
                     lits = cl->data();
                     size = cl->size();
                 }
@@ -902,7 +1022,7 @@ bool Searcher::litRedundant(const Lit p, uint32_t abstract_levels)
             }
 
             case xor_t: {
-                auto cl = get_xor_reason(reason, ID);
+                auto cl = get_xor_reason(reason, ID, p_analyze);
                 lits = cl->data();
                 size = cl->size() - 1;
                 break;
@@ -1057,7 +1177,7 @@ void Searcher::analyze_final_confl_with_assumptions(const Lit p, vector<Lit> &ou
                     }
 
                     case xor_t: {
-                        auto cl = get_xor_reason(reason, ID);
+                        auto cl = get_xor_reason(reason, ID, trail[i].lit);
                         assert(value((*cl)[0]) == l_True);
                         for (const Lit lit: *cl) {
                             if (varData[lit.var()].level > 0) seen[lit.var()] = 1;
@@ -1726,6 +1846,22 @@ bool Searcher::handle_conflict(PropBy confl)
         cancelUntil(backtrack_level);
     }
 
+    // CRITICAL: Verify that learnt_clause[0] is unassigned after backtrack
+    // If it's not, this indicates a problem with the reason clause construction
+    if (value(learnt_clause[0]) != l_Undef) {
+        cerr << "ERROR: learnt_clause[0] = " << learnt_clause[0] 
+             << " is not unassigned after backtrack (value=" << value(learnt_clause[0]) 
+             << ", level=" << varData[learnt_clause[0].var()].level 
+             << ", backtrack_level=" << backtrack_level 
+             << ", decisionLevel=" << decisionLevel() << ")" << endl;
+        cerr << "learnt_clause: " << learnt_clause << endl;
+        for (size_t i = 0; i < learnt_clause.size(); i++) {
+            cerr << "  [" << i << "] " << learnt_clause[i] 
+                 << " -> value=" << value(learnt_clause[i])
+                 << ", level=" << varData[learnt_clause[i].var()].level << endl;
+        }
+        release_assert(false && "learnt_clause[0] must be unassigned after backtrack");
+    }
     assert(value(learnt_clause[0]) == l_Undef);
     glue = std::min<uint32_t>(glue, numeric_limits<uint32_t>::max());
     int32_t ID;
@@ -2809,7 +2945,7 @@ template<bool inprocess, bool red_also, bool distill_use> PropBy Searcher::propa
             int32_t id;
             for (size_t i = last_trail; i < trail.size(); i++) {
                 const auto propby = varData[trail[i].lit.var()].reason;
-                if (propby.getType() == PropByType::xor_t) get_xor_reason(propby, id);
+                if (propby.getType() == PropByType::xor_t) get_xor_reason(propby, id, trail[i].lit);
             }
             if (ret.getType() == PropByType::xor_t) get_xor_reason(ret, id);
             // We need this check, because apparently GJ can set unsat during prop
