@@ -429,7 +429,10 @@ void PropEngine::eq_elim(const Lit p, vector<uint32_t> &changed_xors)
 
         // now, all the literals except the_other_watched are TRUE
         // if (value(the_other_watched) == l_Undef && value(aux_lit) == l_Undef) {
-        set_alias(aux_lit, the_other_watched, changed_xors);
+        if (value(the_other_watched) == l_Undef || value(aux_lit) == l_Undef
+            || value(the_other_watched) == value(aux_lit)) {
+            set_alias(aux_lit, the_other_watched, changed_xors);
+        }
         // } else {
         //     set_alias(aux_lit, std::nullopt, changed_xors);
         // }
@@ -490,11 +493,10 @@ void PropEngine::add_alias(const Lit aux_lit, const Lit new_alias)
     alias[aux_lit.toInt()] = new_alias;
 }
 
-PropBy PropEngine::prop_after_update_xor_watches(uint32_t at)
+void PropEngine::prop_after_update_xor_watches(uint32_t at, PropBy &confl)
 {
     Xor &x = xorclauses[at];
 
-    PropBy confl;
     int enabled_watches = std::accumulate(std::begin(x.my_watched_enabled), std::end(x.my_watched_enabled), 0);
     switch (enabled_watches) {
         case 2: {
@@ -517,9 +519,9 @@ PropBy PropEngine::prop_after_update_xor_watches(uint32_t at)
                 }
                 if (left != (x.rhs ^ x.rhs2)) {
                     // conflict
-                    //TODO: x.prop_confl_watch ???, propby special_xor
+                    x.prop_confl_my_watch = 2 + (value(x.my_watched[0]) != l_Undef ? 0 : 1);
                     confl = PropBy(1000, at);
-                    return confl;
+                    return;
                 }
             }
             // one assigned, one unassigned (propagate)
@@ -545,13 +547,12 @@ PropBy PropEngine::prop_after_update_xor_watches(uint32_t at)
                 } else {
                     to_propagate = Lit(x.watched[1], (left == (x.rhs ^ x.rhs2)));
                 }
+                x.prop_confl_my_watch = (value(x.my_watched[0]) == l_Undef) ? 0 : 1;
                 enqueue<false>(to_propagate, decisionLevel(), PropBy(1000, at));
-                return PropBy();
             }
             // all unassigned (do nothing)
             else {
                 assert(value(x.watched[0]) == l_Undef && value(x.watched[1]) == l_Undef);
-                return PropBy();
             }
             break;
         }
@@ -576,9 +577,8 @@ PropBy PropEngine::prop_after_update_xor_watches(uint32_t at)
                 }
                 if (left != (x.rhs ^ x.rhs2)) {
                     // conflict
-                    //TODO: x.prop_confl_watch ???, propby special_xor
+                    x.prop_confl_my_watch = 2 + which;
                     confl = PropBy(1000, at);
-                    return confl;
                 }
             }
             // unassigned (propagate)
@@ -598,8 +598,8 @@ PropBy PropEngine::prop_after_update_xor_watches(uint32_t at)
                 }
 
                 Lit to_propagate = Lit(x.watched[which], (left == (x.rhs ^ x.rhs2)));
+                x.prop_confl_my_watch = which;
                 enqueue<false>(to_propagate, decisionLevel(), PropBy(1000, at));
-                return PropBy();
             }
             break;
         }
@@ -622,16 +622,119 @@ PropBy PropEngine::prop_after_update_xor_watches(uint32_t at)
             }
             if (left != (x.rhs ^ x.rhs2)) {
                 // conflict
-                //TODO: x.prop_confl_watch ???, propby special_xor
+                x.prop_confl_my_watch = -1;
                 confl = PropBy(1000, at);
-                return confl;
             }
             break;
         }
         default:
             assert(false);
     }
-    return PropBy();
+}
+
+void PropEngine::prop_xor_by_my_watch(const Lit p, PropBy &confl)
+{
+    const uint32_t pv = p.var();
+    vec<GaussWatched> &ws = my_gwatches[pv];
+    GaussWatched *i = ws.begin();
+    GaussWatched *j = i;
+    const GaussWatched *end = ws.end();
+
+    for (; i != end; i++) {
+        const uint32_t at = i->row_n;
+        Xor &x = xorclauses[at];
+        bool which;
+        if (pv == x[x.my_watched[0]]) {
+            which = 0;
+            assert(x.my_watched_enabled[0]);
+        } else {
+            which = 1;
+            assert(pv == x[x.my_watched[1]]);
+            assert(x.my_watched_enabled[1]);
+        }
+
+        int watched_enabled_count =
+                std::accumulate(std::begin(x.my_watched_enabled), std::end(x.my_watched_enabled), 0);
+        if (watched_enabled_count == 1) {
+            bool left = !p.sign();
+            if (left != (x.rhs ^ x.rhs2)) {
+                // conflict
+                x.prop_confl_watch = 2 + which;
+                confl = PropBy(1000, at);
+                *j++ = *i;
+                i++;
+                break;
+            } else {
+                //satisfied
+                *j++ = *i;
+                i++;
+                continue;
+            }
+        }
+
+        uint32_t unknown = 0;
+        uint32_t unknown_at = 0;
+        bool left = false;
+        for (uint32_t outv = 0; outv < real_var_num; outv++) {
+            const auto intv = solver->map_outer_to_inter(outv);
+            if (!could_be_watch(x, intv)) continue;
+            if (value(intv) == l_Undef) {
+                unknown++;
+                unknown_at = intv;
+                if (intv != x.my_watched[!which]) {
+                    // it's not the other watch. So we can update current
+                    // watch to this
+                    my_gwatches[intv].push(GaussWatched::plain_xor(at));
+                    x.my_watched[which] = intv;
+                    /* cout << "found new my_watch for xor: " << x << endl; */
+                    goto next;
+                }
+            } else {
+                left ^= (value(intv) == l_True);
+            }
+        }
+        for (const auto intv: x.get_vars()) {
+            if (!is_aux_var(intv)) continue;
+            if (!could_be_watch(x, intv)) continue;
+            if (value(intv) == l_Undef) {
+                unknown++;
+                unknown_at = intv;
+                if (intv != x.my_watched[!which]) {
+                    // it's not the other watch. So we can update current
+                    // watch to this
+                    my_gwatches[intv].push(GaussWatched::plain_xor(at));
+                    x.my_watched[which] = intv;
+                    /* cout << "found new my_watch for xor: " << x << endl; */
+                    goto next;
+                }
+            } else {
+                left ^= (value(intv) == l_True);
+            }
+        }
+        assert(unknown < 2);
+        if (unknown == 1) {
+            // this is the OTHER watch for sure
+            /* cout << "propagating because of xor: " << x << endl; */
+            assert(unknown_at == x.my_watched[!which]);
+            x.prop_confl_my_watch = !which;
+            enqueue<false>(Lit(x.my_watched[!which], left == (x.rhs ^ x.rhs2)), decisionLevel(), PropBy(1000, at));
+            *j++ = *i;
+            goto next;
+        }
+        assert(unknown == 0);
+        if (left != (x.rhs ^ x.rhs2)) {
+            /* cout << "conflict because of xor: " << x << endl; */
+            x.prop_confl_my_watch = 2 + which;
+            confl = PropBy(1000, at);
+            *j++ = *i;
+            i++;
+            break;
+        } else {
+            /* cout << "satisfied xor: " << x << endl; */
+            *j++ = *i;
+        }
+    next:;
+    }
 }
 
 void PropEngine::update_xor_watches(uint32_t at)
@@ -1111,51 +1214,54 @@ template<bool inprocess, bool red_also, bool distill_use> PropBy PropEngine::pro
         watch_subarray ws = watches[~p];
         uint32_t currLevel = trail[qhead].lev;
 
-        vector<uint32_t> changed_xors;
-        eq_elim(p, changed_xors);
-
-        for (size_t i = 0; i < changed_xors.size(); i++) {
-            if (changed_xors[i] == 0) continue;
-            update_xor_watches(i);
-            confl = prop_after_update_xor_watches(i);
+        Watched *i = ws.begin();
+        Watched *j = i;
+        Watched *end = ws.end();
+        if (inprocess) {
+            propStats.bogoProps += ws.size() / 4 + 1;
         }
+        propStats.propagations++;
+        simpDB_props--;
+        for (; i != end; i++) {
+            // propagate binary clause
+            if (likely(i->isBin())) {
+                *j++ = *i;
+                if (!red_also && i->red()) continue;
+                if (distill_use && i->bin_cl_marked()) continue;
+                prop_bin_cl<inprocess>(i, p, confl, currLevel);
+                continue;
+            }
+
+            // propagate BNN constraint
+            if (i->isBNN()) {
+                *j++ = *i;
+                const lbool val = bnn_prop(i->get_bnn(), currLevel, p, i->get_bnn_prop_t());
+                if (val == l_False) confl = PropBy(i->get_bnn(), nullptr);
+                continue;
+            }
+
+            //propagate normal clause
+            assert(i->isClause());
+            prop_long_cl_any_order<inprocess, red_also, distill_use>(i, j, p, confl, currLevel);
+        }
+        while (i != end) {
+            *j++ = *i++;
+        }
+        ws.shrink_(end - j);
+        VERBOSE_PRINT("prop went through watchlist of " << p);
 
         if (!distill_use && confl.isnullptr()) {
-            Watched *i = ws.begin();
-            Watched *j = i;
-            Watched *end = ws.end();
-            if (inprocess) {
-                propStats.bogoProps += ws.size() / 4 + 1;
+            vector<uint32_t> changed_xors;
+            eq_elim(p, changed_xors);
+            for (size_t it = 0; it < changed_xors.size(); it++) {
+                if (changed_xors[it] == 0) continue;
+                update_xor_watches(it);
+                prop_after_update_xor_watches(it, confl);
             }
-            propStats.propagations++;
-            simpDB_props--;
-            for (; i != end; i++) {
-                // propagate binary clause
-                if (likely(i->isBin())) {
-                    *j++ = *i;
-                    if (!red_also && i->red()) continue;
-                    if (distill_use && i->bin_cl_marked()) continue;
-                    prop_bin_cl<inprocess>(i, p, confl, currLevel);
-                    continue;
-                }
+        }
 
-                // propagate BNN constraint
-                if (i->isBNN()) {
-                    *j++ = *i;
-                    const lbool val = bnn_prop(i->get_bnn(), currLevel, p, i->get_bnn_prop_t());
-                    if (val == l_False) confl = PropBy(i->get_bnn(), nullptr);
-                    continue;
-                }
-
-                //propagate normal clause
-                assert(i->isClause());
-                prop_long_cl_any_order<inprocess, red_also, distill_use>(i, j, p, confl, currLevel);
-            }
-            while (i != end) {
-                *j++ = *i++;
-            }
-            ws.shrink_(end - j);
-            VERBOSE_PRINT("prop went through watchlist of " << p);
+        // prop xor clauses by my_watch
+        if (!distill_use && confl.isnullptr()) {
         }
 
         //distillation would need to generate TBDD proofs to simplify clauses with GJ

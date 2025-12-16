@@ -342,7 +342,8 @@ class PropEngine : public CNF
     void cancel_alias(const Lit aux_lit);
     void add_alias(const Lit aux_lit, const Lit new_alias);
     void update_xor_watches(uint32_t at);
-    PropBy prop_after_update_xor_watches(uint32_t at);
+    void prop_after_update_xor_watches(uint32_t at, PropBy &confl);
+    void prop_xor_by_my_watch(const Lit p, PropBy &confl);
 
     bool could_be_watch(const Xor &x, const uint32_t inter_var) const
     {

@@ -90,8 +90,12 @@ class Xor
     vector<Lit> reason_cl;
     int32_t reason_cl_ID = 0;
     uint32_t watched[2] = {0, 0};
+
     uint32_t my_watched[2] = {0, 0};
     bool my_watched_enabled[2] = {true, true};
+    uint8_t prop_confl_my_watch = 0; // which watch is propagating?
+            // if it's CONFL, then it's 2 + (0/1)
+
     uint32_t in_matrix = 1000;
     int32_t xid = 0;
 
