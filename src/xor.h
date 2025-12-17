@@ -93,8 +93,9 @@ class Xor
 
     uint32_t my_watched[2] = {0, 0};
     bool my_watched_enabled[2] = {true, true};
-    uint8_t prop_confl_my_watch = 0; // which watch is propagating?
+    int8_t prop_confl_my_watch = -1; // which watch is propagating?
             // if it's CONFL, then it's 2 + (0/1)
+    Lit prop_confl_lit;
 
     uint32_t in_matrix = 1000;
     int32_t xid = 0;

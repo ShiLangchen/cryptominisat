@@ -493,15 +493,14 @@ void PropEngine::add_alias(const Lit aux_lit, const Lit new_alias)
     alias[aux_lit.toInt()] = new_alias;
 }
 
-void PropEngine::prop_after_update_xor_watches(uint32_t at, PropBy &confl)
+void PropEngine::prop_after_update_xor_watches(const Lit l, uint32_t at, PropBy &confl)
 {
     Xor &x = xorclauses[at];
-
     int enabled_watches = std::accumulate(std::begin(x.my_watched_enabled), std::end(x.my_watched_enabled), 0);
     switch (enabled_watches) {
         case 2: {
             // all assigned (check conflict)
-            if (value(x.watched[0]) != l_Undef && value(x.watched[1]) != l_Undef) {
+            if (value(x.my_watched[0]) != l_Undef && value(x.my_watched[1]) != l_Undef) {
                 uint8_t left = 0;
                 for (uint32_t outv = 0; outv < real_var_num; outv++) {
                     const auto intv = solver->map_outer_to_inter(outv);
@@ -519,13 +518,13 @@ void PropEngine::prop_after_update_xor_watches(uint32_t at, PropBy &confl)
                 }
                 if (left != (x.rhs ^ x.rhs2)) {
                     // conflict
-                    x.prop_confl_my_watch = 2 + (value(x.my_watched[0]) != l_Undef ? 0 : 1);
+                    x.prop_confl_my_watch = -1;
+                    x.prop_confl_lit = l;
                     confl = PropBy(1000, at);
-                    return;
                 }
             }
             // one assigned, one unassigned (propagate)
-            else if ((value(x.watched[0]) == l_Undef) ^ (value(x.watched[1]) == l_Undef)) {
+            else if ((value(x.my_watched[0]) == l_Undef) ^ (value(x.my_watched[1]) == l_Undef)) {
                 uint8_t left = 0;
                 for (uint32_t outv = 0; outv < real_var_num; outv++) {
                     const auto intv = solver->map_outer_to_inter(outv);
@@ -542,63 +541,39 @@ void PropEngine::prop_after_update_xor_watches(uint32_t at, PropBy &confl)
 
                 Lit to_propagate;
                 bool to_propagate_value;
-                if (value(x.watched[0]) == l_Undef) {
-                    to_propagate = Lit(x.watched[0], (left == (x.rhs ^ x.rhs2)));
+                if (value(x.my_watched[0]) == l_Undef) {
+                    to_propagate = Lit(x.my_watched[0], (left == (x.rhs ^ x.rhs2)));
                 } else {
-                    to_propagate = Lit(x.watched[1], (left == (x.rhs ^ x.rhs2)));
+                    to_propagate = Lit(x.my_watched[1], (left == (x.rhs ^ x.rhs2)));
                 }
-                x.prop_confl_my_watch = (value(x.my_watched[0]) == l_Undef) ? 0 : 1;
+                x.prop_confl_my_watch = -1;
+                x.prop_confl_lit = l;
                 enqueue<false>(to_propagate, decisionLevel(), PropBy(1000, at));
             }
             // all unassigned (do nothing)
             else {
-                assert(value(x.watched[0]) == l_Undef && value(x.watched[1]) == l_Undef);
+                assert(value(x.my_watched[0]) == l_Undef && value(x.my_watched[1]) == l_Undef);
             }
             break;
         }
         case 1: {
             bool which = x.my_watched_enabled[0] ? 0 : 1;
             // assigned (check conflict)
-            if (value(x.watched[which]) != l_Undef) {
-                uint8_t left = 0;
-                for (uint32_t outv = 0; outv < real_var_num; outv++) {
-                    const auto intv = solver->map_outer_to_inter(outv);
-                    if (could_be_watch(x, intv)) {
-                        assert(value(intv) != l_Undef);
-                        left ^= (value(intv) == l_True) ? 1 : 0;
-                    }
-                }
-                for (const auto intv: x.get_vars()) {
-                    if (!is_aux_var(intv)) continue;
-                    if (could_be_watch(x, intv)) {
-                        assert(value(intv) != l_Undef);
-                        left ^= (value(intv) == l_True) ? 1 : 0;
-                    }
-                }
+            if (value(x.my_watched[which]) != l_Undef) {
+                uint8_t left = value(x.my_watched[which]) == l_True;
                 if (left != (x.rhs ^ x.rhs2)) {
                     // conflict
-                    x.prop_confl_my_watch = 2 + which;
+                    x.prop_confl_my_watch = -1;
+                    x.prop_confl_lit = l;
                     confl = PropBy(1000, at);
                 }
             }
             // unassigned (propagate)
             else {
                 uint8_t left = 0;
-                for (uint32_t outv = 0; outv < real_var_num; outv++) {
-                    const auto intv = solver->map_outer_to_inter(outv);
-                    if (could_be_watch(x, intv)) {
-                        left ^= (value(intv) == l_True) ? 1 : 0;
-                    }
-                }
-                for (const auto intv: x.get_vars()) {
-                    if (!is_aux_var(intv)) continue;
-                    if (could_be_watch(x, intv)) {
-                        left ^= (value(intv) == l_True) ? 1 : 0;
-                    }
-                }
-
-                Lit to_propagate = Lit(x.watched[which], (left == (x.rhs ^ x.rhs2)));
-                x.prop_confl_my_watch = which;
+                Lit to_propagate = Lit(x.my_watched[which], (left == (x.rhs ^ x.rhs2)));
+                x.prop_confl_my_watch = -1;
+                x.prop_confl_lit = l;
                 enqueue<false>(to_propagate, decisionLevel(), PropBy(1000, at));
             }
             break;
@@ -606,23 +581,10 @@ void PropEngine::prop_after_update_xor_watches(uint32_t at, PropBy &confl)
         case 0: {
             // check conflict (rhs)
             uint8_t left = 0;
-            for (uint32_t outv = 0; outv < real_var_num; outv++) {
-                const auto intv = solver->map_outer_to_inter(outv);
-                if (could_be_watch(x, intv)) {
-                    assert(value(intv) != l_Undef);
-                    left ^= (value(intv) == l_True) ? 1 : 0;
-                }
-            }
-            for (const auto intv: x.get_vars()) {
-                if (!is_aux_var(intv)) continue;
-                if (could_be_watch(x, intv)) {
-                    assert(value(intv) != l_Undef);
-                    left ^= (value(intv) == l_True) ? 1 : 0;
-                }
-            }
             if (left != (x.rhs ^ x.rhs2)) {
                 // conflict
                 x.prop_confl_my_watch = -1;
+                x.prop_confl_lit = l;
                 confl = PropBy(1000, at);
             }
             break;
@@ -1256,7 +1218,7 @@ template<bool inprocess, bool red_also, bool distill_use> PropBy PropEngine::pro
             for (size_t it = 0; it < changed_xors.size(); it++) {
                 if (changed_xors[it] == 0) continue;
                 update_xor_watches(it);
-                prop_after_update_xor_watches(it, confl);
+                prop_after_update_xor_watches(p, it, confl);
             }
         }
 
