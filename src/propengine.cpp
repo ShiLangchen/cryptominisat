@@ -520,7 +520,7 @@ void PropEngine::prop_after_update_xor_watches(const Lit l, uint32_t at, PropBy 
                     // conflict
                     x.prop_confl_my_watch = -1;
                     x.prop_confl_lit = l;
-                    confl = PropBy(1000, at);
+                    confl = PropBy(1001, at);
                 }
             }
             // one assigned, one unassigned (propagate)
@@ -548,7 +548,7 @@ void PropEngine::prop_after_update_xor_watches(const Lit l, uint32_t at, PropBy 
                 }
                 x.prop_confl_my_watch = -1;
                 x.prop_confl_lit = l;
-                enqueue<false>(to_propagate, decisionLevel(), PropBy(1000, at));
+                enqueue<false>(to_propagate, decisionLevel(), PropBy(1001, at));
             }
             // all unassigned (do nothing)
             else {
@@ -565,7 +565,7 @@ void PropEngine::prop_after_update_xor_watches(const Lit l, uint32_t at, PropBy 
                     // conflict
                     x.prop_confl_my_watch = -1;
                     x.prop_confl_lit = l;
-                    confl = PropBy(1000, at);
+                    confl = PropBy(1001, at);
                 }
             }
             // unassigned (propagate)
@@ -574,7 +574,7 @@ void PropEngine::prop_after_update_xor_watches(const Lit l, uint32_t at, PropBy 
                 Lit to_propagate = Lit(x.my_watched[which], (left == (x.rhs ^ x.rhs2)));
                 x.prop_confl_my_watch = -1;
                 x.prop_confl_lit = l;
-                enqueue<false>(to_propagate, decisionLevel(), PropBy(1000, at));
+                enqueue<false>(to_propagate, decisionLevel(), PropBy(1001, at));
             }
             break;
         }
@@ -585,7 +585,7 @@ void PropEngine::prop_after_update_xor_watches(const Lit l, uint32_t at, PropBy 
                 // conflict
                 x.prop_confl_my_watch = -1;
                 x.prop_confl_lit = l;
-                confl = PropBy(1000, at);
+                confl = PropBy(1001, at);
             }
             break;
         }
@@ -622,7 +622,7 @@ void PropEngine::prop_xor_by_my_watch(const Lit p, PropBy &confl)
             if (left != (x.rhs ^ x.rhs2)) {
                 // conflict
                 x.prop_confl_watch = 2 + which;
-                confl = PropBy(1000, at);
+                confl = PropBy(1001, at);
                 *j++ = *i;
                 i++;
                 break;
@@ -687,7 +687,7 @@ void PropEngine::prop_xor_by_my_watch(const Lit p, PropBy &confl)
         if (left != (x.rhs ^ x.rhs2)) {
             /* cout << "conflict because of xor: " << x << endl; */
             x.prop_confl_my_watch = 2 + which;
-            confl = PropBy(1000, at);
+            confl = PropBy(1001, at);
             *j++ = *i;
             i++;
             break;
@@ -1218,7 +1218,7 @@ template<bool inprocess, bool red_also, bool distill_use> PropBy PropEngine::pro
         if (!distill_use && confl.isnullptr()) {
             vector<uint32_t> changed_xors;
             eq_elim(p, changed_xors);
-            for (size_t it = 0; it < changed_xors.size(); it++) {
+            for (size_t it = 0; it < changed_xors.size() && confl.isnullptr(); it++) {
                 if (changed_xors[it] == 0) continue;
                 update_xor_watches(it);
                 prop_after_update_xor_watches(p, it, confl);
@@ -1227,6 +1227,7 @@ template<bool inprocess, bool red_also, bool distill_use> PropBy PropEngine::pro
 
         // prop xor clauses by my_watch
         if (!distill_use && confl.isnullptr()) {
+            prop_xor_by_my_watch(p, confl);
         }
 
         //distillation would need to generate TBDD proofs to simplify clauses with GJ
