@@ -697,6 +697,9 @@ void PropEngine::prop_xor_by_my_watch(const Lit p, PropBy &confl)
         }
     next:;
     }
+
+    for (; i != end; i++) *j++ = *i;
+    ws.shrink(i - j);
 }
 
 void PropEngine::update_xor_watches(uint32_t at)
