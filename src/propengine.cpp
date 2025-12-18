@@ -49,6 +49,7 @@ THE SOFTWARE.
 #include "watchalgos.h"
 #include "sqlstats.h"
 #include "gaussian.h"
+#include "xor.h"
 
 using namespace CMSat;
 using std::cout;
@@ -520,6 +521,7 @@ void PropEngine::prop_after_update_xor_watches(const Lit l, uint32_t at, PropBy 
                     // conflict
                     x.prop_confl_my_watch = -1;
                     x.prop_confl_lit = l;
+                    x.prop_or_confl = Xor::CONFL;
                     confl = PropBy(1001, at);
                 }
             }
@@ -540,14 +542,17 @@ void PropEngine::prop_after_update_xor_watches(const Lit l, uint32_t at, PropBy 
                 }
 
                 Lit to_propagate;
-                bool to_propagate_value;
+                int8_t prop_which;
                 if (value(x.my_watched[0]) == l_Undef) {
                     to_propagate = Lit(x.my_watched[0], (left == (x.rhs ^ x.rhs2)));
+                    prop_which = 0;
                 } else {
                     to_propagate = Lit(x.my_watched[1], (left == (x.rhs ^ x.rhs2)));
+                    prop_which = 1;
                 }
-                x.prop_confl_my_watch = -1;
-                x.prop_confl_lit = l;
+
+                x.prop_confl_my_watch = prop_which;
+                x.prop_or_confl = Xor::PROP;
                 enqueue<false>(to_propagate, decisionLevel(), PropBy(1001, at));
             }
             // all unassigned (do nothing)
@@ -565,6 +570,7 @@ void PropEngine::prop_after_update_xor_watches(const Lit l, uint32_t at, PropBy 
                     // conflict
                     x.prop_confl_my_watch = -1;
                     x.prop_confl_lit = l;
+                    x.prop_or_confl = Xor::CONFL;
                     confl = PropBy(1001, at);
                 }
             }
@@ -572,8 +578,9 @@ void PropEngine::prop_after_update_xor_watches(const Lit l, uint32_t at, PropBy 
             else {
                 uint8_t left = 0;
                 Lit to_propagate = Lit(x.my_watched[which], (left == (x.rhs ^ x.rhs2)));
-                x.prop_confl_my_watch = -1;
-                x.prop_confl_lit = l;
+
+                x.prop_confl_my_watch = which;
+                x.prop_or_confl = Xor::PROP;
                 enqueue<false>(to_propagate, decisionLevel(), PropBy(1001, at));
             }
             break;
@@ -585,6 +592,7 @@ void PropEngine::prop_after_update_xor_watches(const Lit l, uint32_t at, PropBy 
                 // conflict
                 x.prop_confl_my_watch = -1;
                 x.prop_confl_lit = l;
+                x.prop_or_confl = Xor::CONFL;
                 confl = PropBy(1001, at);
             }
             break;
@@ -621,7 +629,8 @@ void PropEngine::prop_xor_by_my_watch(const Lit p, PropBy &confl)
             bool left = !p.sign();
             if (left != (x.rhs ^ x.rhs2)) {
                 // conflict
-                x.prop_confl_watch = 2 + which;
+                x.prop_confl_watch = which;
+                x.prop_or_confl = Xor::CONFL;
                 confl = PropBy(1001, at);
                 *j++ = *i;
                 i++;
@@ -679,6 +688,7 @@ void PropEngine::prop_xor_by_my_watch(const Lit p, PropBy &confl)
             /* cout << "propagating because of xor: " << x << endl; */
             assert(unknown_at == x.my_watched[!which]);
             x.prop_confl_my_watch = !which;
+            x.prop_or_confl = Xor::PROP;
             enqueue<false>(Lit(x.my_watched[!which], left == (x.rhs ^ x.rhs2)), decisionLevel(), PropBy(1000, at));
             *j++ = *i;
             goto next;
@@ -686,7 +696,8 @@ void PropEngine::prop_xor_by_my_watch(const Lit p, PropBy &confl)
         assert(unknown == 0);
         if (left != (x.rhs ^ x.rhs2)) {
             /* cout << "conflict because of xor: " << x << endl; */
-            x.prop_confl_my_watch = 2 + which;
+            x.prop_confl_my_watch = which;
+            x.prop_or_confl = Xor::CONFL;
             confl = PropBy(1001, at);
             *j++ = *i;
             i++;
