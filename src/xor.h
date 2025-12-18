@@ -99,6 +99,7 @@ class Xor
     static constexpr bool PROP = false;
     static constexpr bool CONFL = true;
     bool prop_or_confl = false; // false:prop, true:confl
+    vector<Lit> pre_calc_reason;
 
     uint32_t in_matrix = 1000;
     int32_t xid = 0;

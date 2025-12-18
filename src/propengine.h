@@ -337,13 +337,14 @@ class PropEngine : public CNF
     template<bool inprocess> PropResult handle_normal_prop_fail(Clause &c, ClOffset offset, PropBy &confl);
 
     // alias for eq elimination
-    void eq_elim(const Lit p, std::vector<uint32_t> &changed_aux);
-    void set_alias(const Lit aux_lit, const std::optional<Lit> new_alias, std::vector<uint32_t> &changed_auxs);
+    void eq_elim(const Lit p, std::vector<uint32_t> &changed_xors);
+    void set_alias(const Lit aux_lit, const std::optional<Lit> new_alias, std::vector<uint32_t> &changed_xors);
     void cancel_alias(const Lit aux_lit);
     void add_alias(const Lit aux_lit, const Lit new_alias);
     void update_xor_watches(uint32_t at);
     void prop_after_update_xor_watches(const Lit l, uint32_t at, PropBy &confl);
     void prop_xor_by_my_watch(const Lit p, PropBy &confl);
+    void pre_calc_xor_reason(uint32_t at);
 
     bool could_be_watch(const Xor &x, const uint32_t inter_var) const
     {
