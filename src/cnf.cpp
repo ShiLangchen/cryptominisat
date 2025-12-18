@@ -128,7 +128,7 @@ void CNF::swapVars(const uint32_t which, const int off_by)
 void CNF::enlarge_nonminimial_datastructs(size_t n)
 {
     assigns.insert(assigns.end(), n, l_Undef);
-    alias.insert(alias.end(), 2 * n, std::nullopt);
+    alias.insert(alias.end(), 2 * n, AliasEntry());
     unit_cl_IDs.insert(unit_cl_IDs.end(), n, 0);
     unit_cl_XIDs.insert(unit_cl_XIDs.end(), n, 0);
     for (uint32_t i = 0; i < n; i++) {

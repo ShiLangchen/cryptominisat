@@ -213,7 +213,17 @@ class PropEngine : public CNF
     template<bool inprocess> void enqueue(const Lit p);
     void enqueue_light(const Lit p);
     void new_decision_level();
-    vector<Lit> *get_xor_reason(const PropBy &reason, int32_t &ID, Lit target_lit = lit_Undef);
+    // For XOR reasons during conflict analysis, `pivot_level/sublevel` (the assignment point of the
+    // resolved literal) is needed to ensure the returned reason does not contain "future" literals
+    // at the same decision level. This is critical for 1-UIP trail scanning.
+    vector<Lit> *get_xor_reason(
+        const PropBy &reason
+        , int32_t &ID
+        , Lit target_lit = lit_Undef
+        , uint32_t pivot_level = std::numeric_limits<uint32_t>::max()
+        , uint32_t pivot_sublevel = std::numeric_limits<uint32_t>::max()
+    );
+    Lit resolve_alias_current(Lit lit) const;
 
     /////////////////////
     // Branching
@@ -254,6 +264,15 @@ class PropEngine : public CNF
     uint64_t xor_dirty_epoch = 1;
 
     void mark_xor_dirty_for_var(uint32_t var);
+
+    // Per-variable snapshot for XOR propagation reasons.
+    // A single XOR clause can propagate multiple variables over time; storing the
+    // alias/factor snapshot on the XOR clause itself is UNSOUND because it gets
+    // overwritten. We therefore store the snapshot keyed by the propagated var.
+    vector<vector<Lit>> xor_used_factors_by_var;   // factors that were TRUE and enabled aliasing
+    vector<uint32_t> xor_prop_level_by_var;        // decision level of XOR propagation
+    vector<uint32_t> xor_prop_sublevel_by_var;     // sublevel (trail index) of XOR propagation
+    vector<uint8_t> xor_prop_rhs_by_var;           // effective RHS (incl. alias-sign folding) at propagation time
 
     //Clause activities
     double max_cl_act = 0.0;
@@ -523,6 +542,30 @@ void PropEngine::enqueue(const Lit p, const uint32_t level, const PropBy from, b
     varData[v].level = level;
     varData[v].sublevel = trail.size();
 
+#ifdef DEBUG_ANF_PROP
+    // Trace critical vars to understand why SAT instance gets forced into a root conflict.
+    // Vars are INTERNAL (0-based). Mapping: x1->0, x5->4, x13->12, x14->13, x15->14, y22->21, y24->23.
+    if (v == 0 || v == 4 || v == 12 || v == 13 || v == 14 || v == 21 || v == 23) {
+        cout << "[ANF-ENQ] set var " << (v + 1)
+             << " to " << (!p.sign())
+             << " lev=" << level
+             << " sub=" << varData[v].sublevel
+             << " reason=" << from
+             << " (type=" << (int)from.getType() << ")"
+             << endl;
+        if (v == 23) {
+            // Extra context for the suspicious root assignment of y24
+            cout << "          ctx: decisionLevel()=" << decisionLevel()
+                 << " qhead=" << qhead
+                 << " trail.size=" << trail.size()
+                 << " x1(value)=" << value(0)
+                 << " other_lit=" << (from.getType() == PropByType::binary_t ? from.lit2() : lit_Undef)
+                 << " other_val=" << (from.getType() == PropByType::binary_t ? value(from.lit2()) : l_Undef)
+                 << endl;
+        }
+    }
+#endif
+
     if (level == 0 && frat->enabled()) {
         if (do_unit_frat) {
             const auto id = ++clauseID;
@@ -542,7 +585,7 @@ void PropEngine::enqueue(const Lit p, const uint32_t level, const PropBy from, b
 
             if (from.getType() == PropByType::xor_t) {
                 int32_t tmp_ID;
-                get_xor_reason(from, tmp_ID, p);
+                get_xor_reason(from, tmp_ID, p, varData[p.var()].level, varData[p.var()].sublevel);
             }
 
             *frat << add << id << p << fin;

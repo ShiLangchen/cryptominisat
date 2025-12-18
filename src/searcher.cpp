@@ -130,6 +130,20 @@ void Searcher::save_on_var_memory()
 void Searcher::updateVars([[maybe_unused]] const vector<uint32_t> &outer_to_inter,
                           const vector<uint32_t> &inter_to_outer)
 {
+    // NOTE: Do NOT call PropEngine::updateVars() here.
+    // It intentionally invalidates the trail (sets lits to lit_Undef) because the
+    // base PropEngine can't safely remap it. Searcher relies on a valid trail.
+    //
+    // However, ANF/XOR adds extra per-variable structures in PropEngine that must be
+    // updated during renumbering. Update them here instead.
+    updateArray(xor_occurs_by_var, inter_to_outer);
+    updateArray(xor_count, inter_to_outer);
+    updateArray(xor_used_factors_by_var, inter_to_outer);
+    updateArray(xor_prop_level_by_var, inter_to_outer);
+    updateArray(xor_prop_sublevel_by_var, inter_to_outer);
+    updateArray(xor_prop_rhs_by_var, inter_to_outer);
+    xor_touched.clear();
+
     updateArray(var_act_vsids, inter_to_outer);
     updateArray(vmtf_btab, inter_to_outer);
     updateArray(vmtf_links, inter_to_outer);
@@ -154,6 +168,15 @@ template<bool inprocess> inline void Searcher::add_lit_to_learnt(const Lit lit, 
     //     cout << "Lit to learnt lit: " << lit << " dec level: " << nDecisionLevel << endl;
     //     cout << "varData[var].removed: "
     //     << removed_type_to_string(varData[var].removed) << endl;
+    // ANF/XOR reasons can reference variables that got replaced later by inprocessing.
+    // Map those to their representative here (only for removed vars), to keep conflict analysis stable.
+    if (varData[var].removed != Removed::none && solver && solver->varReplacer) {
+        const Lit rep = solver->varReplacer->get_lit_replaced_with(lit);
+        if (rep != lit) {
+            add_lit_to_learnt<inprocess>(rep, nDecisionLevel);
+            return;
+        }
+    }
     assert(varData[var].removed == Removed::none);
 
 #ifdef STATS_NEEDED_BRANCH
@@ -253,7 +276,8 @@ void Searcher::normalClMinim()
             }
 
             case xor_t: {
-                auto cl = get_xor_reason(reason, id, learnt_clause[i]);
+                const Lit pivot = learnt_clause[i];
+                auto cl = get_xor_reason(reason, id, pivot, varData[pivot.var()].level, varData[pivot.var()].sublevel);
                 lits = cl->data();
                 size = cl->size() - 1;
                 sumAntecedentsLits += size;
@@ -393,6 +417,15 @@ template<bool inprocess> void Searcher::add_lits_to_learnt(const PropBy confl, c
             break;
         }
 
+        case null_clause_t: {
+            // Decision literal: no antecedent to resolve with.
+            // This can happen in 1-UIP analysis and simply contributes no literals.
+            id = 0;
+            lits = nullptr;
+            size = 0;
+            break;
+        }
+
         case clause_t: {
             Clause *cl = cl_alloc.ptr(confl.get_offset());
             id = cl->stats.id;
@@ -445,7 +478,13 @@ template<bool inprocess> void Searcher::add_lits_to_learnt(const PropBy confl, c
         }
 
         case xor_t: {
-            auto cl = get_xor_reason(confl, id, p);
+            uint32_t pivot_level = std::numeric_limits<uint32_t>::max();
+            uint32_t pivot_sub = std::numeric_limits<uint32_t>::max();
+            if (p != lit_Undef) {
+                pivot_level = varData[p.var()].level;
+                pivot_sub = varData[p.var()].sublevel;
+            }
+            auto cl = get_xor_reason(confl, id, p, pivot_level, pivot_sub);
             lits = cl->data();
             size = cl->size();
             sumAntecedentsLits += size;
@@ -463,12 +502,13 @@ template<bool inprocess> void Searcher::add_lits_to_learnt(const PropBy confl, c
             break;
         }
 
-        case null_clause_t:
         default:
             release_assert(false && "Error in conflict analysis (otherwise should be UIP)");
     }
-    VERBOSE_PRINT("Chain adding ID: " << ID << " due to resolution on lit: " << p);
-    chain.push_back(id);
+    if (id != 0) {
+        VERBOSE_PRINT("Chain adding ID: " << ID << " due to resolution on lit: " << p);
+        chain.push_back(id);
+    }
 
     size_t i = 0;
     bool cont = true;
@@ -494,11 +534,13 @@ template<bool inprocess> void Searcher::add_lits_to_learnt(const PropBy confl, c
                 break;
 
             case null_clause_t:
-                assert(false);
+                // No antecedent literals
+                x = lit_Undef;
+                cont = false;
                 break;
         }
         if (p == lit_Undef || i > 0) {
-            add_lit_to_learnt<inprocess>(x, nDecisionLevel);
+            if (x != lit_Undef) add_lit_to_learnt<inprocess>(x, nDecisionLevel);
         }
         i++;
     }
@@ -585,14 +627,39 @@ size_t Searcher::find_backtrack_level_of_learnt()
                 max_i = i;
             }
         }
+
+#ifdef DEBUG_ANF_PROP
+        // Trace suspicious learned binaries involving x1 (var 1) and y24 (var 24).
+        // These should NOT assert at level 0 unless the other literal is already false at level 0.
+        if (learnt_clause.size() == 2) {
+            const uint32_t v0 = learnt_clause[0].var();
+            const uint32_t v1 = learnt_clause[1].var();
+            const bool has_x1 = (v0 == 0 || v1 == 0);
+            const bool has_y24 = (v0 == 23 || v1 == 23);
+            if (has_x1 && has_y24) {
+                cout << "[ANF-LEARN] learnt_clause=" << learnt_clause
+                     << " levels=(" << level(learnt_clause[0]) << "," << level(learnt_clause[1]) << ")"
+                     << " varData_levels=(" << varData[v0].level << "," << varData[v1].level << ")"
+                     << " picked_max_i=" << max_i
+                     << " max_level=" << max_level
+                     << endl;
+            }
+        }
+#endif
         
         // If the highest level literal is not at index 0, swap it there
         if (max_i != 0) {
             std::swap(learnt_clause[0], learnt_clause[max_i]);
         }
         
+        // For a binary learnt clause, the backtrack level is simply the level of the other literal.
+        // Returning 0 here is UNSOUND: it would make every learnt binary assert at level 0 even
+        // when the other literal is not false at level 0.
+        if (learnt_clause.size() == 2) {
+            return level(learnt_clause[1]);
+        }
+
         // Now find the second highest level (excluding index 0)
-        if (learnt_clause.size() <= 2) return 0;
         
         uint32_t second_max_i = 1;
         uint32_t second_max_level = level(learnt_clause[1]);
@@ -671,6 +738,9 @@ template<bool inprocess> void Searcher::create_learnt_clause(PropBy confl)
         default:
             release_assert(false);
     }
+    // Use the decision level of the first literal of the conflict.
+    // This matches the original CryptoMiniSat behavior and keeps 1-UIP selection consistent
+    // with how antecedents are ordered (especially for XOR reasons).
     uint32_t nDecisionLevel = varData[lit0.var()].level;
 
     // 1st UIP clause generation
@@ -681,10 +751,36 @@ template<bool inprocess> void Searcher::create_learnt_clause(PropBy confl)
 
         // Select next implication to look at
         do {
-            while (!seen[trail[index--].lit.var()]);
-            p = trail[index + 1].lit;
+            // Find last seen literal on the trail. Compare using canonical representatives
+            // to stay consistent with the literals we add to `seen` during analysis.
+            while (true) {
+                if (index < 0) {
+                    // Fallback: if seen vars got introduced "late" (e.g. by a custom XOR reason),
+                    // they may be positioned after our current scan index. Pick the latest seen var
+                    // at the current decision level to continue 1-UIP analysis instead of crashing.
+                    int best_ti = -1;
+                    for (uint32_t v = 0; v < nVars(); v++) {
+                        if (!seen[v]) continue;
+                        if (varData[v].level < nDecisionLevel) continue;
+                        const int ti = (int)varData[v].sublevel;
+                        if (ti > best_ti && ti >= 0 && (size_t)ti < trail.size()) {
+                            best_ti = ti;
+                        }
+                    }
+                    if (best_ti < 0) {
+                        release_assert(false && "create_learnt_clause: index underflow (no seen on trail)");
+                    }
+                    index = best_ti;
+                }
+                Lit tr_lit = trail[index].lit;
+                if (seen[tr_lit.var()]) break;
+                index--;
+            }
+
+            p = trail[index].lit;
+            index--;
             assert(p != lit_Undef);
-        } while (trail[index + 1].lev < nDecisionLevel);
+        } while (varData[p.var()].level < nDecisionLevel);
 
         confl = varData[p.var()].reason;
         assert(varData[p.var()].level > 0);
@@ -808,7 +904,13 @@ void Searcher::simple_create_learnt_clause(PropBy confl, vector<Lit> &out_learnt
                 } else {
                     int32_t ID;
                     assert(confl.getType() == xor_t);
-                    auto cl = get_xor_reason(confl, ID, p);
+                    uint32_t pivot_level = std::numeric_limits<uint32_t>::max();
+                    uint32_t pivot_sub = std::numeric_limits<uint32_t>::max();
+                    if (p != lit_Undef) {
+                        pivot_level = varData[p.var()].level;
+                        pivot_sub = varData[p.var()].sublevel;
+                    }
+                    auto cl = get_xor_reason(confl, ID, p, pivot_level, pivot_sub);
                     lits = cl->data();
                     size = cl->size();
                 }
@@ -1022,7 +1124,7 @@ bool Searcher::litRedundant(const Lit p, uint32_t abstract_levels)
             }
 
             case xor_t: {
-                auto cl = get_xor_reason(reason, ID, p_analyze);
+                auto cl = get_xor_reason(reason, ID, p_analyze, varData[p_analyze.var()].level, varData[p_analyze.var()].sublevel);
                 lits = cl->data();
                 size = cl->size() - 1;
                 break;
@@ -1177,7 +1279,8 @@ void Searcher::analyze_final_confl_with_assumptions(const Lit p, vector<Lit> &ou
                     }
 
                     case xor_t: {
-                        auto cl = get_xor_reason(reason, ID, trail[i].lit);
+                        const Lit pivot = trail[i].lit;
+                        auto cl = get_xor_reason(reason, ID, pivot, varData[pivot.var()].level, varData[pivot.var()].sublevel);
                         assert(value((*cl)[0]) == l_True);
                         for (const Lit lit: *cl) {
                             if (varData[lit.var()].level > 0) seen[lit.var()] = 1;
@@ -2945,7 +3048,10 @@ template<bool inprocess, bool red_also, bool distill_use> PropBy Searcher::propa
             int32_t id;
             for (size_t i = last_trail; i < trail.size(); i++) {
                 const auto propby = varData[trail[i].lit.var()].reason;
-                if (propby.getType() == PropByType::xor_t) get_xor_reason(propby, id, trail[i].lit);
+                if (propby.getType() == PropByType::xor_t) {
+                    const Lit pivot = trail[i].lit;
+                    get_xor_reason(propby, id, pivot, varData[pivot.var()].level, varData[pivot.var()].sublevel);
+                }
             }
             if (ret.getType() == PropByType::xor_t) get_xor_reason(ret, id);
             // We need this check, because apparently GJ can set unsat during prop
@@ -3156,6 +3262,18 @@ template<bool do_insert_var_order, bool inprocess> void Searcher::cancelUntil(ui
             if (trail[i].lev <= blevel) {
                 trail[j++] = trail[i];
             } else {
+#ifdef DEBUG_ANF_PROP
+                // Trace critical vars on backtrack/unassign to ensure they are properly unset.
+                if (var == 0 || var == 4 || var == 12 || var == 13 || var == 14 || var == 21 || var == 23) {
+                    cout << "[ANF-CANCEL] unset var " << (var + 1)
+                         << " was=" << value(var)
+                         << " lev=" << varData[var].level
+                         << " sub=" << varData[var].sublevel
+                         << " reason=" << varData[var].reason
+                         << " (trail_lev=" << trail[i].lev << " -> blevel=" << blevel << ")"
+                         << endl;
+                }
+#endif
                 assigns[var] = l_Undef;
                 if (do_insert_var_order) insert_var_order(var);
             }

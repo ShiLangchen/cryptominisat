@@ -83,6 +83,11 @@ class Xor
     size_t size() const { return vars.size(); }
 
     bool rhs = false;
+    // ANF-Elim: effective RHS after alias-resolution sign folding.
+    // If an alias resolves some variable to a negated representative (e.g., aux = ¬x),
+    // that contributes a constant 1 to the XOR equation. We fold these constants into
+    // this value when building `active_resolved_vars`.
+    bool active_rhs = false;
     uint8_t prop_confl_watch = 0; // which watch is propagating?
             // if it's CONFL, then it's 2 + (0/1)
     vector<uint32_t> vars;
@@ -100,6 +105,7 @@ class Xor
     vector<Lit> last_used_factors;  // Canonicalized literals (resolved) that were True at propagation time
     uint32_t prop_level = 0;        // Decision level when propagation/conflict occurred
     uint32_t prop_sublevel = 0;     // Sublevel when propagation/conflict occurred (for sanity checks)
+    bool last_effective_rhs = false; // effective RHS (incl. alias-sign folding) at propagation/conflict time
     
 };
 

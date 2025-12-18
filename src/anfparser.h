@@ -198,8 +198,14 @@ ARRANGE_IMPLICATIONS:
     }
     assert(std::is_sorted(monos_vec.begin(), monos_vec.end()));
 
+    // Ensure original variables exist according to header
+    const uint32_t real_vars = num_header_vars + offset_vars;
+    if (solver->nVars() < real_vars) {
+        solver->new_vars(real_vars - solver->nVars());
+    }
+    solver->set_real_var_num(real_vars);
+
     auto auxiliary_var_start = solver->nVars();
-    solver->set_real_var_num(auxiliary_var_start);
 
     if (verbosity >= 2) {
         cout << "c [ANF] Found " << monos_vec.size() << " unique product terms (monomials)" << endl;
@@ -463,7 +469,22 @@ template<class C, class S> bool AnfParser<C, S>::parse_and_add_anf_clause(C &in)
         cout << endl;
     }
     
-    for (const auto &mono: poly) {
+    // for (const auto &mono: poly) {
+    for (auto mono: poly) {
+        // Normalize: sort, dedup, drop tautological monomials (x & ~x == 0)
+        std::sort(mono.begin(), mono.end());
+        mono.erase(std::unique(mono.begin(), mono.end()), mono.end());
+        bool tautology = false;
+        for (size_t i = 1; i < mono.size(); i++) {
+            if (mono[i].var() == mono[i-1].var() && mono[i].sign() != mono[i-1].sign()) {
+                tautology = true; // x & ~x -> 0, ignore this monomial
+                break;
+            }
+        }
+        if (tautology) {
+            continue;
+        }
+        
         switch (mono.size()) {
             case 0: {
                 with_unit_mono = !with_unit_mono;
@@ -611,9 +632,10 @@ bool AnfParser<C, S>::parse_ANF(const string &file_name, const bool _strict_head
         cout << "c Normal CNF clauses added: " << norm_clauses_added << endl;
         cout << "c XOR clauses added: " << xor_clauses_added << endl;
         cout << "c Equivalence clauses added: " << eq_clauses_added << endl;
+        const uint32_t aux_vars = monos_vec.size();
         cout << "c Total variables added: " << (solver->nVars() - origNumVars) << endl;
-        cout << "c   - Original variables: " << origNumVars << endl;
-        cout << "c   - Auxiliary variables: " << monos_vec.size() << endl;
+        cout << "c   - Original variables: " << solver->get_real_var_num() << endl;
+        cout << "c   - Auxiliary variables: " << aux_vars << endl;
         cout << "c   - Total variables: " << solver->nVars() << endl;
         
         if (verbosity >= 2) {

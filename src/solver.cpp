@@ -261,6 +261,18 @@ bool Solver::add_eq_clause_inter(const vector<Lit> &lits, const Lit aux_lit)
 //Deals with INTERNAL variables
 bool Solver::sort_and_clean_clause(vector<Lit> &ps, const vector<Lit> &origCl, const bool red, const bool sorted)
 {
+    // First, rewrite any literals that reference replaced variables
+    // (variable replacement may happen before this call; clauses must not
+    // contain Removed::replaced vars).
+    for (auto &l : ps) {
+        // Follow replacement chain if needed
+        uint32_t prev = std::numeric_limits<uint32_t>::max();
+        while (varData[l.var()].removed == Removed::replaced && l.var() != prev) {
+            prev = l.var();
+            l = varReplacer->get_lit_replaced_with(l);
+        }
+    }
+
     if (!sorted) {
         std::sort(ps.begin(), ps.end());
     }
@@ -1130,7 +1142,20 @@ void Solver::extend_solution(const bool only_sampling_solution)
 #endif
 
     const double my_time = cpuTime();
-    updateArrayRev(model, inter_to_outerMain);
+    // Convert internal-indexed model to outer-indexed model.
+    // NOTE: Using updateArrayRev(model, inter_to_outerMain) assumes perfect inverse mappings.
+    // In ANF mode we introduce many variables and do swaps; this conversion must be robust.
+    {
+        vector<lbool> model_outer;
+        model_outer.resize(nVarsOuter(), l_Undef);
+        for (uint32_t outer = 0; outer < nVarsOuter(); outer++) {
+            const uint32_t inter = outer_to_interMain[outer];
+            if (inter < model.size()) {
+                model_outer[outer] = model[inter];
+            }
+        }
+        model.swap(model_outer);
+    }
 
     if (!only_sampling_solution) {
         SolutionExtender extender(this, occsimplifier);
@@ -1491,6 +1516,44 @@ lbool Solver::iterate_until_solved()
             goto end;
         }
         status = solve(num_confl);
+
+        // ANF/XOR safety: if the solver reported SAT but the produced model violates XOR clauses,
+        // the XOR subsystem (watches/propagation/aliasing) did not fully enforce them.
+        // In that case, block the current assignment of ORIGINAL variables and continue searching.
+        if (status == l_True && !xorclauses.empty()) {
+            bool xor_ok = true;
+            for (const auto &x : xorclauses) {
+                if (!check_xor_clause_satisfied_model(x)) {
+                    xor_ok = false;
+                    break;
+                }
+            }
+
+            if (!xor_ok) {
+                if (conf.verbosity) {
+                    cout << "c [ANF] WARNING: candidate SAT model violates XOR constraints. "
+                         << "Blocking model and continuing search." << endl;
+                }
+
+                // Build blocking clause over ORIGINAL variables only (0..real_var_num-1).
+                // Clause is false only under the current assignment of these vars.
+                vector<Lit> block_outer;
+                block_outer.reserve(real_var_num);
+                for (uint32_t v = 0; v < real_var_num; v++) {
+                    const lbool mv = model_value(v);
+                    if (mv == l_Undef) continue;
+                    const bool sign = (mv == l_True); // true -> add ¬x, false -> add x
+                    const uint32_t ov = map_inter_to_outer(v);
+                    block_outer.push_back(Lit(ov, sign));
+                }
+
+                // Add as an irredundant clause at level 0.
+                (void)add_clause_outside(block_outer, false, false);
+
+                // Continue search
+                status = l_Undef;
+            }
+        }
 
         //Check for effectiveness
         check_recursive_minimization_effectiveness(status);

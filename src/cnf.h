@@ -24,6 +24,7 @@ THE SOFTWARE.
 
 #include <atomic>
 #include <random>
+#include <limits>
 #include <gmpxx.h>
 
 #include "constants.h"
@@ -298,38 +299,36 @@ class CNF
         return out_var >= (uint32_t)real_var_num;
     }
 
-    /**
-     * @brief Resolve alias for a literal
-     * 
-     * Returns the alias of a literal if it exists, otherwise returns the original literal.
-     * This is used for ANF-Elim propagation where product terms (y) can be aliased
-     * to original variables (x) when some factors are assigned.
-     * 
-     * @param lit The literal to resolve
-     * @return The aliased literal if alias exists, otherwise the original literal
-     * 
-     * Note: In our design, aliases only point to original variables, not other
-     *       auxiliary variables, so there's no chain to follow (single lookup only).
-     * 
-     * Example:
-     *   If alias[y] = x, then resolve_alias(y) = x
-     *   If no alias exists, then resolve_alias(y) = y
-     */
+    struct AliasEntry {
+        bool has = false;
+        Lit repr = lit_Undef;
+        vector<Lit> conditions;
+        uint32_t level = std::numeric_limits<uint32_t>::max();
+        uint32_t sublevel = std::numeric_limits<uint32_t>::max();
+
+        bool operator==(const AliasEntry& o) const
+        {
+            return has == o.has
+                && repr == o.repr
+                && level == o.level
+                && sublevel == o.sublevel
+                && conditions == o.conditions;
+        }
+        bool operator!=(const AliasEntry& o) const { return !(*this == o); }
+    };
+
+    // Fallback alias resolver without condition checking (only used where assignments are unavailable)
     Lit resolve_alias(Lit lit) const
     {
         const int lit_int = lit.toInt();
-        
-        // Check bounds
         if (lit_int < 0 || static_cast<size_t>(lit_int) >= alias.size()) {
             return lit;
         }
-        
-        // If alias exists, return it; otherwise return original literal
-        if (alias[lit_int].has_value()) {
-            return alias[lit_int].value();
-        }
-        
-        return lit;
+        const AliasEntry &a = alias[lit_int];
+        if (!a.has) return lit;
+        // Without assignment info we can only return the representative when there are no guards
+        if (!a.conditions.empty()) return lit;
+        return a.repr;
     }
 
   protected:
@@ -338,8 +337,8 @@ class CNF
     void test_reflectivity_of_renumbering() const;
     vector<lbool> assigns;
     uint32_t real_var_num;
-    // alias
-    std::vector<std::optional<Lit>> alias;
+    // alias with guard conditions
+    std::vector<AliasEntry> alias;
     std::map<uint32_t, int32_t> aux_to_eid;
 
     vector<uint32_t> outer_to_interMain;
