@@ -641,7 +641,7 @@ void OccSimplifier::add_back_to_solver()
             *solver->frat << del << *cl << fin;
             solver->free_cl(cl);
         } else if (complete_clean_clause(*cl)) {
-            solver->attachClause(*cl);
+            solver->attachClause(*cl, false);
             if (cl->red()) {
                 assert(cl->stats.glue > 0);
                 assert(cl->stats.which_red_array < solver->longRedCls.size());

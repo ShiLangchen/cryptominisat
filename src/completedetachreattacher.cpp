@@ -127,7 +127,7 @@ void CompleteDetachReatacher::cleanAndAttachClauses(vector<ClOffset> &cs, bool r
         }
 
         if (clean_clause(cl)) {
-            solver->attachClause(*cl);
+            solver->attachClause(*cl, false);
             *j++ = *i;
         } else {
             solver->free_cl(*i);

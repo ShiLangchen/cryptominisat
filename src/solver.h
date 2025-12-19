@@ -149,6 +149,7 @@ class Solver : public Searcher
     size_t get_num_nonfree_vars() const;
     const SolverConf &getConf() const;
     void setConf(const SolverConf &conf);
+
     const BinTriStats &getBinTriStats() const;
     size_t get_num_vars_elimed() const;
     uint32_t num_active_vars() const;

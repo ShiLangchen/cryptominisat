@@ -251,6 +251,11 @@ DLL_PUBLIC SolverConf::SolverConf()
     , maxXORMatrix(400ULL)
     , xor_finder_time_limitM(400)
     , allow_elim_xor_vars(1)
+    , anf_prefer_x_vars(false)
+    , anf_x_vsids_add(0.0)
+    , anf_y_vsids_add(0.0)
+    , anf_prefer_x_pick(false)
+    , anf_prefer_x_pick_max_pull(32)
 
     //Cardinality
     , doFindCard(0)

@@ -291,6 +291,31 @@ void Main::add_supported_options() {
         .action([&](const auto&) {enable_anf = true;})
         .help("Enable ANF (Algebraic Normal Form) parsing and ANF-Elim reasoning. Use this option to parse .anf files or mixed ANF/CNF files.");
 
+    program.add_argument("--anfpreferx")
+        .action([&](const auto& a) {conf.anf_prefer_x_vars = std::atoi(a.c_str()) != 0;})
+        .default_value(conf.anf_prefer_x_vars)
+        .help("Prefer branching on original ANF variables x (real vars) over auxiliary y (aux vars) by biasing VSIDS activity bump");
+
+    program.add_argument("--anfxalpha")
+        .action([&](const auto& a) {conf.anf_x_vsids_add = std::atof(a.c_str());})
+        .default_value(conf.anf_x_vsids_add)
+        .help("Extra VSIDS activity bump added to x vars when --anfpreferx is enabled");
+
+    program.add_argument("--anfxbeta")
+        .action([&](const auto& a) {conf.anf_y_vsids_add = std::atof(a.c_str());})
+        .default_value(conf.anf_y_vsids_add)
+        .help("Extra VSIDS activity bump added to y vars when --anfpreferx is enabled");
+
+    program.add_argument("--anfpreferxpick")
+        .action([&](const auto& a) {conf.anf_prefer_x_pick = std::atoi(a.c_str()) != 0;})
+        .default_value(conf.anf_prefer_x_pick)
+        .help("Prefer picking x vars at decision time by pulling a few top VSIDS candidates and selecting the first real var");
+
+    program.add_argument("--anfpreferxpull")
+        .action([&](const auto& a) {conf.anf_prefer_x_pick_max_pull = std::atoi(a.c_str());})
+        .default_value(conf.anf_prefer_x_pick_max_pull)
+        .help("Max number of VSIDS candidates to pull when --anfpreferxpick is enabled");
+
     #ifdef STATS_NEEDED
     program.add_argument("--clid")
         .flag()

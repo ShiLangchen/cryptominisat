@@ -178,7 +178,7 @@ void VarReplacer::attach_delayed_attach()
         if (c->size() <= 2) solver->free_cl(c);
         else {
             c->unset_removed();
-            solver->attachClause(*c);
+            solver->attachClause(*c, false);
         }
     }
     delayed_attach_or_free.clear();
@@ -201,6 +201,7 @@ void VarReplacer::update_all_vardata()
 bool VarReplacer::perform_replace()
 {
     assert(solver->okay());
+    if (solver->decisionLevel() != 0) solver->cancelUntil(0);
     checkUnsetSanity();
     frat_func_start();
 

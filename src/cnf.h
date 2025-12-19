@@ -466,8 +466,18 @@ inline void CNF::clean_occur_from_idx(const Lit lit)
 
 inline bool CNF::clause_locked(const Clause &c, const ClOffset offset) const
 {
-    return value(c[0]) == l_True && varData[c[0].var()].reason.isClause()
-           && varData[c[0].var()].reason.get_offset() == offset;
+    if (value(c[0]) == l_True
+        && varData[c[0].var()].reason.isClause()
+        && varData[c[0].var()].reason.get_offset() == offset) {
+        return true;
+    }
+    for (uint32_t i = 1; i < c.size(); i++) {
+        const Lit l = c[i];
+        if (value(l) != l_True) continue;
+        const auto &r = varData[l.var()].reason;
+        if (r.isClause() && r.get_offset() == offset) return true;
+    }
+    return false;
 }
 
 inline void CNF::clear_one_occur_from_removed_clauses(watch_subarray w)

@@ -213,9 +213,6 @@ class PropEngine : public CNF
     template<bool inprocess> void enqueue(const Lit p);
     void enqueue_light(const Lit p);
     void new_decision_level();
-    // For XOR reasons during conflict analysis, `pivot_level/sublevel` (the assignment point of the
-    // resolved literal) is needed to ensure the returned reason does not contain "future" literals
-    // at the same decision level. This is critical for 1-UIP trail scanning.
     vector<Lit> *get_xor_reason(
         const PropBy &reason
         , int32_t &ID
@@ -510,6 +507,7 @@ void PropEngine::enqueue(const Lit p, const uint32_t level, const PropBy from, b
     SLOW_DEBUG_DO(assert(varData[v].removed == Removed::none));
 
     if (!watches[~p].empty()) watches.prefetch((~p).toInt());
+    
 
 #if defined(STATS_NEEDED_BRANCH) || defined(FINAL_PREDICTOR_BRANCH)
     if (!inprocess) {

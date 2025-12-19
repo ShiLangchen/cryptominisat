@@ -399,6 +399,12 @@ class DLL_PUBLIC SolverConf
     uint64_t xor_finder_time_limitM;
     int allow_elim_xor_vars;
 
+    bool anf_prefer_x_vars;
+    double anf_x_vsids_add;
+    double anf_y_vsids_add;
+    bool anf_prefer_x_pick;
+    uint32_t anf_prefer_x_pick_max_pull;
+
     //Cardinality
     int doFindCard;
 

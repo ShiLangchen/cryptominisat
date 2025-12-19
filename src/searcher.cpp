@@ -389,6 +389,36 @@ void Searcher::update_glue_from_analysis(Clause *cl)
     }
 }
 
+template<bool inprocess> void Searcher::vsids_bump_var_act(const uint32_t var)
+{
+    if (inprocess) return;
+    double add = var_inc_vsids;
+    if (conf.anf_prefer_x_vars && conf.anf_x_vsids_add > conf.anf_y_vsids_add && get_real_var_num() > 0) {
+        add += (is_real_var(var) ? conf.anf_x_vsids_add : conf.anf_y_vsids_add);
+    }
+    var_act_vsids[var] += add;
+    max_vsids_act = std::max(max_vsids_act, var_act_vsids[var]);
+
+#ifdef SLOW_DEBUG
+    bool rescaled = false;
+#endif
+    if (var_act_vsids[var] > 1e100) {
+        SLOW_DEBUG_DO(rescaled = true);
+        for (auto &v: var_act_vsids) v *= 1e-100;
+        max_vsids_act *= 1e-100;
+        var_inc_vsids *= 1e-100;
+    }
+
+    if (order_heap_vsids.inHeap(var)) {
+        order_heap_vsids.decrease(var);
+    }
+
+    SLOW_DEBUG_DO(if (rescaled) assert(order_heap_vsids.heap_property()));
+}
+
+template void Searcher::vsids_bump_var_act<false>(const uint32_t var);
+template void Searcher::vsids_bump_var_act<true>(const uint32_t var);
+
 template<bool inprocess> void Searcher::add_lits_to_learnt(const PropBy confl, const Lit p, uint32_t nDecisionLevel)
 {
     VERBOSE_DEBUG_DO(debug_print_resolving_clause(confl));
@@ -513,6 +543,15 @@ template<bool inprocess> void Searcher::add_lits_to_learnt(const PropBy confl, c
     size_t i = 0;
     bool cont = true;
     Lit x = lit_Undef;
+    const uint32_t pivot_level = (p == lit_Undef) ? std::numeric_limits<uint32_t>::max() : varData[p.var()].level;
+    const uint32_t pivot_sub = (p == lit_Undef) ? std::numeric_limits<uint32_t>::max() : varData[p.var()].sublevel;
+    auto strictly_before_pivot = [&](const Lit l) {
+        if (p == lit_Undef) return true;
+        const auto &vd = varData[l.var()];
+        if (vd.level < pivot_level) return true;
+        if (vd.level == pivot_level && vd.sublevel < pivot_sub) return true;
+        return false;
+    };
     while (cont) {
         switch (confl.getType()) {
             case binary_t:
@@ -540,7 +579,12 @@ template<bool inprocess> void Searcher::add_lits_to_learnt(const PropBy confl, c
                 break;
         }
         if (p == lit_Undef || i > 0) {
-            if (x != lit_Undef) add_lit_to_learnt<inprocess>(x, nDecisionLevel);
+            if (x != lit_Undef) {
+                const Lit x2 = solver->varReplacer->get_lit_replaced_with(x);
+                if (strictly_before_pivot(x2)) {
+                    add_lit_to_learnt<inprocess>(x2, nDecisionLevel);
+                }
+            }
         }
         i++;
     }
@@ -738,9 +782,6 @@ template<bool inprocess> void Searcher::create_learnt_clause(PropBy confl)
         default:
             release_assert(false);
     }
-    // Use the decision level of the first literal of the conflict.
-    // This matches the original CryptoMiniSat behavior and keeps 1-UIP selection consistent
-    // with how antecedents are ordered (especially for XOR reasons).
     uint32_t nDecisionLevel = varData[lit0.var()].level;
 
     // 1st UIP clause generation
@@ -751,36 +792,12 @@ template<bool inprocess> void Searcher::create_learnt_clause(PropBy confl)
 
         // Select next implication to look at
         do {
-            // Find last seen literal on the trail. Compare using canonical representatives
-            // to stay consistent with the literals we add to `seen` during analysis.
-            while (true) {
-                if (index < 0) {
-                    // Fallback: if seen vars got introduced "late" (e.g. by a custom XOR reason),
-                    // they may be positioned after our current scan index. Pick the latest seen var
-                    // at the current decision level to continue 1-UIP analysis instead of crashing.
-                    int best_ti = -1;
-                    for (uint32_t v = 0; v < nVars(); v++) {
-                        if (!seen[v]) continue;
-                        if (varData[v].level < nDecisionLevel) continue;
-                        const int ti = (int)varData[v].sublevel;
-                        if (ti > best_ti && ti >= 0 && (size_t)ti < trail.size()) {
-                            best_ti = ti;
-                        }
-                    }
-                    if (best_ti < 0) {
-                        release_assert(false && "create_learnt_clause: index underflow (no seen on trail)");
-                    }
-                    index = best_ti;
-                }
-                Lit tr_lit = trail[index].lit;
-                if (seen[tr_lit.var()]) break;
-                index--;
-            }
-
+            while (index >= 0 && !seen[trail[index].lit.var()]) index--;
+            release_assert(index >= 0 && "create_learnt_clause underflow (no seen lit on trail)");
             p = trail[index].lit;
             index--;
             assert(p != lit_Undef);
-        } while (varData[p.var()].level < nDecisionLevel);
+        } while (trail[index + 1].lev < nDecisionLevel);
 
         confl = varData[p.var()].reason;
         assert(varData[p.var()].level > 0);
@@ -1624,7 +1641,7 @@ void Searcher::attach_and_enqueue_learnt_clause(Clause *cl, const uint32_t level
         default:
             //Long learnt
             stats.learntLongs++;
-            solver->attachClause(*cl, enq);
+            solver->attachClause(*cl, false);
             if (enq) enqueue<false>(learnt_clause[0], level, PropBy(cl_alloc.get_offset(cl)));
 #if !defined(STATS_NEEDED) && !defined(FINAL_PREDICTOR)
             if (cl->stats.which_red_array == 2)
@@ -2894,6 +2911,32 @@ inline Lit Searcher::pickBranchLit()
 uint32_t Searcher::pick_var_vsids()
 {
     uint32_t v = var_Undef;
+    if (conf.anf_prefer_x_pick && get_real_var_num() > 0) {
+        vector<uint32_t> pulled;
+        pulled.reserve(conf.anf_prefer_x_pick_max_pull);
+        while (pulled.size() < conf.anf_prefer_x_pick_max_pull && !order_heap_vsids.empty()) {
+            uint32_t cand = order_heap_vsids.removeMin();
+            if (value(cand) != l_Undef) {
+                pulled.push_back(cand);
+                continue;
+            }
+            if (varData[cand].removed != Removed::none) {
+                pulled.push_back(cand);
+                continue;
+            }
+            if (is_real_var(cand)) {
+                v = cand;
+                break;
+            }
+            pulled.push_back(cand);
+        }
+        for (uint32_t x: pulled) {
+            if (x == v) continue;
+            if (value(x) != l_Undef) continue;
+            if (varData[x].removed != Removed::none) continue;
+            if (!order_heap_vsids.inHeap(x)) order_heap_vsids.insert(x);
+        }
+    }
     while (v == var_Undef || value(v) != l_Undef) {
         if (order_heap_vsids.empty()) return var_Undef; //Satisfying assignment found.
         v = order_heap_vsids.removeMin();

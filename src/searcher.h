@@ -564,30 +564,6 @@ inline bool Searcher::pick_polarity(const uint32_t var)
     return true;
 }
 
-template<bool inprocess> inline void Searcher::vsids_bump_var_act(const uint32_t var)
-{
-    if (inprocess) return;
-    var_act_vsids[var] += var_inc_vsids;
-    max_vsids_act = std::max(max_vsids_act, var_act_vsids[var]);
-
-#ifdef SLOW_DEBUG
-    bool rescaled = false;
-#endif
-    if (var_act_vsids[var] > 1e100) {
-        SLOW_DEBUG_DO(rescaled = true);
-        for (auto &v: var_act_vsids) v *= 1e-100;
-        max_vsids_act *= 1e-100;
-        var_inc_vsids *= 1e-100;
-    }
-
-    // Update order_heap with respect to new activity
-    if (order_heap_vsids.inHeap(var)) {
-        order_heap_vsids.decrease(var);
-    }
-
-    SLOW_DEBUG_DO(if (rescaled) assert(order_heap_vsids.heap_property()));
-}
-
 template<class T> void Searcher::print_clause(const string &str, const T &cl) const
 {
     cout << "c " << str << " clause: ";

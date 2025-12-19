@@ -145,7 +145,10 @@ static inline void removeWXCl(vec<vec<GaussWatched>> &wsFull, const uint32_t var
     auto &gws = wsFull[var];
     auto i = gws.begin(), end = gws.end();
     for (; i != end && !(i->matrix_num == 1000 && i->row_n == at); i++);
-    assert(i != end);
+    // XOR/Gauss watchlists are cleaned lazily and can contain stale entries.
+    // Removal must therefore be robust (idempotent): if the entry is not found,
+    // just return.
+    if (i == end) return;
     auto j = i;
     i++;
     for (; i != end; j++, i++) *j = *i;

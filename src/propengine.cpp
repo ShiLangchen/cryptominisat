@@ -1423,8 +1423,12 @@ void PropEngine::printWatchList(const Lit lit) const
 void PropEngine::updateVars([[maybe_unused]] const vector<uint32_t> &outer_to_inter,
                             [[maybe_unused]] const vector<uint32_t> &inter_to_outer)
 {
-    //Trail is NOT correct, only its length is correct
-    for (Trail &t: trail) t.lit = lit_Undef;
+    // Renumber trail literals to the new internal variable numbering.
+    for (Trail &t: trail) {
+        if (t.lit != lit_Undef && t.lit.var() < inter_to_outer.size()) {
+            t.lit = getUpdatedLit(t.lit, inter_to_outer);
+        }
+    }
 
     // ANF/XOR auxiliary per-variable structures must be updated during renumbering.
     // `inter_to_outer` maps NEW internal var index -> OLD internal var index, so we can use updateArray().
@@ -1865,22 +1869,26 @@ vector<Lit> *PropEngine::get_xor_reason(
         aux_lits.erase(std::remove(aux_lits.begin(), aux_lits.end(), first), aux_lits.end());
         x.reason_cl.insert(x.reason_cl.end(), aux_lits.begin(), aux_lits.end());
 
-        // Final safety filter: ensure no "future" literals at the pivot decision level appear
-        // in the reason. This is required for 1-UIP analysis to work correctly.
+        // Correctness-first: enforce the CDCL invariant for reasons.
+        // Every antecedent must be strictly earlier than the implied literal at the same decision level.
         if (pivot_level != std::numeric_limits<uint32_t>::max()
             && pivot_sublevel != std::numeric_limits<uint32_t>::max()) {
-            vector<Lit> filtered;
-            filtered.reserve(x.reason_cl.size());
-            filtered.push_back(x.reason_cl[0]);
             for (size_t i = 1; i < x.reason_cl.size(); i++) {
                 const Lit l = x.reason_cl[i];
                 const auto &vd = varData[l.var()];
-                if (vd.level < pivot_level
-                    || (vd.level == pivot_level && vd.sublevel < pivot_sublevel)) {
-                    filtered.push_back(l);
+                const bool ok_ante =
+                    (vd.level < pivot_level)
+                    || (vd.level == pivot_level && vd.sublevel < pivot_sublevel);
+                if (!ok_ante) {
+                    cout << "c [ANF] XOR reason violates pivot ordering: XOR#" << reason.get_row_num()
+                         << " pivot=" << target_lit
+                         << " pivot(level=" << pivot_level << ",sub=" << pivot_sublevel << ")"
+                         << " bad_lit=" << l
+                         << " bad(level=" << vd.level << ",sub=" << vd.sublevel << ")"
+                         << endl;
+                    release_assert(false && "XOR reason contains a future literal w.r.t. pivot");
                 }
             }
-            x.reason_cl.swap(filtered);
         }
     } else {
         x.reason_cl.swap(aux_lits);
