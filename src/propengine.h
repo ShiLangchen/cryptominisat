@@ -348,12 +348,11 @@ class PropEngine : public CNF
 
     bool could_be_watch(const Xor &x, const uint32_t inter_var) const
     {
-        const uint32_t var = x[inter_var];
         if (!is_aux_var(inter_var)) {
-            const uint32_t outer_var = map_inter_to_outer(var);
+            const uint32_t outer_var = map_inter_to_outer(inter_var);
             return x.parity[outer_var] == 1;
         } else {
-            return alias[Lit(var, false).toInt()] == std::nullopt;
+            return alias[Lit(inter_var, false).toInt()] == std::nullopt;
         }
     }
 
