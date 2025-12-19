@@ -619,12 +619,12 @@ void PropEngine::prop_xor_by_my_watch(const Lit p, PropBy &confl)
         const uint32_t at = i->row_n;
         Xor &x = xorclauses[at];
         bool which;
-        if (pv == x[x.my_watched[0]]) {
+        if (pv == x.my_watched[0]) {
             which = 0;
             assert(x.my_watched_enabled[0]);
         } else {
             which = 1;
-            assert(pv == x[x.my_watched[1]]);
+            assert(pv == x.my_watched[1]);
             assert(x.my_watched_enabled[1]);
         }
 
