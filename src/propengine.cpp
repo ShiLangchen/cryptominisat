@@ -1688,6 +1688,9 @@ vector<Lit> *PropEngine::get_xor_reason(const PropBy &reason, int32_t &ID)
         }
         frat_func_end();
         return &x.reason_cl;
+    } else if (reason.get_matrix_num() == 1001) {
+        Xor &x = xorclauses[reason.get_row_num()];
+        return &x.pre_calc_reason;
     } else {
         return gmatrices[reason.get_matrix_num()]->get_reason(reason.get_row_num(), ID);
         frat_func_end();
