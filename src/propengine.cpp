@@ -522,6 +522,7 @@ void PropEngine::prop_after_update_xor_watches(const Lit l, uint32_t at, PropBy 
                     x.prop_confl_my_watch = -1;
                     x.prop_confl_lit = l;
                     x.prop_or_confl = Xor::CONFL;
+                    pre_calc_xor_reason(x);
                     confl = PropBy(1001, at);
                 }
             }
@@ -553,6 +554,7 @@ void PropEngine::prop_after_update_xor_watches(const Lit l, uint32_t at, PropBy 
 
                 x.prop_confl_my_watch = prop_which;
                 x.prop_or_confl = Xor::PROP;
+                pre_calc_xor_reason(x);
                 enqueue<false>(to_propagate, decisionLevel(), PropBy(1001, at));
             }
             // all unassigned (do nothing)
@@ -571,6 +573,7 @@ void PropEngine::prop_after_update_xor_watches(const Lit l, uint32_t at, PropBy 
                     x.prop_confl_my_watch = -1;
                     x.prop_confl_lit = l;
                     x.prop_or_confl = Xor::CONFL;
+                    pre_calc_xor_reason(x);
                     confl = PropBy(1001, at);
                 }
             }
@@ -581,6 +584,7 @@ void PropEngine::prop_after_update_xor_watches(const Lit l, uint32_t at, PropBy 
 
                 x.prop_confl_my_watch = which;
                 x.prop_or_confl = Xor::PROP;
+                pre_calc_xor_reason(x);
                 enqueue<false>(to_propagate, decisionLevel(), PropBy(1001, at));
             }
             break;
@@ -593,6 +597,7 @@ void PropEngine::prop_after_update_xor_watches(const Lit l, uint32_t at, PropBy 
                 x.prop_confl_my_watch = -1;
                 x.prop_confl_lit = l;
                 x.prop_or_confl = Xor::CONFL;
+                pre_calc_xor_reason(x);
                 confl = PropBy(1001, at);
             }
             break;
@@ -631,6 +636,7 @@ void PropEngine::prop_xor_by_my_watch(const Lit p, PropBy &confl)
                 // conflict
                 x.prop_confl_watch = which;
                 x.prop_or_confl = Xor::CONFL;
+                pre_calc_xor_reason(x);
                 confl = PropBy(1001, at);
                 *j++ = *i;
                 i++;
@@ -689,7 +695,8 @@ void PropEngine::prop_xor_by_my_watch(const Lit p, PropBy &confl)
             assert(unknown_at == x.my_watched[!which]);
             x.prop_confl_my_watch = !which;
             x.prop_or_confl = Xor::PROP;
-            enqueue<false>(Lit(x.my_watched[!which], left == (x.rhs ^ x.rhs2)), decisionLevel(), PropBy(1000, at));
+            pre_calc_xor_reason(x);
+            enqueue<false>(Lit(x.my_watched[!which], left == (x.rhs ^ x.rhs2)), decisionLevel(), PropBy(1001, at));
             *j++ = *i;
             goto next;
         }
@@ -698,6 +705,7 @@ void PropEngine::prop_xor_by_my_watch(const Lit p, PropBy &confl)
             /* cout << "conflict because of xor: " << x << endl; */
             x.prop_confl_my_watch = which;
             x.prop_or_confl = Xor::CONFL;
+            pre_calc_xor_reason(x);
             confl = PropBy(1001, at);
             *j++ = *i;
             i++;
@@ -801,9 +809,8 @@ void PropEngine::update_xor_watches(uint32_t at)
     }
 }
 
-void PropEngine::pre_calc_xor_reason(uint32_t at)
+void PropEngine::pre_calc_xor_reason(Xor &x)
 {
-    Xor &x = xorclauses[at];
     x.pre_calc_reason.clear();
 
     auto fetch_key_var = [&]() {
@@ -861,7 +868,7 @@ void PropEngine::pre_calc_xor_reason(uint32_t at)
         }
         for (const auto intv: x.get_vars()) {
             if (!is_aux_var(intv)) continue;
-            if (intv == prop_var) continue;
+            if (intv == confl_var) continue;
             const Lit aux_lit = Lit(intv, false);
             if (!alias[aux_lit.toInt()].has_value()) {
                 assert(value(intv) != l_Undef);
@@ -872,7 +879,7 @@ void PropEngine::pre_calc_xor_reason(uint32_t at)
                 for (const auto &l: eq.get_lits()) {
                     const uint32_t vl = l.var();
                     if (vl == aliased_lit.var()) continue;
-                    if (vl == prop_var) continue;
+                    if (vl == confl_var) continue;
                     assert(value(vl) != l_Undef);
                     x.pre_calc_reason.push_back(Lit(vl, value(vl) == l_True));
                 }

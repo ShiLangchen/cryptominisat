@@ -344,7 +344,7 @@ class PropEngine : public CNF
     void update_xor_watches(uint32_t at);
     void prop_after_update_xor_watches(const Lit l, uint32_t at, PropBy &confl);
     void prop_xor_by_my_watch(const Lit p, PropBy &confl);
-    void pre_calc_xor_reason(uint32_t at);
+    void pre_calc_xor_reason(Xor &x);
 
     bool could_be_watch(const Xor &x, const uint32_t inter_var) const
     {
