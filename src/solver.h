@@ -282,6 +282,7 @@ class Solver : public Searcher
     vector<Xor> get_recovered_xors();
     bool init_all_matrices();
     bool find_and_init_all_matrices();
+    bool gauss_rebuild_due_to_level0_alias = false;
     void detach_clauses_in_xors();
     vector<Lit> tmp_repr;
     bool check_clause_represented_by_xor(const Clause &cl);

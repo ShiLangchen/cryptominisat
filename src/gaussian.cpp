@@ -198,6 +198,26 @@ void EGaussian::fill_matrix()
     assert(solver->prop_at_head());
     var_to_col.clear();
 
+    for (auto &x: xorclauses) {
+        vector<uint32_t> vars;
+        vars.reserve(x.size());
+        for (const uint32_t v: x) {
+            Lit r = solver->resolve_alias_level0_stable(Lit(v, false));
+            vars.push_back(r.var());
+        }
+        std::sort(vars.begin(), vars.end());
+        uint32_t j = 0;
+        for (uint32_t i = 0; i < vars.size(); i++) {
+            if (i + 1 < vars.size() && vars[i] == vars[i + 1]) {
+                i++;
+                continue;
+            }
+            vars[j++] = vars[i];
+        }
+        vars.resize(j);
+        x.vars = std::move(vars);
+    }
+
     // decide which variable in matrix column and the number of rows
     select_columnorder();
     num_rows = xorclauses.size();

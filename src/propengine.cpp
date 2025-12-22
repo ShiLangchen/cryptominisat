@@ -84,6 +84,21 @@ Lit PropEngine::resolve_alias_current(Lit lit) const
     return a.repr;
 }
 
+Lit PropEngine::resolve_alias_level0_stable(Lit lit) const
+{
+    const int lit_int = lit.toInt();
+    if (lit_int < 0 || static_cast<size_t>(lit_int) >= alias.size()) return lit;
+    const AliasEntry &a = alias[lit_int];
+    if (!a.has) return lit;
+    if (a.level != 0) return lit;
+    if (a.repr.sign()) return lit;
+    for (const Lit &c : a.conditions) {
+        if (varData[c.var()].level != 0) return lit;
+        if (value(c) != l_True) return lit;
+    }
+    return a.repr;
+}
+
 //#define DEBUG_ENQUEUE_LEVEL0
 //#define VERBOSE_DEBUG_POLARITIES
 //#define DEBUG_DYNAMIC_RESTART
@@ -755,6 +770,7 @@ void PropEngine::eq_elim(const Lit p)
                     if (alias[aux_lit_int].has) {
                         update_xor_active_vars_for_var(alias[aux_lit_int].repr.var());
                     }
+                    if (cur_lvl == 0) solver->gauss_rebuild_due_to_level0_alias = true;
                 }
             }
         } else {
@@ -807,6 +823,7 @@ void PropEngine::eq_elim(const Lit p)
                 if (alias[aux_lit_int].has) {
                     update_xor_active_vars_for_var(alias[aux_lit_int].repr.var());
                 }
+                if (cur_lvl == 0) solver->gauss_rebuild_due_to_level0_alias = true;
             }
         }
         return;
@@ -832,6 +849,7 @@ void PropEngine::eq_elim(const Lit p)
             if (old_alias.has) {
                 update_xor_active_vars_for_var(old_alias.repr.var());
             }
+            if (decisionLevel() == 0) solver->gauss_rebuild_due_to_level0_alias = true;
         }
         return;
     }

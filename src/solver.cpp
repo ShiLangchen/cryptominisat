@@ -2929,7 +2929,7 @@ void Solver::renumber_xors_to_outside(const vector<Xor> &xors, vector<Xor> &xors
 bool Solver::find_and_init_all_matrices()
 {
     frat_func_start();
-    if (!xorclauses_updated) {
+    if (!xorclauses_updated && !gauss_rebuild_due_to_level0_alias) {
         if (conf.verbosity >= 2) {
             cout << "c [find&init matx] XORs not updated-> not performing matrix init. Matrices: " << gmatrices.size()
                  << endl;
@@ -2958,6 +2958,7 @@ bool Solver::find_and_init_all_matrices()
 #endif
 
     xorclauses_updated = false;
+    gauss_rebuild_due_to_level0_alias = false;
     frat_func_end();
     return true;
 }

@@ -221,6 +221,7 @@ class PropEngine : public CNF
         , uint32_t pivot_sublevel = std::numeric_limits<uint32_t>::max()
     );
     Lit resolve_alias_current(Lit lit) const;
+    Lit resolve_alias_level0_stable(Lit lit) const;
 
     /////////////////////
     // Branching
