@@ -522,8 +522,8 @@ void PropEngine::prop_after_update_xor_watches(const Lit l, uint32_t at, PropBy 
                     x.prop_confl_my_watch = -1;
                     x.prop_confl_lit = l;
                     x.prop_or_confl = Xor::CONFL;
-                    pre_calc_xor_reason(x);
                     confl = PropBy(1001, at);
+                    pre_calc_xor_reason(x);
                 }
             }
             // one assigned, one unassigned (propagate)
@@ -554,8 +554,8 @@ void PropEngine::prop_after_update_xor_watches(const Lit l, uint32_t at, PropBy 
 
                 x.prop_confl_my_watch = prop_which;
                 x.prop_or_confl = Xor::PROP;
-                pre_calc_xor_reason(x);
                 enqueue<false>(to_propagate, decisionLevel(), PropBy(1001, at));
+                pre_calc_xor_reason(x);
             }
             // all unassigned (do nothing)
             else {
@@ -573,8 +573,8 @@ void PropEngine::prop_after_update_xor_watches(const Lit l, uint32_t at, PropBy 
                     x.prop_confl_my_watch = -1;
                     x.prop_confl_lit = l;
                     x.prop_or_confl = Xor::CONFL;
-                    pre_calc_xor_reason(x);
                     confl = PropBy(1001, at);
+                    pre_calc_xor_reason(x);
                 }
             }
             // unassigned (propagate)
@@ -584,8 +584,8 @@ void PropEngine::prop_after_update_xor_watches(const Lit l, uint32_t at, PropBy 
 
                 x.prop_confl_my_watch = which;
                 x.prop_or_confl = Xor::PROP;
-                pre_calc_xor_reason(x);
                 enqueue<false>(to_propagate, decisionLevel(), PropBy(1001, at));
+                pre_calc_xor_reason(x);
             }
             break;
         }
@@ -597,8 +597,8 @@ void PropEngine::prop_after_update_xor_watches(const Lit l, uint32_t at, PropBy 
                 x.prop_confl_my_watch = -1;
                 x.prop_confl_lit = l;
                 x.prop_or_confl = Xor::CONFL;
-                pre_calc_xor_reason(x);
                 confl = PropBy(1001, at);
+                pre_calc_xor_reason(x);
             }
             break;
         }
@@ -636,8 +636,8 @@ void PropEngine::prop_xor_by_my_watch(const Lit p, PropBy &confl)
                 // conflict
                 x.prop_confl_watch = which;
                 x.prop_or_confl = Xor::CONFL;
-                pre_calc_xor_reason(x);
                 confl = PropBy(1001, at);
+                pre_calc_xor_reason(x);
                 *j++ = *i;
                 i++;
                 break;
@@ -695,8 +695,8 @@ void PropEngine::prop_xor_by_my_watch(const Lit p, PropBy &confl)
             assert(unknown_at == x.my_watched[!which]);
             x.prop_confl_my_watch = !which;
             x.prop_or_confl = Xor::PROP;
-            pre_calc_xor_reason(x);
             enqueue<false>(Lit(x.my_watched[!which], left == (x.rhs ^ x.rhs2)), decisionLevel(), PropBy(1001, at));
+            pre_calc_xor_reason(x);
             *j++ = *i;
             goto next;
         }
@@ -705,8 +705,8 @@ void PropEngine::prop_xor_by_my_watch(const Lit p, PropBy &confl)
             /* cout << "conflict because of xor: " << x << endl; */
             x.prop_confl_my_watch = which;
             x.prop_or_confl = Xor::CONFL;
-            pre_calc_xor_reason(x);
             confl = PropBy(1001, at);
+            pre_calc_xor_reason(x);
             *j++ = *i;
             i++;
             break;

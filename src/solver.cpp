@@ -1486,10 +1486,10 @@ lbool Solver::iterate_until_solved()
 
         const uint64_t num_confl = calc_num_confl_to_do_this_iter(iteration_num);
         if (num_confl == 0) break;
-        if (!find_and_init_all_matrices()) {
-            status = l_False;
-            goto end;
-        }
+        // if (!find_and_init_all_matrices()) {
+        //     status = l_False;
+        //     goto end;
+        // }
         status = solve(num_confl);
 
         //Check for effectiveness
