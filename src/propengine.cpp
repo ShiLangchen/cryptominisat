@@ -1313,7 +1313,7 @@ template<bool inprocess, bool red_also, bool distill_use> PropBy PropEngine::pro
         VERBOSE_PRINT("prop went through watchlist of " << p);
 
         if (!distill_use && confl.isnullptr()) {
-            vector<uint32_t> changed_xors;
+            vector<uint32_t> changed_xors(xorclauses.size());
             eq_elim(p, changed_xors);
             for (size_t it = 0; it < changed_xors.size() && confl.isnullptr(); it++) {
                 if (changed_xors[it] == 0) continue;

@@ -3024,7 +3024,7 @@ template<bool do_insert_var_order, bool inprocess> void Searcher::cancelUntil(ui
                 if (do_insert_var_order) insert_var_order(var);
             }
         }
-        vector<uint32_t> changed_xors;
+        vector<uint32_t> changed_xors(xorclauses.size());
         while (trail.size() > j) {
             const Lit lit = trail.back().lit;
             eq_elim(lit, changed_xors);
