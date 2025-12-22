@@ -1229,14 +1229,14 @@ lbool Searcher::search()
             check_need_gauss_jordan_disable();
         } else {
             assert(ok);
-            if (decisionLevel() == 0) {
-                SLOW_DEBUG_DO(for (const auto &bnn : bnns) if (bnn) assert(solver->check_bnn_sane(*bnn)););
-                if (!clean_clauses_if_needed()) {
-                    assert(!frat->enabled() || unsat_cl_ID != 0);
-                    search_ret = l_False;
-                    goto end;
-                }
-            }
+            // if (decisionLevel() == 0) {
+            //     SLOW_DEBUG_DO(for (const auto &bnn : bnns) if (bnn) assert(solver->check_bnn_sane(*bnn)););
+            //     if (!clean_clauses_if_needed()) {
+            //         assert(!frat->enabled() || unsat_cl_ID != 0);
+            //         search_ret = l_False;
+            //         goto end;
+            //     }
+            // }
             reduce_db_if_needed();
             lbool dec_ret;
             if (fast_backw.fast_backw_on) dec_ret = new_decision_fast_backw();
