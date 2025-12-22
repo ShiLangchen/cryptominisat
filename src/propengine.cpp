@@ -349,12 +349,14 @@ void PropEngine::eq_elim(const Lit p, vector<uint32_t> &changed_xors)
                 }
 
                 const Lit other = eq[eq.watched[!which]];
-                if (value(other) == l_Undef) {
+
+                bool is_aliased = (eq[eq.watched[which]] == alias[aux.toInt()].value_or(lit_Undef));
+                if (is_aliased) {
+                    if (value(other) != l_True) {
+                        set_alias(aux, std::nullopt, changed_xors);
+                    }
+                } else {
                     set_alias(aux, std::nullopt, changed_xors);
-                } else { // value(other) != l_Undef
-                    // if (value(aux) == l_Undef && value(other) == l_True) {
-                    //     set_alias(aux, eq[eq.watched[which]], changed_xors);
-                    // }
                 }
             }
         } else {
@@ -401,7 +403,6 @@ void PropEngine::eq_elim(const Lit p, vector<uint32_t> &changed_xors)
 
         const Lit the_other_watched = eq[eq.watched[!which]];
         const Lit aux_lit = eq.get_aux_lit();
-        const int aux_lit_int = aux_lit.toInt();
 
         if (value(eq[eq.watched[which]]) == l_False) {
             // set_alias(aux_lit, std::nullopt, changed_xors);
