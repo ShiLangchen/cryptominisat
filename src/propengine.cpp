@@ -741,12 +741,12 @@ void PropEngine::update_xor_watches(uint32_t at)
         ws.pop();
     };
 
-    std::function<bool(uint32_t &)> update_xor_watch = [&](uint32_t &wrong_watched_var) {
+    std::function<bool(uint32_t &, uint32_t)> update_xor_watch = [&](uint32_t &wrong_watched_var, uint32_t lock) {
         std::optional<uint32_t> assigned_var = std::nullopt;
 
         for (uint32_t outv = 0; outv < real_var_num; outv++) {
             const auto intv = solver->map_outer_to_inter(outv);
-            if (intv == x.my_watched[1] || intv == x.my_watched[0]) continue;
+            if (intv == lock) continue;
             if (could_be_watch(x, intv)) {
                 if (value(intv) == l_Undef) {
                     const auto old_watched = wrong_watched_var;
@@ -765,7 +765,7 @@ void PropEngine::update_xor_watches(uint32_t at)
             }
         }
         for (const auto intv: x.get_vars()) {
-            if (intv == x.my_watched[1] || intv == x.my_watched[0]) continue;
+            if (intv == lock) continue;
             if (!is_aux_var(intv)) continue;
             if (could_be_watch(x, intv)) {
                 if (value(intv) == l_Undef) {
@@ -793,21 +793,17 @@ void PropEngine::update_xor_watches(uint32_t at)
             my_gwatches[assigned_var.value()].push(GaussWatched::plain_xor(at));
 
             goto SUCCESS_FIND;
+        } else {
+            const auto old_watched = wrong_watched_var;
+            delete_old_watch(old_watched);
         }
         return false;
     SUCCESS_FIND:
         return true;
     };
 
-    if (!could_be_watch(x, x.my_watched[0]) || !x.my_watched_enabled[0]) {
-        bool success = update_xor_watch(x.my_watched[0]);
-        x.my_watched_enabled[0] = success;
-    }
-
-    if (!could_be_watch(x, x.my_watched[1]) || !x.my_watched_enabled[1]) {
-        bool success = update_xor_watch(x.my_watched[1]);
-        x.my_watched_enabled[1] = success;
-    }
+    x.my_watched_enabled[0] = update_xor_watch(x.my_watched[0], var_Undef);
+    x.my_watched_enabled[1] = update_xor_watch(x.my_watched[1], x.my_watched[0]);
 }
 
 void PropEngine::pre_calc_xor_reason(Xor &x)
