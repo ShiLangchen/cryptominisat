@@ -133,7 +133,7 @@ template<bool binfrat = false> class FratFile : public Frat
     void set_sqlstats_ptr(SQLStats *_sqlStats) override { sqlStats = _sqlStats; }
     void setFile(FILE *_file) override { drup_file = _file; }
     bool something_delayed() override { return delete_filled; }
-    bool enabled() override { return true; }
+    bool enabled() override { return false; }
 
     Frat &operator<<(const int32_t clauseID) override
     {
