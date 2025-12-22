@@ -2916,25 +2916,25 @@ uint32_t Searcher::pick_var_vsids()
         pulled.reserve(conf.anf_prefer_x_pick_max_pull);
         while (pulled.size() < conf.anf_prefer_x_pick_max_pull && !order_heap_vsids.empty()) {
             uint32_t cand = order_heap_vsids.removeMin();
-            if (value(cand) != l_Undef) {
-                pulled.push_back(cand);
-                continue;
-            }
-            if (varData[cand].removed != Removed::none) {
-                pulled.push_back(cand);
-                continue;
-            }
-            if (is_real_var(cand)) {
-                v = cand;
-                break;
-            }
+            if (value(cand) != l_Undef) continue;
+            if (varData[cand].removed != Removed::none) continue;
             pulled.push_back(cand);
         }
-        for (uint32_t x: pulled) {
-            if (x == v) continue;
-            if (value(x) != l_Undef) continue;
-            if (varData[x].removed != Removed::none) continue;
-            if (!order_heap_vsids.inHeap(x)) order_heap_vsids.insert(x);
+        if (!pulled.empty()) {
+            v = pulled[0];
+            double best = var_act_vsids[v] + (is_real_var(v) ? conf.anf_x_vsids_add : conf.anf_y_vsids_add);
+            for (uint32_t cand: pulled) {
+                double score = var_act_vsids[cand] + (is_real_var(cand) ? conf.anf_x_vsids_add : conf.anf_y_vsids_add);
+                if (score > best) {
+                    best = score;
+                    v = cand;
+                }
+            }
+            for (uint32_t x: pulled) {
+                if (x == v) continue;
+                if (!order_heap_vsids.inHeap(x)) order_heap_vsids.insert(x);
+            }
+            return v;
         }
     }
     while (v == var_Undef || value(v) != l_Undef) {

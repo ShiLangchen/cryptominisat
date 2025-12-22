@@ -1112,12 +1112,16 @@ bool Solver::check_xor_clause_satisfied_model(const Xor &x) const
     bool rhs = false;
     for (const auto &v: x) {
         if (model_value(v) == l_Undef) {
-            cout << "ERROR: variable " << v + 1 << " in xorclauses: " << x << " is UNDEF!" << endl;
+            if (conf.verbosity >= 2) {
+                cout << "ERROR: variable " << v + 1 << " in xorclauses: " << x << " is UNDEF!" << endl;
+            }
             good = false;
         } else rhs ^= model_value(v) == l_True;
     }
     if (rhs != x.rhs) {
-        cout << "ERROR XOR in xorclauses not satisfied: " << x << endl;
+        if (conf.verbosity >= 2) {
+            cout << "ERROR XOR in xorclauses not satisfied: " << x << endl;
+        }
         good = false;
     }
 
@@ -1142,9 +1146,6 @@ void Solver::extend_solution(const bool only_sampling_solution)
 #endif
 
     const double my_time = cpuTime();
-    // Convert internal-indexed model to outer-indexed model.
-    // NOTE: Using updateArrayRev(model, inter_to_outerMain) assumes perfect inverse mappings.
-    // In ANF mode we introduce many variables and do swaps; this conversion must be robust.
     {
         vector<lbool> model_outer;
         model_outer.resize(nVarsOuter(), l_Undef);
@@ -1517,9 +1518,6 @@ lbool Solver::iterate_until_solved()
         }
         status = solve(num_confl);
 
-        // ANF/XOR safety: if the solver reported SAT but the produced model violates XOR clauses,
-        // the XOR subsystem (watches/propagation/aliasing) did not fully enforce them.
-        // In that case, block the current assignment of ORIGINAL variables and continue searching.
         if (status == l_True && !xorclauses.empty()) {
             bool xor_ok = true;
             for (const auto &x : xorclauses) {
@@ -1535,22 +1533,19 @@ lbool Solver::iterate_until_solved()
                          << "Blocking model and continuing search." << endl;
                 }
 
-                // Build blocking clause over ORIGINAL variables only (0..real_var_num-1).
-                // Clause is false only under the current assignment of these vars.
                 vector<Lit> block_outer;
                 block_outer.reserve(real_var_num);
-                for (uint32_t v = 0; v < real_var_num; v++) {
-                    const lbool mv = model_value(v);
+                const uint32_t lim = std::min<uint32_t>(real_var_num, outer_to_interMain.size());
+                for (uint32_t outer = 0; outer < lim; outer++) {
+                    const uint32_t inter = outer_to_interMain[outer];
+                    if (inter >= model.size()) continue;
+                    const lbool mv = model[inter];
                     if (mv == l_Undef) continue;
-                    const bool sign = (mv == l_True); // true -> add ¬x, false -> add x
-                    const uint32_t ov = map_inter_to_outer(v);
-                    block_outer.push_back(Lit(ov, sign));
+                    block_outer.push_back(Lit(outer, mv == l_True));
                 }
 
-                // Add as an irredundant clause at level 0.
                 (void)add_clause_outside(block_outer, false, false);
 
-                // Continue search
                 status = l_Undef;
             }
         }
