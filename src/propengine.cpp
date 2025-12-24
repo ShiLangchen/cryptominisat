@@ -645,7 +645,6 @@ void PropEngine::prop_xor_by_my_watch(const Lit p, PropBy &confl)
             } else {
                 //satisfied
                 *j++ = *i;
-                i++;
                 continue;
             }
         }
@@ -741,69 +740,72 @@ void PropEngine::update_xor_watches(uint32_t at)
         ws.pop();
     };
 
-    std::function<bool(uint32_t &, uint32_t)> update_xor_watch = [&](uint32_t &wrong_watched_var, uint32_t lock) {
-        std::optional<uint32_t> assigned_var = std::nullopt;
+    std::function<bool(uint32_t &, uint32_t, bool)> update_xor_watch =
+            [&](uint32_t &wrong_watched_var, uint32_t lock, bool is_enabled) {
+                std::optional<uint32_t> assigned_var = std::nullopt;
 
-        for (uint32_t outv = 0; outv < real_var_num; outv++) {
-            const auto intv = solver->map_outer_to_inter(outv);
-            if (intv == lock) continue;
-            if (could_be_watch(x, intv)) {
-                if (value(intv) == l_Undef) {
-                    const auto old_watched = wrong_watched_var;
-                    delete_old_watch(old_watched);
+                for (uint32_t outv = 0; outv < real_var_num; outv++) {
+                    const auto intv = solver->map_outer_to_inter(outv);
+                    if (intv == lock) continue;
+                    if (could_be_watch(x, intv)) {
+                        if (value(intv) == l_Undef) {
+                            const auto old_watched = wrong_watched_var;
+                            if (is_enabled) delete_old_watch(old_watched);
 
-                    wrong_watched_var = intv;
-                    my_gwatches[intv].push(GaussWatched::plain_xor(at));
-                    goto SUCCESS_FIND;
-                } else {
-                    if (!assigned_var.has_value()) {
-                        assigned_var = intv;
-                    } else if (varData[intv].sublevel > varData[assigned_var.value()].sublevel) {
-                        assigned_var = intv;
+                            wrong_watched_var = intv;
+                            my_gwatches[intv].push(GaussWatched::plain_xor(at));
+                            goto SUCCESS_FIND;
+                        } else {
+                            if (!assigned_var.has_value()) {
+                                assigned_var = intv;
+                            } else if (varData[intv].sublevel > varData[assigned_var.value()].sublevel) {
+                                assigned_var = intv;
+                            }
+                        }
                     }
                 }
-            }
-        }
-        for (const auto intv: x.get_vars()) {
-            if (intv == lock) continue;
-            if (!is_aux_var(intv)) continue;
-            if (could_be_watch(x, intv)) {
-                if (value(intv) == l_Undef) {
-                    const auto old_watched = wrong_watched_var;
-                    delete_old_watch(old_watched);
+                for (const auto intv: x.get_vars()) {
+                    if (intv == lock) continue;
+                    if (!is_aux_var(intv)) continue;
+                    if (could_be_watch(x, intv)) {
+                        if (value(intv) == l_Undef) {
+                            const auto old_watched = wrong_watched_var;
+                            if (is_enabled) delete_old_watch(old_watched);
 
-                    wrong_watched_var = intv;
-                    my_gwatches[intv].push(GaussWatched::plain_xor(at));
+                            wrong_watched_var = intv;
+                            my_gwatches[intv].push(GaussWatched::plain_xor(at));
+
+                            goto SUCCESS_FIND;
+                        } else {
+                            if (!assigned_var.has_value()) {
+                                assigned_var = intv;
+                            } else if (varData[intv].sublevel > varData[assigned_var.value()].sublevel) {
+                                assigned_var = intv;
+                            }
+                        }
+                    }
+                }
+                if (assigned_var.has_value()) {
+                    const auto old_watched = wrong_watched_var;
+                    if (is_enabled) delete_old_watch(old_watched);
+
+                    wrong_watched_var = assigned_var.value();
+                    my_gwatches[wrong_watched_var].push(GaussWatched::plain_xor(at));
 
                     goto SUCCESS_FIND;
                 } else {
-                    if (!assigned_var.has_value()) {
-                        assigned_var = intv;
-                    } else if (varData[intv].sublevel > varData[assigned_var.value()].sublevel) {
-                        assigned_var = intv;
-                    }
+                    const auto old_watched = wrong_watched_var;
+                    if (is_enabled) delete_old_watch(old_watched);
                 }
-            }
-        }
-        if (assigned_var.has_value()) {
-            const auto old_watched = wrong_watched_var;
-            delete_old_watch(old_watched);
+                return false;
+            SUCCESS_FIND:
+                return true;
+            };
 
-            wrong_watched_var = assigned_var.value();
-            my_gwatches[assigned_var.value()].push(GaussWatched::plain_xor(at));
-
-            goto SUCCESS_FIND;
-        } else {
-            const auto old_watched = wrong_watched_var;
-            delete_old_watch(old_watched);
-        }
-        return false;
-    SUCCESS_FIND:
-        return true;
-    };
-
-    x.my_watched_enabled[0] = update_xor_watch(x.my_watched[0], var_Undef);
-    x.my_watched_enabled[1] = update_xor_watch(x.my_watched[1], x.my_watched[0]);
+    x.my_watched_enabled[0] = update_xor_watch(x.my_watched[0], var_Undef, x.my_watched_enabled[0]);
+    x.my_watched_enabled[1] = update_xor_watch(x.my_watched[1],
+                                               x.my_watched_enabled[0] ? x.my_watched[0] : var_Undef,
+                                               x.my_watched_enabled[1]);
 }
 
 void PropEngine::pre_calc_xor_reason(Xor &x)
