@@ -54,6 +54,7 @@ THE SOFTWARE.
 #include "str_impl_w_impl.h"
 #include "subsumeimplicit.h"
 #include "sls.h"
+#include <cctype>
 #ifdef USE_VALGRIND
     #include "valgrind/valgrind.h"
     #include "valgrind/memcheck.h"
@@ -543,15 +544,6 @@ template<bool inprocess> void Searcher::add_lits_to_learnt(const PropBy confl, c
     size_t i = 0;
     bool cont = true;
     Lit x = lit_Undef;
-    const uint32_t pivot_level = (p == lit_Undef) ? std::numeric_limits<uint32_t>::max() : varData[p.var()].level;
-    const uint32_t pivot_sub = (p == lit_Undef) ? std::numeric_limits<uint32_t>::max() : varData[p.var()].sublevel;
-    auto strictly_before_pivot = [&](const Lit l) {
-        if (p == lit_Undef) return true;
-        const auto &vd = varData[l.var()];
-        if (vd.level < pivot_level) return true;
-        if (vd.level == pivot_level && vd.sublevel < pivot_sub) return true;
-        return false;
-    };
     while (cont) {
         switch (confl.getType()) {
             case binary_t:
@@ -581,9 +573,7 @@ template<bool inprocess> void Searcher::add_lits_to_learnt(const PropBy confl, c
         if (p == lit_Undef || i > 0) {
             if (x != lit_Undef) {
                 const Lit x2 = solver->varReplacer->get_lit_replaced_with(x);
-                if (strictly_before_pivot(x2)) {
-                    add_lit_to_learnt<inprocess>(x2, nDecisionLevel);
-                }
+                add_lit_to_learnt<inprocess>(x2, nDecisionLevel);
             }
         }
         i++;
@@ -2436,6 +2426,7 @@ bool Searcher::must_abort(const lbool status)
 
 void Searcher::setup_polarity_strategy()
 {
+    apply_init_phase_bits();
     if (sumConflicts < polarity_strategy_change) return;
     polarity_strategy_change = sumConflicts + 5000;
     polarity_strategy_change *= 1.01;
@@ -2475,6 +2466,44 @@ void Searcher::setup_polarity_strategy()
 
              << endl;
     }
+}
+
+void Searcher::apply_init_phase_bits()
+{
+    if (init_phase_applied) return;
+    if (conf.init_phase_bits.empty()) return;
+    std::string bits;
+    bits.reserve(conf.init_phase_bits.size());
+    bool skipped_prefix = false;
+    for (size_t i = 0; i < conf.init_phase_bits.size(); i++) {
+        const char c = conf.init_phase_bits[i];
+        if (!skipped_prefix && i + 1 < conf.init_phase_bits.size() && c == '0' && (conf.init_phase_bits[i + 1] == 'b' || conf.init_phase_bits[i + 1] == 'B')) {
+            i++;
+            skipped_prefix = true;
+            continue;
+        }
+        if (c == '0' || c == '1') bits.push_back(c);
+        else if (c == '_') continue;
+        else if (std::isspace(static_cast<unsigned char>(c))) continue;
+        else {
+            if (conf.verbosity) {
+                cout << "c [initphasebits] invalid character in --initphasebits" << endl;
+            }
+            return;
+        }
+    }
+    if (bits.empty()) return;
+    const size_t max_outer = bits.size();
+    for (uint32_t v = 0; v < nVars(); v++) {
+        const uint32_t out_v = map_inter_to_outer(v);
+        if (static_cast<size_t>(out_v) >= max_outer) continue;
+        const bool pol = bits[out_v] == '1';
+        varData[v].saved_polarity = pol;
+        varData[v].stable_polarity = pol;
+        varData[v].best_polarity = pol;
+        varData[v].inv_polarity = !pol;
+    }
+    init_phase_applied = true;
 }
 
 void Searcher::sls_if_needed()

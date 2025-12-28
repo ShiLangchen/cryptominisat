@@ -404,6 +404,8 @@ class DLL_PUBLIC SolverConf
     double anf_y_vsids_add;
     bool anf_prefer_x_pick;
     uint32_t anf_prefer_x_pick_max_pull;
+    bool anf_add_eq;
+    std::string init_phase_bits;
 
     //Cardinality
     int doFindCard;

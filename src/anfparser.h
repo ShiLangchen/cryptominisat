@@ -31,7 +31,7 @@ using std::unique_ptr;
 template<class C, class S> class AnfParser
 {
   public:
-    AnfParser(S *solver, unsigned _verbosity);
+    AnfParser(S *solver, unsigned _verbosity, bool anf_add_eq);
 
     bool parse_ANF(const string &file_name, const bool strict_header, uint32_t offset_vars = 0);
     uint64_t max_var = numeric_limits<uint64_t>::max();
@@ -55,6 +55,7 @@ template<class C, class S> class AnfParser
 
     S *solver;
     unsigned verbosity;
+    bool anf_add_eq;
 
     //Stat
     size_t line_num = 1;
@@ -79,7 +80,7 @@ template<class C, class S> class AnfParser
 
 
 template<class C, class S>
-AnfParser<C, S>::AnfParser(S *_solver, unsigned _verbosity) : solver(_solver), verbosity(_verbosity)
+AnfParser<C, S>::AnfParser(S *_solver, unsigned _verbosity, bool _anf_add_eq) : solver(_solver), verbosity(_verbosity), anf_add_eq(_anf_add_eq)
 {
 }
 
@@ -249,9 +250,10 @@ ARRANGE_IMPLICATIONS:
         norm_clauses_added++;
         solver->add_clause(cls);
 
-        // add equivalence
-        eq_clauses_added++;
-        solver->add_eq_clause(mono, aux_lit);
+        if (anf_add_eq) {
+            eq_clauses_added++;
+            solver->add_eq_clause(mono, aux_lit);
+        }
         mono_idx++;
     }
 

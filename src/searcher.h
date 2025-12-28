@@ -196,6 +196,8 @@ class Searcher : public HyperEngine
     void update_polarities_on_backtrack(const uint32_t btlevel);
     uint32_t polarity_strategy_at = 0;
     uint32_t polarity_strategy_change = 0;
+    bool init_phase_applied = false;
+    void apply_init_phase_bits();
 
     //Stats
     SearchStats stats;

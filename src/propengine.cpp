@@ -285,16 +285,6 @@ void PropEngine::update_xor_active_vars_for_var(uint32_t var)
 
 void PropEngine::mark_xor_dirty_for_var(uint32_t var)
 {
-    // Mark XOR clauses that contain this variable (watch or occur) as dirty
-    if (var < gwatches.size()) {
-        for (const GaussWatched &w : gwatches[var]) {
-            if (w.matrix_num == 1000) {
-                uint32_t at = w.row_n;
-                if (at < xor_active_gen.size()) xor_active_gen[at] = 0;
-            }
-        }
-    }
-
     if (var < xor_occurs_by_var.size()) {
         for (uint32_t at : xor_occurs_by_var[var]) {
             if (at < xor_active_gen.size()) xor_active_gen[at] = 0;
@@ -696,6 +686,7 @@ void PropEngine::eq_elim(const Lit p)
     const uint32_t pv = p.var();
     const uint32_t cur_lvl = decisionLevel();
     const uint32_t cur_sub = trail.size();
+    if (eq_clauses.empty()) return;
 
     auto collect_conditions = [&](const Eq& eq) {
         vector<Lit> conds;
@@ -774,8 +765,10 @@ void PropEngine::eq_elim(const Lit p)
                 }
             }
         } else {
-            auto &eq = eq_clauses[aux_to_eid[pv]];
-            assert(eq.get_eid() == aux_to_eid[pv]);
+            auto it = aux_to_eid.find(pv);
+            if (it == aux_to_eid.end()) return;
+            auto &eq = eq_clauses[it->second];
+            assert(eq.get_eid() == it->second);
             const int aux_lit_int = eq.get_aux_lit().toInt();
             AliasEntry old_alias = alias[aux_lit_int];
 
@@ -830,14 +823,16 @@ void PropEngine::eq_elim(const Lit p)
     }
 
     if (is_aux_var(pv)) {
-        const auto &eq = eq_clauses[aux_to_eid[pv]];
+        auto it = aux_to_eid.find(pv);
+        if (it == aux_to_eid.end()) return;
+        const auto &eq = eq_clauses[it->second];
         const int aux_lit_int = eq.get_aux_lit().toInt();
         AliasEntry old_alias = alias[aux_lit_int];
         alias[aux_lit_int] = AliasEntry();
         // ANF-Elim: If alias changed, update XOR clauses
         if (alias[aux_lit_int] != old_alias) {
 #ifdef DEBUG_ANF_PROP
-            cout << "[ANF-PROP] Alias changed for aux var " << pv + 1 << " (Eq clause #" << aux_to_eid[pv] << "): ";
+            cout << "[ANF-PROP] Alias changed for aux var " << pv + 1 << " (Eq clause #" << it->second << "): ";
             if (old_alias.has) {
                 cout << old_alias.repr;
             } else {

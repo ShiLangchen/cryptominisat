@@ -256,6 +256,8 @@ DLL_PUBLIC SolverConf::SolverConf()
     , anf_y_vsids_add(0.0)
     , anf_prefer_x_pick(false)
     , anf_prefer_x_pick_max_pull(32)
+    , anf_add_eq(false)
+    , init_phase_bits("")
 
     //Cardinality
     , doFindCard(0)

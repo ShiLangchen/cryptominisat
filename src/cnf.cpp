@@ -230,7 +230,7 @@ void CNF::update_vars(const vector<uint32_t> &outer_to_inter,
 {
     updateArray(varData, inter_to_outer);
     updateArray(assigns, inter_to_outer);
-    updateArray(alias, inter_to_outer);
+    updateArray(alias, inter_to_outer2);
 
     updateArray(unit_cl_IDs, inter_to_outer);
     updateArray(unit_cl_XIDs, inter_to_outer);

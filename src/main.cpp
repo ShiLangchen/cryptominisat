@@ -130,7 +130,7 @@ void Main::readInAANFFile(SATSolver* solver2, const string& filename)
 {
     if (conf.verbosity) cout << "c Reading ANF file '" << filename << "'" << endl;
     gzFile in = gzopen(filename.c_str(), "rb");
-    AnfParser<StreamBuffer<gzFile, GZ>, SATSolver> parser(solver2, conf.verbosity);
+    AnfParser<StreamBuffer<gzFile, GZ>, SATSolver> parser(solver2, conf.verbosity, conf.anf_add_eq);
     if (in == nullptr) {
         std::cerr << "ERROR! Could not open file '" << filename << "' for reading: " << strerror(errno) << endl;
         std::exit(1);
@@ -315,6 +315,16 @@ void Main::add_supported_options() {
         .action([&](const auto& a) {conf.anf_prefer_x_pick_max_pull = std::atoi(a.c_str());})
         .default_value(conf.anf_prefer_x_pick_max_pull)
         .help("Max number of VSIDS candidates to pull when --anfpreferxpick is enabled");
+
+    program.add_argument("--anfaddeq")
+        .action([&](const auto& a) {conf.anf_add_eq = std::atoi(a.c_str()) != 0;})
+        .default_value(conf.anf_add_eq)
+        .help("Add extra Eq constraints for ANF monomials (alias system). Default is off because Tseitin CNF is already added.");
+
+    program.add_argument("--initphasebits")
+        .action([&](const auto& a) {conf.init_phase_bits = a;})
+        .default_value(conf.init_phase_bits)
+        .help("Initial phase (polarity) hints as a 0/1 bitstring for outer variables 1..N. Bit '1' means prefer True, '0' means prefer False.");
 
     #ifdef STATS_NEEDED
     program.add_argument("--clid")
