@@ -810,7 +810,7 @@ void PropEngine::update_xor_watches(uint32_t at)
 
 void PropEngine::pre_calc_xor_reason(Xor &x)
 {
-    x.pre_calc_reason.clear();
+    vector<Lit> reason;
 
     auto fetch_key_var = [&]() {
         if (x.prop_confl_my_watch == -1) return x.prop_confl_lit.var();
@@ -822,13 +822,13 @@ void PropEngine::pre_calc_xor_reason(Xor &x)
         assert(value(prop_var) != l_Undef);
         const Lit prop = Lit(prop_var, value(prop_var) == l_False);
         assert(value(prop) == l_True);
-        x.pre_calc_reason.push_back(prop);
+        reason.push_back(prop);
 
         for (uint32_t outv = 0; outv < real_var_num; outv++) {
             const auto intv = solver->map_outer_to_inter(outv);
             if (could_be_watch(x, intv) && intv != prop_var) {
                 assert(value(intv) != l_Undef);
-                x.pre_calc_reason.push_back(Lit(intv, value(intv) == l_True));
+                reason.push_back(Lit(intv, value(intv) == l_True));
             }
         }
         for (const auto intv: x.get_vars()) {
@@ -837,7 +837,7 @@ void PropEngine::pre_calc_xor_reason(Xor &x)
             const Lit aux_lit = Lit(intv, false);
             if (!alias[aux_lit.toInt()].has_value()) {
                 assert(value(intv) != l_Undef);
-                x.pre_calc_reason.push_back(Lit(intv, value(intv) == l_True));
+                reason.push_back(Lit(intv, value(intv) == l_True));
             } else {
                 const Lit aliased_lit = alias[aux_lit.toInt()].value();
                 Eq &eq = eq_clauses[aux_to_eid[intv]];
@@ -846,7 +846,7 @@ void PropEngine::pre_calc_xor_reason(Xor &x)
                     if (vl == aliased_lit.var()) continue;
                     if (vl == prop_var) continue;
                     assert(value(vl) != l_Undef);
-                    x.pre_calc_reason.push_back(Lit(vl, value(vl) == l_True));
+                    reason.push_back(Lit(vl, value(vl) == l_True));
                 }
             }
         }
@@ -856,13 +856,13 @@ void PropEngine::pre_calc_xor_reason(Xor &x)
         uint32_t confl_var = fetch_key_var();
         assert(value(confl_var) != l_Undef);
         const Lit confl = Lit(confl_var, value(confl_var) == l_True);
-        x.pre_calc_reason.push_back(confl);
+        reason.push_back(confl);
 
         for (uint32_t outv = 0; outv < real_var_num; outv++) {
             const auto intv = solver->map_outer_to_inter(outv);
             if (could_be_watch(x, intv) && intv != confl_var) {
                 assert(value(intv) != l_Undef);
-                x.pre_calc_reason.push_back(Lit(intv, value(intv) == l_True));
+                reason.push_back(Lit(intv, value(intv) == l_True));
             }
         }
         for (const auto intv: x.get_vars()) {
@@ -871,7 +871,7 @@ void PropEngine::pre_calc_xor_reason(Xor &x)
             const Lit aux_lit = Lit(intv, false);
             if (!alias[aux_lit.toInt()].has_value()) {
                 assert(value(intv) != l_Undef);
-                x.pre_calc_reason.push_back(Lit(intv, value(intv) == l_True));
+                reason.push_back(Lit(intv, value(intv) == l_True));
             } else {
                 const Lit aliased_lit = alias[aux_lit.toInt()].value();
                 Eq &eq = eq_clauses[aux_to_eid[intv]];
@@ -880,11 +880,26 @@ void PropEngine::pre_calc_xor_reason(Xor &x)
                     if (vl == aliased_lit.var()) continue;
                     if (vl == confl_var) continue;
                     assert(value(vl) != l_Undef);
-                    x.pre_calc_reason.push_back(Lit(vl, value(vl) == l_True));
+                    reason.push_back(Lit(vl, value(vl) == l_True));
                 }
             }
         }
     }
+
+    // rearrange the clause
+    uint32_t var0 = reason[0].var();
+    std::sort(reason.begin(), reason.end());
+    reason.erase(std::unique(reason.begin(), reason.end()), reason.end());
+    // make sure the first literal is the key one
+    for (Lit &l: reason) {
+        if (l.var() == var0) {
+            std::swap(l, reason[0]);
+            break;
+        }
+    }
+
+    x.last_pre_calc_reason = reason;
+    if (x.prop_or_confl == Xor::PROP) x.pre_calc_reasons[var0] = reason;
 }
 
 lbool PropEngine::bnn_prop(const uint32_t bnn_idx, uint32_t level, Lit /*l*/, BNNPropType prop_t)
@@ -1629,7 +1644,7 @@ void PropEngine::vmtf_bump_queue(const uint32_t var)
 }
 
 
-vector<Lit> *PropEngine::get_xor_reason(const PropBy &reason, int32_t &ID)
+vector<Lit> *PropEngine::get_xor_reason(const PropBy &reason, int32_t &ID, uint32_t key_var)
 {
     frat_func_start();
     if (reason.get_matrix_num() == 1000) {
@@ -1689,7 +1704,11 @@ vector<Lit> *PropEngine::get_xor_reason(const PropBy &reason, int32_t &ID)
         return &x.reason_cl;
     } else if (reason.get_matrix_num() == 1001) {
         Xor &x = xorclauses[reason.get_row_num()];
-        return &x.pre_calc_reason;
+        if (key_var == var_Undef) {
+            return &x.last_pre_calc_reason;
+        } else {
+            return &x.pre_calc_reasons[key_var];
+        }
     } else {
         return gmatrices[reason.get_matrix_num()]->get_reason(reason.get_row_num(), ID);
         frat_func_end();

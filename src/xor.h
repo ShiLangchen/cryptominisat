@@ -26,6 +26,7 @@ THE SOFTWARE.
 
 #include <cstdint>
 #include <limits>
+#include <unordered_map>
 #include <vector>
 #include <set>
 #include <iostream>
@@ -99,7 +100,8 @@ class Xor
     static constexpr bool PROP = false;
     static constexpr bool CONFL = true;
     bool prop_or_confl = false; // false:prop, true:confl
-    vector<Lit> pre_calc_reason;
+    vector<Lit> last_pre_calc_reason;
+    std::unordered_map<uint32_t, vector<Lit>> pre_calc_reasons;
 
     uint32_t in_matrix = 1000;
     int32_t xid = 0;

@@ -34,6 +34,7 @@ THE SOFTWARE.
 #include "constants.h"
 #include "frat.h"
 #include "propby.h"
+#include "solvertypesmini.h"
 #include "vmtf.h"
 
 #include "avgcalc.h"
@@ -213,7 +214,7 @@ class PropEngine : public CNF
     template<bool inprocess> void enqueue(const Lit p);
     void enqueue_light(const Lit p);
     void new_decision_level();
-    vector<Lit> *get_xor_reason(const PropBy &reason, int32_t &ID);
+    vector<Lit> *get_xor_reason(const PropBy &reason, int32_t &ID, uint32_t key_var);
 
     /////////////////////
     // Branching
@@ -546,7 +547,7 @@ void PropEngine::enqueue(const Lit p, const uint32_t level, const PropBy from, b
 
             if (from.getType() == PropByType::xor_t) {
                 int32_t tmp_ID;
-                get_xor_reason(from, tmp_ID);
+                get_xor_reason(from, tmp_ID, var_Undef);
             }
 
             *frat << add << id << p << fin;
