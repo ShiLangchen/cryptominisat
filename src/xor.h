@@ -93,7 +93,7 @@ class Xor
     uint32_t watched[2] = {0, 0};
 
     uint32_t my_watched[2] = {0, 0};
-    bool my_watched_enabled[2] = {true, true};
+    bool my_watched_enabled[2] = {false, false};
     int8_t prop_confl_my_watch = -1;
     Lit prop_confl_lit;
 

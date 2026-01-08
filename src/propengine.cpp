@@ -141,6 +141,8 @@ void PropEngine::attach_xor_clause(uint32_t at)
     my_gwatches[x[1]].push(w);
     x.my_watched[0] = x[0];
     x.my_watched[1] = x[1];
+    x.my_watched_enabled[0] = true;
+    x.my_watched_enabled[1] = true;
 
     x.parity.resize(real_var_num);
     for (const uint32_t inv: x.get_vars()) {
@@ -724,7 +726,6 @@ void PropEngine::prop_xor_by_my_watch(const Lit p, PropBy &confl)
 void PropEngine::update_xor_watches(uint32_t at)
 {
     Xor &x = xorclauses[at];
-
     auto delete_old_watch = [&](uint32_t wrong_watched_var) {
         //delete old watch
         vec<GaussWatched> &ws = my_gwatches[wrong_watched_var];
