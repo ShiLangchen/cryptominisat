@@ -64,6 +64,7 @@ class Main : public MainCommon
     void parse_restart_type();
     void parse_polarity_type();
     void parse_sampling_vars();
+    void parse_static_var_order();
     void check_num_threads_sanity(const unsigned thread_num) const;
     argparse::ArgumentParser program =
             argparse::ArgumentParser("cryptominisat", SATSolver::get_version_sha1(), argparse::default_arguments::help);

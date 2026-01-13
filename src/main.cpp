@@ -31,6 +31,7 @@ THE SOFTWARE.
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <unordered_set>
 #include <sys/stat.h>
 #include <cstring>
 #include <thread>
@@ -325,6 +326,19 @@ void Main::add_supported_options() {
         .action([&](const auto& a) {conf.init_phase_bits = a;})
         .default_value(conf.init_phase_bits)
         .help("Initial phase (polarity) hints as a 0/1 bitstring for outer variables 1..N. Bit '1' means prefer True, '0' means prefer False.");
+
+    program.add_argument("--staticorder")
+        .flag()
+        .action([&](const auto&) {conf.static_var_order = true;})
+        .help("Use a static decision variable order (no VSIDS/VMTF). If no list/file is given, defaults to lexicographic order.");
+    program.add_argument("--staticorderlist")
+        .action([&](const auto& a) {conf.static_var_order_list = a; conf.static_var_order = true;})
+        .default_value(conf.static_var_order_list)
+        .help("Comma-separated list of outer variable IDs (1-based) to prioritize in decisions. Remaining vars follow lexicographic order.");
+    program.add_argument("--staticorderfile")
+        .action([&](const auto& a) {conf.static_var_order_file = a; conf.static_var_order = true;})
+        .default_value(conf.static_var_order_file)
+        .help("File containing outer variable IDs (1-based), separated by whitespace/commas, for static decision order. Remaining vars follow lexicographic order.");
 
     #ifdef STATS_NEEDED
     program.add_argument("--clid")
@@ -1152,6 +1166,39 @@ void Main::parse_sampling_vars()
     solver->set_sampl_vars(sampl_vars);
 }
 
+void Main::parse_static_var_order()
+{
+    conf.static_var_order_outer.clear();
+    if (!conf.static_var_order && conf.static_var_order_list.empty() && conf.static_var_order_file.empty()) return;
+    conf.static_var_order = true;
+    std::string data;
+    if (!conf.static_var_order_file.empty()) {
+        std::ifstream f(conf.static_var_order_file);
+        if (!f) {
+            cerr << "ERROR: couldn't open file '" << conf.static_var_order_file << "' for reading static var order" << endl;
+            exit(-1);
+        }
+        std::ostringstream ss;
+        ss << f.rdbuf();
+        data = ss.str();
+    }
+    if (!conf.static_var_order_list.empty()) {
+        if (!data.empty()) data.push_back(' ');
+        data += conf.static_var_order_list;
+    }
+    std::stringstream ss(data);
+    std::unordered_set<uint32_t> seen;
+    for (int64_t i; ss >> i;) {
+        if (i <= 0) {
+            cerr << "ERROR: static order variables must be positive (i.e. larger than 0)" << endl;
+            exit(-1);
+        }
+        uint32_t v = (uint32_t)(i - 1);
+        if (seen.insert(v).second) conf.static_var_order_outer.push_back(v);
+        if (ss.peek() == ',') ss.ignore();
+    }
+}
+
 void Main::manually_parse_some_options()
 {
     #ifndef USE_BREAKID
@@ -1212,6 +1259,7 @@ void Main::manually_parse_some_options()
 
     parse_polarity_type();
     parse_restart_type();
+    parse_static_var_order();
 
     try {
         auto files = program.get<std::vector<std::string>>("files");

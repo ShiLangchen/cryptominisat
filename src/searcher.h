@@ -30,6 +30,7 @@ THE SOFTWARE.
 #include "searchstats.h"
 #include "searchhist.h"
 #include <random>
+#include <unordered_map>
 
 #ifdef CMS_TESTING_ENABLED
     #include "gtest/gtest_prod.h"
@@ -169,6 +170,9 @@ class Searcher : public HyperEngine
     template<bool inprocess> lbool new_decision();
     Lit pickBranchLit();
     uint32_t pick_var_vsids();
+    uint32_t pick_var_static();
+    void rebuildOrderHeapStatic(vector<uint32_t> &vs);
+    void rebuildStaticVarRanks();
     void vsids_decay_var_act();
     template<bool inprocess> void vsids_bump_var_act(const uint32_t v);
     double backup_random_var_freq = -1; ///<if restart has full random var branch, we save old value here
@@ -188,6 +192,16 @@ class Searcher : public HyperEngine
     uint32_t branch_strategy_num = 0;
     void bump_var_importance(const uint32_t var);
     void bump_var_importance_all(const uint32_t var);
+    uint64_t static_order_base = 0;
+    std::unordered_map<uint32_t, uint32_t> static_outer_pos_map;
+    vector<uint64_t> static_var_rank;
+    struct StaticVarOrderLt
+    {
+        const vector<uint64_t> &rank;
+        bool operator()(const uint32_t x, const uint32_t y) const { return rank[x] < rank[y]; }
+        explicit StaticVarOrderLt(const vector<uint64_t> &_rank) : rank(_rank) {}
+    };
+    Heap<StaticVarOrderLt> order_heap_static;
 
     /////////////////
     // Polarities
@@ -450,6 +464,11 @@ inline void Searcher::insert_var_order(const uint32_t var, const branch type)
     SLOW_DEBUG_DO(
             assert(varData[var].removed == Removed::none && "All variables should be decision vars unless removed"));
 
+    if (conf.static_var_order) {
+        if (!order_heap_static.inHeap(var)) order_heap_static.insert(var);
+        return;
+    }
+
     switch (type) {
         case branch::vsids:
             if (!order_heap_vsids.inHeap(var)) order_heap_vsids.insert(var);
@@ -476,6 +495,14 @@ inline void Searcher::insert_var_order(const uint32_t var, const branch type)
 
 inline void Searcher::insert_var_order_all(const uint32_t x)
 {
+    if (conf.static_var_order) {
+        assert(!order_heap_static.inHeap(x));
+        SLOW_DEBUG_DO(
+                assert(varData[x].removed == Removed::none && "All variables should be decision vars unless removed"));
+        order_heap_static.insert(x);
+        return;
+    }
+
     assert(!order_heap_vsids.inHeap(x));
     SLOW_DEBUG_DO(
             assert(varData[x].removed == Removed::none && "All variables should be decision vars unless removed"));

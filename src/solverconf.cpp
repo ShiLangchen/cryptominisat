@@ -139,6 +139,10 @@ DLL_PUBLIC SolverConf::SolverConf()
 
     //branch strategy
     , branch_strategy_setup("vmtf+vsids")
+    , static_var_order(false)
+    , static_var_order_list("")
+    , static_var_order_file("")
+    , static_var_order_outer()
 
     //Clause minimisation
     , doRecursiveMinim(true)

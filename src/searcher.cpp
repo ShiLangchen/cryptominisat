@@ -71,9 +71,20 @@ using std::endl;
 @brief Sets a sane default config and allocates handler classes
 */
 Searcher::Searcher(const SolverConf *_conf, Solver *_solver, std::atomic<bool> *_must_interrupt_inter)
-    : HyperEngine(_conf, _solver, _must_interrupt_inter), solver(_solver), cla_inc(1)
+    : HyperEngine(_conf, _solver, _must_interrupt_inter)
+    , order_heap_static(Searcher::StaticVarOrderLt(static_var_rank))
+    , solver(_solver)
+    , cla_inc(1)
 {
     var_inc_vsids = 1;
+    if (conf.static_var_order) {
+        static_order_base = conf.static_var_order_outer.size();
+        static_outer_pos_map.clear();
+        for (uint32_t i = 0; i < conf.static_var_order_outer.size(); i++) {
+            const uint32_t outer = conf.static_var_order_outer[i];
+            if (static_outer_pos_map.find(outer) == static_outer_pos_map.end()) static_outer_pos_map.emplace(outer, i);
+        }
+    }
 
     more_red_minim_limit_binary_actual = conf.more_red_minim_limit_binary;
     hist.setSize(conf.shortTermHistorySize, conf.blocking_restart_trail_hist_length);
@@ -98,6 +109,15 @@ void Searcher::new_var(const bool bva, const uint32_t orig_outer, bool insert_va
 {
     PropEngine::new_var(bva, orig_outer, insert_varorder);
 
+    if (conf.static_var_order) {
+        static_var_rank.emplace_back(0);
+        const uint32_t v = (uint32_t)nVars() - 1;
+        const uint32_t outer = map_inter_to_outer(v);
+        auto it = static_outer_pos_map.find(outer);
+        if (it != static_outer_pos_map.end()) static_var_rank[v] = it->second;
+        else static_var_rank[v] = static_order_base + outer;
+    }
+
     if (insert_varorder) {
         insert_var_order_all((int)nVars() - 1);
 #ifdef STATS_NEEDED_BRANCH
@@ -109,6 +129,17 @@ void Searcher::new_var(const bool bva, const uint32_t orig_outer, bool insert_va
 void Searcher::new_vars(size_t n)
 {
     PropEngine::new_vars(n);
+
+    if (conf.static_var_order) {
+        static_var_rank.insert(static_var_rank.end(), n, 0);
+        const uint32_t start = (uint32_t)nVars() - (uint32_t)n;
+        for (uint32_t v = start; v < nVars(); v++) {
+            const uint32_t outer = map_inter_to_outer(v);
+            auto it = static_outer_pos_map.find(outer);
+            if (it != static_outer_pos_map.end()) static_var_rank[v] = it->second;
+            else static_var_rank[v] = static_order_base + outer;
+        }
+    }
 
     for (int i = n - 1; i >= 0; i--) {
         insert_var_order_all((int)nVars() - i - 1);
@@ -148,6 +179,10 @@ void Searcher::updateVars([[maybe_unused]] const vector<uint32_t> &outer_to_inte
     updateArray(var_act_vsids, inter_to_outer);
     updateArray(vmtf_btab, inter_to_outer);
     updateArray(vmtf_links, inter_to_outer);
+    if (conf.static_var_order) {
+        updateArray(static_var_rank, inter_to_outer);
+        order_heap_static.clear();
+    }
 
     auto upd = [&](uint32_t v) {
         if (v != numeric_limits<uint32_t>::max()) v = inter_to_outer[v];
@@ -208,17 +243,17 @@ template<bool inprocess> inline void Searcher::add_lit_to_learnt(const Lit lit, 
         }
 #endif
 
-        switch (branch_strategy) {
-            case branch::vsids:
-                vsids_bump_var_act<inprocess>(var);
-                break;
-
-            case branch::rand:
-                break;
-
-            case branch::vmtf:
-                implied_by_learnts.push_back(var);
-                break;
+        if (!conf.static_var_order) {
+            switch (branch_strategy) {
+                case branch::vsids:
+                    vsids_bump_var_act<inprocess>(var);
+                    break;
+                case branch::rand:
+                    break;
+                case branch::vmtf:
+                    implied_by_learnts.push_back(var);
+                    break;
+            }
         }
     }
 
@@ -2017,7 +2052,7 @@ bool Searcher::handle_conflict(PropBy confl)
         attach_and_enqueue_learnt_clause<false>(cl, backtrack_level, false, ID);
     }
 
-    if (branch_strategy == branch::vsids) vsids_decay_var_act();
+    if (!conf.static_var_order && branch_strategy == branch::vsids) vsids_decay_var_act();
     decayClauseAct<false>();
     frat_func_end();
     return true;
@@ -2257,6 +2292,11 @@ void Searcher::rebuildOrderHeap()
     for (uint32_t v = 0; v < nVars(); v++) {
         if (varData[v].removed != Removed::none || (value(v) != l_Undef && varData[v].level == 0)) continue;
         else vs.push_back(v);
+    }
+
+    if (conf.static_var_order) {
+        rebuildOrderHeapStatic(vs);
+        return;
     }
 
     VERBOSE_PRINT("c [branch] Rebuilding VSDIS order heap");
@@ -2614,6 +2654,7 @@ lbool Searcher::solve(const uint64_t _max_confls)
 {
     assert(ok);
     assert(qhead == trail.size());
+    init_phase_applied = false;
     max_confl_per_search_solve_call = _max_confls;
     if (fast_backw.fast_backw_on && fast_backw.cur_max_confl == 0) {
         fast_backw.cur_max_confl = sumConflicts + fast_backw.max_confl;
@@ -2896,28 +2937,32 @@ inline Lit Searcher::pickBranchLit()
 
     uint32_t v = var_Undef;
     while (true) {
-        switch (branch_strategy) {
-            case branch::vsids:
-                v = pick_var_vsids();
-                break;
-            case branch::vmtf:
-                v = vmtf_pick_var();
-                break;
-            case branch::rand: {
-                v = order_heap_rand.get_random_element(mtrand);
-                while (v != var_Undef && value(v) != l_Undef) {
+        if (conf.static_var_order) {
+            v = pick_var_static();
+        } else {
+            switch (branch_strategy) {
+                case branch::vsids:
+                    v = pick_var_vsids();
+                    break;
+                case branch::vmtf:
+                    v = vmtf_pick_var();
+                    break;
+                case branch::rand: {
                     v = order_heap_rand.get_random_element(mtrand);
+                    while (v != var_Undef && value(v) != l_Undef) {
+                        v = order_heap_rand.get_random_element(mtrand);
+                    }
+                    break;
                 }
-                break;
-            }
-            default: {
-                release_assert(false);
-                break;
+                default: {
+                    release_assert(false);
+                    break;
+                }
             }
         }
         if (v == var_Undef) break;
         if (varData[v].removed == Removed::replaced) {
-            vmtf_dequeue(v);
+            if (!conf.static_var_order) vmtf_dequeue(v);
             continue;
         }
         assert(varData[v].removed == Removed::none);
@@ -2935,6 +2980,42 @@ inline Lit Searcher::pickBranchLit()
     VERBOSE_PRINT("Picked decision var: " << next);
 
     return next;
+}
+
+void Searcher::rebuildStaticVarRanks()
+{
+    static_order_base = conf.static_var_order_outer.size();
+    if (!conf.static_var_order_outer.empty() && static_outer_pos_map.empty()) {
+        for (uint32_t i = 0; i < conf.static_var_order_outer.size(); i++) {
+            const uint32_t outer = conf.static_var_order_outer[i];
+            if (static_outer_pos_map.find(outer) == static_outer_pos_map.end()) static_outer_pos_map.emplace(outer, i);
+        }
+    }
+    static_var_rank.clear();
+    static_var_rank.resize(nVars(), 0);
+    for (uint32_t v = 0; v < nVars(); v++) {
+        const uint32_t outer = map_inter_to_outer(v);
+        auto it = static_outer_pos_map.find(outer);
+        if (it != static_outer_pos_map.end()) static_var_rank[v] = it->second;
+        else static_var_rank[v] = static_order_base + outer;
+    }
+}
+
+void Searcher::rebuildOrderHeapStatic(vector<uint32_t> &vs)
+{
+    rebuildStaticVarRanks();
+    order_heap_static.build(vs);
+}
+
+uint32_t Searcher::pick_var_static()
+{
+    if (order_heap_static.empty() && nVars() > 0) rebuildOrderHeap();
+    uint32_t v = var_Undef;
+    while (v == var_Undef || value(v) != l_Undef) {
+        if (order_heap_static.empty()) return var_Undef;
+        v = order_heap_static.removeMin();
+    }
+    return v;
 }
 
 uint32_t Searcher::pick_var_vsids()
@@ -3651,12 +3732,14 @@ void Searcher::check_assumptions_sanity()
 
 void Searcher::bump_var_importance_all(const uint32_t var)
 {
+    if (conf.static_var_order) return;
     vsids_bump_var_act<false>(var);
     vmtf_bump_queue(var);
 }
 
 void Searcher::bump_var_importance(const uint32_t var)
 {
+    if (conf.static_var_order) return;
     switch (branch_strategy) {
         case branch::vsids:
             vsids_bump_var_act<false>(var);

@@ -31,7 +31,8 @@ using std::unique_ptr;
 template<class C, class S> class AnfParser
 {
   public:
-    AnfParser(S *solver, unsigned _verbosity, bool anf_add_eq);
+    AnfParser(S *solver, unsigned _verbosity);
+    AnfParser(S *solver, unsigned _verbosity, bool _add_eq);
 
     bool parse_ANF(const string &file_name, const bool strict_header, uint32_t offset_vars = 0);
     uint64_t max_var = numeric_limits<uint64_t>::max();
@@ -55,7 +56,7 @@ template<class C, class S> class AnfParser
 
     S *solver;
     unsigned verbosity;
-    bool anf_add_eq;
+    bool add_eq = false;
 
     //Stat
     size_t line_num = 1;
@@ -80,7 +81,15 @@ template<class C, class S> class AnfParser
 
 
 template<class C, class S>
-AnfParser<C, S>::AnfParser(S *_solver, unsigned _verbosity, bool _anf_add_eq) : solver(_solver), verbosity(_verbosity), anf_add_eq(_anf_add_eq)
+AnfParser<C, S>::AnfParser(S *_solver, unsigned _verbosity) : solver(_solver), verbosity(_verbosity)
+{
+}
+
+template<class C, class S>
+AnfParser<C, S>::AnfParser(S *_solver, unsigned _verbosity, bool _add_eq)
+    : solver(_solver)
+    , verbosity(_verbosity)
+    , add_eq(_add_eq)
 {
 }
 
@@ -199,14 +208,8 @@ ARRANGE_IMPLICATIONS:
     }
     assert(std::is_sorted(monos_vec.begin(), monos_vec.end()));
 
-    // Ensure original variables exist according to header
-    const uint32_t real_vars = num_header_vars + offset_vars;
-    if (solver->nVars() < real_vars) {
-        solver->new_vars(real_vars - solver->nVars());
-    }
-    solver->set_real_var_num(real_vars);
-
     auto auxiliary_var_start = solver->nVars();
+    solver->set_real_var_num(auxiliary_var_start);
 
     if (verbosity >= 2) {
         cout << "c [ANF] Found " << monos_vec.size() << " unique product terms (monomials)" << endl;
@@ -250,7 +253,7 @@ ARRANGE_IMPLICATIONS:
         norm_clauses_added++;
         solver->add_clause(cls);
 
-        if (anf_add_eq) {
+        if (add_eq) {
             eq_clauses_added++;
             solver->add_eq_clause(mono, aux_lit);
         }
@@ -471,22 +474,7 @@ template<class C, class S> bool AnfParser<C, S>::parse_and_add_anf_clause(C &in)
         cout << endl;
     }
     
-    // for (const auto &mono: poly) {
-    for (auto mono: poly) {
-        // Normalize: sort, dedup, drop tautological monomials (x & ~x == 0)
-        std::sort(mono.begin(), mono.end());
-        mono.erase(std::unique(mono.begin(), mono.end()), mono.end());
-        bool tautology = false;
-        for (size_t i = 1; i < mono.size(); i++) {
-            if (mono[i].var() == mono[i-1].var() && mono[i].sign() != mono[i-1].sign()) {
-                tautology = true; // x & ~x -> 0, ignore this monomial
-                break;
-            }
-        }
-        if (tautology) {
-            continue;
-        }
-        
+    for (const auto &mono: poly) {
         switch (mono.size()) {
             case 0: {
                 with_unit_mono = !with_unit_mono;
@@ -497,9 +485,10 @@ template<class C, class S> bool AnfParser<C, S>::parse_and_add_anf_clause(C &in)
                 break;
             }
             default: {
-                // find auxiliary variable for this monomial
-                auto iter = std::lower_bound(monos_vec.begin(), monos_vec.end(), mono);
-                assert(iter != monos_vec.end() && (*iter) == mono);
+                vector<Lit> mono_sorted = mono;
+                std::sort(mono_sorted.begin(), mono_sorted.end());
+                auto iter = std::lower_bound(monos_vec.begin(), monos_vec.end(), mono_sorted);
+                assert(iter != monos_vec.end() && (*iter) == mono_sorted);
 
                 size_t index = std::distance(monos_vec.begin(), iter);
                 Lit aux_lit = Lit(solver->nVars() - monos_vec.size() + index, false);
@@ -634,10 +623,9 @@ bool AnfParser<C, S>::parse_ANF(const string &file_name, const bool _strict_head
         cout << "c Normal CNF clauses added: " << norm_clauses_added << endl;
         cout << "c XOR clauses added: " << xor_clauses_added << endl;
         cout << "c Equivalence clauses added: " << eq_clauses_added << endl;
-        const uint32_t aux_vars = monos_vec.size();
         cout << "c Total variables added: " << (solver->nVars() - origNumVars) << endl;
-        cout << "c   - Original variables: " << solver->get_real_var_num() << endl;
-        cout << "c   - Auxiliary variables: " << aux_vars << endl;
+        cout << "c   - Original variables: " << origNumVars << endl;
+        cout << "c   - Auxiliary variables: " << monos_vec.size() << endl;
         cout << "c   - Total variables: " << solver->nVars() << endl;
         
         if (verbosity >= 2) {

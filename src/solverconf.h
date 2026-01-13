@@ -287,6 +287,10 @@ class DLL_PUBLIC SolverConf
 
     //Branch strategy
     string branch_strategy_setup;
+    bool static_var_order;
+    std::string static_var_order_list;
+    std::string static_var_order_file;
+    std::vector<uint32_t> static_var_order_outer;
 
     //Clause minimisation
     int doRecursiveMinim;

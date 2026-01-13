@@ -1109,16 +1109,47 @@ bool Solver::check_xor_clause_satisfied_model(const Xor &x) const
 {
     bool good = true;
 
-    bool rhs = false;
+    auto get_mv = [&](const uint32_t inter_v) -> lbool {
+        if (model.size() == nVarsOuter()) {
+            const uint32_t outer = map_inter_to_outer(inter_v);
+            if (outer < model.size()) return model[outer];
+            return l_Undef;
+        }
+        if (inter_v < model.size()) return model[inter_v];
+        return l_Undef;
+    };
+
+    bool rhs = x.rhs;
+    vector<uint32_t> vars;
+    vars.reserve(x.size());
     for (const auto &v: x) {
-        if (model_value(v) == l_Undef) {
+        Lit r = varReplacer->get_lit_replaced_with(Lit(v, false));
+        rhs ^= r.sign();
+        vars.push_back(r.var());
+    }
+    std::sort(vars.begin(), vars.end());
+    vector<uint32_t> uniq;
+    uniq.reserve(vars.size());
+    for (size_t i = 0; i < vars.size();) {
+        size_t j = i + 1;
+        while (j < vars.size() && vars[j] == vars[i]) j++;
+        if (((j - i) & 1U) == 1U) uniq.push_back(vars[i]);
+        i = j;
+    }
+
+    bool lhs = false;
+    for (const auto &v: uniq) {
+        const lbool mv = get_mv(v);
+        if (mv == l_Undef) {
             if (conf.verbosity >= 2) {
                 cout << "ERROR: variable " << v + 1 << " in xorclauses: " << x << " is UNDEF!" << endl;
             }
             good = false;
-        } else rhs ^= model_value(v) == l_True;
+        } else {
+            lhs ^= mv == l_True;
+        }
     }
-    if (rhs != x.rhs) {
+    if (lhs != rhs) {
         if (conf.verbosity >= 2) {
             cout << "ERROR XOR in xorclauses not satisfied: " << x << endl;
         }
@@ -1146,6 +1177,11 @@ void Solver::extend_solution(const bool only_sampling_solution)
 #endif
 
     const double my_time = cpuTime();
+    for (uint32_t v = 0; v < nVars() && v < model.size(); v++) {
+        if (varData[v].removed == Removed::none && model[v] == l_Undef) {
+            model[v] = l_False;
+        }
+    }
     {
         vector<lbool> model_outer;
         model_outer.resize(nVarsOuter(), l_Undef);
@@ -1518,12 +1554,23 @@ lbool Solver::iterate_until_solved()
         }
         status = solve(num_confl);
 
-        if (status == l_True && !xorclauses.empty()) {
+        if (status == l_True && (!xorclauses.empty() || !gmatrices.empty())) {
             bool xor_ok = true;
             for (const auto &x : xorclauses) {
                 if (!check_xor_clause_satisfied_model(x)) {
                     xor_ok = false;
                     break;
+                }
+            }
+            if (xor_ok) {
+                for (const auto &gj : gmatrices) {
+                    for (const auto &x : gj->xorclauses) {
+                        if (!check_xor_clause_satisfied_model(x)) {
+                            xor_ok = false;
+                            break;
+                        }
+                    }
+                    if (!xor_ok) break;
                 }
             }
 
@@ -1534,8 +1581,8 @@ lbool Solver::iterate_until_solved()
                 }
 
                 vector<Lit> block_outer;
-                block_outer.reserve(real_var_num);
-                const uint32_t lim = std::min<uint32_t>(real_var_num, outer_to_interMain.size());
+                block_outer.reserve(nVarsOuter());
+                const uint32_t lim = std::min<uint32_t>(nVarsOuter(), outer_to_interMain.size());
                 for (uint32_t outer = 0; outer < lim; outer++) {
                     const uint32_t inter = outer_to_interMain[outer];
                     if (inter >= model.size()) continue;
@@ -1545,6 +1592,10 @@ lbool Solver::iterate_until_solved()
                 }
 
                 (void)add_clause_outside(block_outer, false, false);
+                if (!okay()) {
+                    status = l_False;
+                    break;
+                }
 
                 status = l_Undef;
             }
